@@ -1,7 +1,28 @@
 {
   "name": "bloodstream",
   "version": "1.0.0",
-  "description": "Interactive visualisation of blood circulation and oxygen transport",
+  "private": true,
+  "description": "Interactive 3D visualisation of blood circulation and oxygen transport, with a validated physiology simulation",
+  "license": "MIT",
+  "type": "module",
+  "homepage": "https://kimsey0.github.io/bloodstream/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kimsey0/bloodstream.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kimsey0/bloodstream/issues"
+  },
+  "keywords": [
+    "physiology",
+    "circulation",
+    "hemoglobin",
+    "oxygen",
+    "three.js",
+    "webgl",
+    "simulation",
+    "education"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
@@ -10,19 +31,12 @@
     "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json --threshold error",
     "artifact": "ARTIFACT=1 vite build && node scripts/artifact.mjs"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kimsey0/bloodstream.git"
-  },
-  "homepage": "https://github.com/kimsey0/bloodstream#readme",
   "devDependencies": {
     "@types/node": "^26.6.3",
     "typescript": "^5.9.3",
     "vite": "^8.3.1",
     "vitest": "^5.0.3"
   },
-  "private": true,
-  "type": "module",
   "dependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/three": "^0.186.0",
