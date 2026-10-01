@@ -55,12 +55,16 @@ export class CardiacWaveform {
     return (2 * this.amplitude * s) / Math.PI + DIASTOLIC_FLOW * (phase - s);
   }
 
-  /** Mean of w over the time interval [t0, t1]. */
+  /** Mean of w over the time interval [t0, t1] (beats counted from t = 0). */
   meanOver(t0: number, t1: number): number {
-    if (t1 <= t0) return this.w(this.phase(t0));
-    const c0 = Math.floor(t0 / this.period) + this.cumulative(this.phase(t0));
-    const c1 = Math.floor(t1 / this.period) + this.cumulative(this.phase(t1));
-    return ((c1 - c0) * this.period) / (t1 - t0);
+    return this.meanOverBeats(t0 / this.period, (t1 - t0) / this.period);
+  }
+
+  /** Mean of w from beat count b0 over db beats (b counts beats; its fractional part is the phase). */
+  meanOverBeats(b0: number, db: number): number {
+    const at = (b: number) => Math.floor(b) + this.cumulative(b - Math.floor(b));
+    if (db <= 0) return this.w(b0 - Math.floor(b0));
+    return (at(b0 + db) - at(b0)) / db;
   }
 }
 

@@ -67,3 +67,21 @@ describe('activity levels', () => {
     expect(max.circ.meanRbcCirculationTime).toBeLessThan(16);
   });
 });
+
+describe('switching activity during a simulation', () => {
+  it('keeps every cell and settles to the new circulation rate', async () => {
+    const { Simulation } = await import('../src/sim/simulation');
+    const sim = new Simulation({ cellCount: 2000, seed: 21 });
+    for (let i = 0; i < 200; i++) sim.step(0.05);
+    sim.setState(max.circ, max.ss, max.a.heartRate);
+    const lv = sim.circulation.root.index;
+    let entries = 0;
+    sim.addListener((e) => {
+      if (e.to === lv) entries++;
+    });
+    for (let i = 0; i < 300 / 0.02; i++) sim.step(0.02);
+    const meanLap = (sim.count * 300) / entries;
+    expect(Math.abs(meanLap / max.circ.meanRbcCirculationTime - 1)).toBeLessThan(0.08);
+    for (let c = 0; c < sim.count; c++) expect(sim.saturation(c)).toBeGreaterThanOrEqual(0);
+  });
+});

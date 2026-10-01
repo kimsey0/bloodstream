@@ -72,8 +72,10 @@ export class Simulation {
   private alpha: Float64Array;
   /** Blood conditions a cell's PO2 refers to in each segment (non-standard in exercising muscle). */
   private conditions: BloodConditions[];
-  /** Flow-rate factor at the current instant, per unit pulsatility. */
+  /** Aortic waveform value at the current instant. */
   private pulseNow = 1;
+  /** Heartbeats since the start (fractional part = phase), kept continuous when heart rate changes. */
+  private beats = 0;
   private readonly listeners = new Set<TransitionListener>();
 
   constructor(opts: SimulationOptions) {
@@ -138,7 +140,8 @@ export class Simulation {
     const segs = this.circulation.segments;
     const t0 = this.time;
     // Mean pulse over this step: segments advance at mean × (1 + α (W − 1)).
-    const W = this.waveform ? this.waveform.meanOver(t0, t0 + dt) : 1;
+    const db = this.waveform ? dt / this.waveform.period : 0;
+    const W = this.waveform ? this.waveform.meanOverBeats(this.beats, db) : 1;
     for (let i = 0; i < this.count; i++) {
       let remaining = dt;
       while (remaining > 0) {
@@ -175,12 +178,37 @@ export class Simulation {
       }
     }
     this.time = t0 + dt;
-    this.pulseNow = this.waveform ? this.waveform.w(this.waveform.phase(this.time)) : 1;
+    this.beats += db;
+    this.pulseNow = this.waveform ? this.waveform.w(this.beatPhase) : 1;
   }
 
   /** Phase within the current heartbeat (0 = start of ejection), or 0 for steady flow. */
   get beatPhase(): number {
-    return this.waveform ? this.waveform.phase(this.time) : 0;
+    return this.beats - Math.floor(this.beats);
+  }
+
+  /**
+   * Switch to a new physiological state (another activity level) on the same graph. Cells stay
+   * where they are: time already spent in a segment is rescaled to its new transit time, and PO2
+   * is re-expressed where blood conditions change. The heartbeat keeps its phase.
+   */
+  setState(circulation: Circulation, steady: SteadyState, heartRate: number): void {
+    const old = this.circulation.segments;
+    const oldConditions = this.conditions;
+    this.circulation = circulation;
+    this.steady = steady;
+    this.exchange = circulation.segments.map((s) => steady.exchange.get(s.index));
+    this.conditions = circulation.segments.map((s) => this.exchange[s.index]?.conditions ?? STANDARD_CONDITIONS);
+    for (let i = 0; i < this.count; i++) {
+      const k = this.segment[i];
+      const ratio = circulation.segments[k].transit / old[k].transit;
+      this.elapsed[i] *= ratio;
+      this.duration[i] *= ratio;
+      if (oldConditions[k] !== this.conditions[k]) {
+        this.po2[i] = po2FromContent(o2Content(this.po2[i], oldConditions[k]), this.conditions[k]);
+      }
+    }
+    this.waveform = heartRate > 0 ? new CardiacWaveform(heartRate) : null;
   }
 
   saturation(cell: number): number {
