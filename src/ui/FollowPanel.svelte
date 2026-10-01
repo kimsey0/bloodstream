@@ -140,6 +140,10 @@
       {/if}
     </div>
 
+  </div>
+
+  {#if details}
+  <div class="hb-row">
     <figure class="hb">
       <svg viewBox="0 0 84 84" role="img" aria-label={`Haemoglobin with ${info.bound} of 4 sites holding oxygen`}>
         {#each SITE_POS as [cx, cy], k (k)}
@@ -154,9 +158,11 @@
       </svg>
       <figcaption><b>{info.bound}/4</b> O₂ on one of ~270 million Hb</figcaption>
     </figure>
+    <p class="hb-note">
+      One molecule's four binding sites. They bind and release O₂ in milliseconds, so at normal speed they flicker; slow to
+      0.01× to watch individual sites.
+    </p>
   </div>
-
-  {#if details}
   <div class="dist" title="Share of this cell's haemoglobin molecules with 0–4 O₂ bound">
     {#each info.hbDistribution as f, n (n)}
       <i style:flex-grow={Math.max(f, 0.0001)} style:background={HEMOGLOBIN_STEP_COLORS[n]}>{f > 0.09 ? `${n}: ${pct(f, 0)}` : ''}</i>
@@ -343,9 +349,19 @@
     height: 100%;
     background: var(--steel);
   }
+  .hb-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .hb-note {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
   .grid {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     gap: 12px;
     align-items: start;
   }
