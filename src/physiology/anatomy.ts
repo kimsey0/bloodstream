@@ -188,7 +188,7 @@ vessel('svc', 'Superior vena cava', 'vein', 'thorax', 70, 20, ['ra']);
 // ---- Thorax and trunk wall -----------------------------------------------
 
 vessel('aorta_thoracic', 'Descending thoracic aorta', 'artery', 'thorax', 200, 24, [
-  bed({ id: 'bronchial', name: 'Bronchial circulation', tissue: 'bronchial', region: 'thorax', share: 1, drain: 'lung_R.ven' }),
+  bed({ id: 'bronchial', name: 'Bronchial circulation', tissue: 'bronchial', region: 'thorax', share: 1, drain: 'pv_R' }),
   bed({ id: 'trunk.muscle', name: 'Trunk wall muscle', tissue: 'muscle', region: 'trunk', share: SPLIT.muscle.trunk, drain: 'azygos' }),
   bed({ id: 'trunk.skin', name: 'Trunk skin', tissue: 'skin', region: 'trunk', share: SPLIT.skin.trunk, drain: 'azygos' }),
   bed({ id: 'trunk.other', name: 'Trunk bone, fat & connective tissue', tissue: 'other', region: 'trunk', share: SPLIT.other.trunk, drain: 'azygos' }),

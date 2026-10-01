@@ -1,12 +1,12 @@
 /** three.js scene: camera, touch/mouse controls, body, vessels and cells. */
-import { BufferAttribute, BufferGeometry, PerspectiveCamera, Points, Scene, Vector3, WebGLRenderer, type Mesh, type ShaderMaterial } from 'three';
+import { BufferAttribute, BufferGeometry, PerspectiveCamera, Points, Scene, Vector3, WebGLRenderer, type ShaderMaterial } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { VesselPaths } from '../anatomy/paths';
 import type { Circulation } from '../sim/circulation';
 import { createBody } from './body';
 import { FollowMarker } from './follow';
 import { cellMaterial, saturationTexture } from './materials';
-import { colorVessels, createVessels } from './vessels';
+import { colorVessels, createVessels, type Vessels } from './vessels';
 
 const TARGET = new Vector3(0, 88, 0);
 
@@ -15,7 +15,7 @@ export class BodyScene {
   readonly camera: PerspectiveCamera;
   readonly controls: OrbitControls;
   private readonly scene = new Scene();
-  private readonly vessels: Mesh;
+  private readonly vessels: Vessels;
   private cells?: Points<BufferGeometry, ShaderMaterial>;
   private readonly colormap = saturationTexture();
   private readonly follow = new FollowMarker();
@@ -44,7 +44,7 @@ export class BodyScene {
 
     this.scene.add(createBody());
     this.vessels = createVessels(circ, paths);
-    this.scene.add(this.vessels);
+    this.scene.add(this.vessels.group);
     this.scene.add(this.follow.marker, this.follow.trail);
 
     this.resize();

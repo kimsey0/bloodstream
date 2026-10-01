@@ -393,6 +393,22 @@ illustrative (the count is quantitative, the drift speed is not diffusion).
   already tested against simulated deuteranopia, protanopia and tritanopia
   (section 8).
 
+### Tissue territories (body view)
+
+Each organ microcirculation is drawn as 4–28 "strands" (`src/anatomy/territories.ts`):
+capillary loops placed in the tissue's real territory of the stylised body
+(`src/anatomy/bodyShape.ts`, shared with the translucent body mesh): just
+under the skin surface for skin beds, through the limb or body-wall volume
+for muscle, near the bone for "other" tissue, inside the organ for organs.
+Arterioles fan out from the feeding artery's end; venules converge on the
+draining vein. A cell picks a random strand when it enters a bed and keeps
+it through arterioles, capillaries and venules (and the kidney's
+glomerulus/efferent arteriole). The physiology graph is unchanged; this only
+affects where cells are drawn. Strands are rendered as thin lines (one draw
+call); named vessels stay glass tubes. Bronchial venous blood now drains
+into the right pulmonary veins (as the deep bronchial veins do), so that no
+microcirculation drains into another bed's venules.
+
 `npm run artifact` builds the app as one self-contained HTML fragment
 (worker inlined as a blob) for publishing as a claude.ai Artifact. The
 milestone 1 diagnostics page now lives at `diagnostics.html`.

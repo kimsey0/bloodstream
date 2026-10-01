@@ -6,6 +6,10 @@ export interface InitMessage {
   seed: number;
   lut: Float32Array;
   radius: Float32Array;
+  /** Segment → first path / number of strands / organ bed id (-1 for named vessels). */
+  pathBase: Int32Array;
+  pathCount: Int32Array;
+  bedOfSegment: Int32Array;
 }
 
 export interface TickMessage {
