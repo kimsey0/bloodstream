@@ -62,9 +62,11 @@ export interface TissueParams {
 }
 
 /**
- * Per-tissue parameters at rest. Venous transit times are long in muscle,
- * skin and gut because their venous beds are the body's blood reservoir
- * (≈ 64 % of blood volume sits in systemic veins). Tissue PO2 values are
+ * Per-tissue parameters at rest. Venous transit times are longest in the gut
+ * and skin because their venous beds are the body's blood reservoirs: about
+ * 64 % of blood volume sits in systemic veins, and the splanchnic (gut +
+ * liver) circulation alone holds roughly a third of all blood. Resting
+ * muscle (≈ 3 mL/min per 100 g, total transit ≈ 30–40 s) holds much less. Tissue PO2 values are
  * typical measured interstitial values. Each lies below the tissue's
  * venous PO2, as diffusion requires.
  */
@@ -72,12 +74,12 @@ export const TISSUES: Record<Tissue, TissueParams> = {
   brain: { flowFraction: 0.14, vo2: 48, tissuePo2: 20, arterialTransit: 2, capillaryTransit: 1.0, capillaryLength: 0.6, capillaryDiameter: 5, venousTransit: 3 },
   heart: { flowFraction: 0.045, vo2: 30, tissuePo2: 10, arterialTransit: 1.5, capillaryTransit: 1.0, capillaryLength: 0.5, capillaryDiameter: 5.5, venousTransit: 4 },
   kidney: { flowFraction: 0.2, vo2: 18, tissuePo2: 30, arterialTransit: 1.5, capillaryTransit: 1.5, capillaryLength: 0.6, capillaryDiameter: 7, venousTransit: 4 },
-  gut: { flowFraction: 0.19, vo2: 28, tissuePo2: 30, arterialTransit: 4, capillaryTransit: 1.5, capillaryLength: 0.5, capillaryDiameter: 6, venousTransit: 25 },
-  liver: { flowFraction: 0.065, vo2: 32, tissuePo2: 25, arterialTransit: 3, capillaryTransit: 1.5, capillaryLength: 0.4, capillaryDiameter: 9, venousTransit: 15 },
-  muscle: { flowFraction: 0.17, vo2: 55, tissuePo2: 20, arterialTransit: 6, capillaryTransit: 2.5, capillaryLength: 1.0, capillaryDiameter: 5, venousTransit: 50 },
-  skin: { flowFraction: 0.08, vo2: 10, tissuePo2: 30, arterialTransit: 5, capillaryTransit: 2.0, capillaryLength: 0.5, capillaryDiameter: 6, venousTransit: 60 },
+  gut: { flowFraction: 0.19, vo2: 28, tissuePo2: 30, arterialTransit: 4, capillaryTransit: 1.5, capillaryLength: 0.5, capillaryDiameter: 6, venousTransit: 49 },
+  liver: { flowFraction: 0.065, vo2: 32, tissuePo2: 25, arterialTransit: 3, capillaryTransit: 1.5, capillaryLength: 0.4, capillaryDiameter: 9, venousTransit: 27 },
+  muscle: { flowFraction: 0.17, vo2: 55, tissuePo2: 20, arterialTransit: 6, capillaryTransit: 2.5, capillaryLength: 1.0, capillaryDiameter: 5, venousTransit: 25 },
+  skin: { flowFraction: 0.08, vo2: 10, tissuePo2: 30, arterialTransit: 5, capillaryTransit: 2.0, capillaryLength: 0.5, capillaryDiameter: 6, venousTransit: 50 },
   bronchial: { flowFraction: 0.015, vo2: 3, tissuePo2: 25, arterialTransit: 2, capillaryTransit: 1.5, capillaryLength: 0.5, capillaryDiameter: 6, venousTransit: 4 },
-  other: { flowFraction: 0.095, vo2: 26, tissuePo2: 20, arterialTransit: 6, capillaryTransit: 2.0, capillaryLength: 0.6, capillaryDiameter: 6, venousTransit: 70 },
+  other: { flowFraction: 0.095, vo2: 26, tissuePo2: 20, arterialTransit: 6, capillaryTransit: 2.0, capillaryLength: 0.6, capillaryDiameter: 6, venousTransit: 40 },
 };
 
 /** Pulmonary microcirculation at rest. */

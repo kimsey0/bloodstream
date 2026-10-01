@@ -39,6 +39,12 @@ const PROFILE_K = 4;
 const PROFILE_CORE = 0.9;
 const PROFILE_MEAN = 1 - (2 * Math.pow(PROFILE_CORE, PROFILE_K)) / (PROFILE_K + 2);
 
+/** Speed at the slow end of a lumped arteriole/venule segment, as a fraction of its mean (fast end: 2 − this). */
+const RAMP_MIN = 0.25;
+/** Position fraction for time fraction t when speed rises linearly from RAMP_MIN to 2 − RAMP_MIN times the mean. */
+const rampUp = (t: number) => RAMP_MIN * t + (1 - RAMP_MIN) * t * t;
+const rampUpSlope = (t: number) => RAMP_MIN + 2 * (1 - RAMP_MIN) * t;
+
 export class Simulation {
   readonly circulation: Circulation;
   readonly steady: SteadyState;
@@ -149,13 +155,36 @@ export class Simulation {
     return saturation(this.po2[cell]);
   }
 
-  /** Fraction (0–1) of the current segment already travelled. */
+  /** Fraction (0–1) of the current segment's transit time already spent. */
   progress(cell: number): number {
     return this.elapsed[cell] / this.duration[cell];
   }
 
+  /**
+   * Fraction (0–1) of the current segment's length already travelled. Lumped arterioles and
+   * venules span vessels of very different widths, so speed is not uniform along them: cells
+   * slow from small-artery speeds to arteriole speeds, and speed up again from venules into
+   * small veins. Transit time is unaffected.
+   */
+  positionFraction(cell: number): number {
+    const t = this.progress(cell);
+    switch (this.circulation.segments[this.segment[cell]].kind) {
+      case 'venule':
+        return rampUp(t);
+      case 'arteriole':
+        return 1 - rampUp(1 - t);
+      default:
+        return t;
+    }
+  }
+
   /** The cell's current speed, mm/s. */
   speed(cell: number): number {
-    return this.circulation.segments[this.segment[cell]].length / this.duration[cell];
+    const seg = this.circulation.segments[this.segment[cell]];
+    const mean = seg.length / this.duration[cell];
+    const t = this.progress(cell);
+    if (seg.kind === 'venule') return mean * rampUpSlope(t);
+    if (seg.kind === 'arteriole') return mean * rampUpSlope(1 - t);
+    return mean;
   }
 }

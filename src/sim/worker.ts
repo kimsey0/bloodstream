@@ -94,7 +94,7 @@ function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Arr
   for (let i = 0; i < n && !skipPositions; i++) {
     const seg = sim.segment[i];
     const path = pathBase[seg] + (strand[i] % pathCount[seg]);
-    samplePath(lut, radius, path, sim.progress(i), offsetR[i], offsetTheta[i], pos, i * 3);
+    samplePath(lut, radius, path, sim.positionFraction(i), offsetR[i], offsetTheta[i], pos, i * 3);
     sat[i] = sim.saturation(i);
   }
   post({ type: 'frame', time: sim.time, positions: pos, saturations: sat, positionsValid: !skipPositions, follow: followInfo() }, [pos.buffer, sat.buffer]);

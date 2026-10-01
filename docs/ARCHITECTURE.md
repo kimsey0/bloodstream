@@ -288,6 +288,11 @@ Emergent results at rest (asserted in `tests/`):
 
 Known simplifications, to revisit:
 
+- Lumped arterioles and venules have a linear speed ramp (1.75× → 0.25× of
+  their mean through arterioles, the reverse through venules), so cells
+  slow to ~2 mm/s entering capillaries and speed up to ~1 cm/s in small
+  veins, matching intravital measurements (venules < 30 µm: ~1.9 mm/s).
+
 - Flow is steady (no cardiac pulsatility yet); heart-chamber residence is a
   log-normal around volume/flow rather than beat-by-beat ejection.
 - Vertebral arteries are folded into the carotids; anterior cardiac and

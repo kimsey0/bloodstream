@@ -118,3 +118,26 @@ describe('following one cell', () => {
     expect(dist.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
   });
 });
+
+describe('speed along lumped arterioles and venules', () => {
+  it('slows through arterioles and speeds up through venules, with mean transit unchanged', () => {
+    const s = new Simulation({ cellCount: 4000, seed: 3 });
+    const ven = s.circulation.get('leg_L.thigh.muscle.ven');
+    const art = s.circulation.get('leg_L.thigh.muscle.art');
+    for (let c = 0; c < s.count; c++) {
+      const seg = s.circulation.segments[s.segment[c]];
+      if (seg !== ven && seg !== art) continue;
+      const t = s.progress(c);
+      const mean = seg.length / s.duration[c];
+      if (seg === ven) expect(s.speed(c) / mean).toBeCloseTo(0.25 + 1.5 * t, 6);
+      else expect(s.speed(c) / mean).toBeCloseTo(1.75 - 1.5 * t, 6);
+      expect(s.positionFraction(c)).toBeGreaterThanOrEqual(0);
+      expect(s.positionFraction(c)).toBeLessThanOrEqual(1);
+    }
+    // Venules start at measured venular RBC speeds (~0.2–4 mm/s) and end at small-vein speeds.
+    const meanVen = ven.length / ven.transit;
+    expect(meanVen * 0.25).toBeGreaterThan(0.2);
+    expect(meanVen * 0.25).toBeLessThan(4);
+    expect(meanVen * 1.75).toBeGreaterThan(5);
+  });
+});

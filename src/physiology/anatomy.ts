@@ -93,7 +93,7 @@ function bed({ id, name, tissue, region, share, drain }: BedOptions): string {
     },
     {
       id: `${id}.ven`, name: `${name}: venules & veins`, kind: 'venule', circuit: 'systemic', region, tissue,
-      length: 80, diameter: 0.2, restTransit: t.venousTransit, hctRatio: HCT_RATIO.venule,
+      length: 150, diameter: 0.2, restTransit: t.venousTransit, hctRatio: HCT_RATIO.venule,
       transitCv: TRANSIT_CV.venule, next: [drain],
     },
   );
