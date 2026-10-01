@@ -4,15 +4,16 @@ An interactive, physiologically accurate visualisation of how blood moves
 around the body and picks up and releases oxygen. It runs entirely in the
 browser, on desktop and on phones.
 
-Status: milestone 1, the simulation core with validation tests and a
-diagnostics page. The 3D view is next. See
+Status: milestone 2, a translucent 3D body with tracer red cells moving at
+physiological speed, on top of a validated simulation core. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design, parameter
 sources and emergent results.
 
 ```sh
 npm install
-npm run dev        # diagnostics page at http://localhost:5173
+npm run dev        # 3D app at http://localhost:5173, diagnostics at /diagnostics.html
 npm test           # physiology validation suite
 npm run typecheck
 npm run build
+npm run artifact   # single-file build for publishing as a claude.ai Artifact
 ```

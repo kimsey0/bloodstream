@@ -1,0 +1,332 @@
+<script lang="ts">
+  import { saturationCss } from '../color/saturation';
+  import { SPEEDS, ui } from './state.svelte';
+
+  interface Props {
+    onSpeed: (speed: number) => void;
+    onPause: (paused: boolean) => void;
+    onResetView: () => void;
+  }
+  let { onSpeed, onPause, onResetView }: Props = $props();
+
+  const gradient = Array.from({ length: 21 }, (_, i) => `${saturationCss(i / 20)} ${i * 5}%`).join(', ');
+
+  const clock = (t: number) => {
+    const m = Math.floor(t / 60);
+    const s = t - m * 60;
+    return `${m}:${s.toFixed(1).padStart(4, '0')}`;
+  };
+  const speedLabel = (s: number) => (s < 1 ? `${s}×` : `${s}×`);
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+</script>
+
+<header class="brand">
+  <h1>Bloodstream</h1>
+  <p>Resting adult · {(ui.cardiacOutput * 0.06).toFixed(1)} L/min · {(ui.bloodVolume / 1000).toFixed(1)} L blood</p>
+</header>
+
+<div class="clock" aria-live="off">
+  <span class="label">Body time</span>
+  <span class="value">{clock(ui.time)}</span>
+  <span class="sub">{ui.paused ? 'paused' : ui.speed === 1 ? 'real time' : `${speedLabel(ui.speed)} real time`}</span>
+</div>
+
+{#if !ui.ready}
+  <div class="loading" role="status">
+    <div class="pulse"></div>
+    <p>Calibrating the oxygen model…</p>
+  </div>
+{/if}
+
+<div class="dock">
+  <div class="row">
+    <button
+      id="pause"
+      class="icon"
+      aria-label={ui.paused ? 'Play' : 'Pause'}
+      onclick={() => onPause(!ui.paused)}
+    >
+      {#if ui.paused}
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor" /></svg>
+      {:else}
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor" /></svg>
+      {/if}
+    </button>
+    <div class="speeds" role="radiogroup" aria-label="Playback speed">
+      {#each SPEEDS as s (s)}
+        <button
+          role="radio"
+          aria-checked={ui.speed === s}
+          class:active={ui.speed === s}
+          onclick={() => onSpeed(s)}>{speedLabel(s)}</button
+        >
+      {/each}
+    </div>
+    <button class="icon" aria-label="Reset view" title="Reset view" onclick={onResetView}>
+      <svg viewBox="0 0 16 16" aria-hidden="true"
+        ><path d="M8 2.5a5.5 5.5 0 1 1-5.2 3.7" stroke="currentColor" stroke-width="1.6" fill="none" /><path
+          d="M1.8 2.8l1.1 3.7 3.6-1.2"
+          stroke="currentColor"
+          stroke-width="1.6"
+          fill="none"
+        /></svg
+      >
+    </button>
+    <button class="icon" aria-label="About this view" aria-expanded={ui.infoOpen} onclick={() => (ui.infoOpen = !ui.infoOpen)}>
+      <svg viewBox="0 0 16 16" aria-hidden="true"
+        ><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.5" fill="none" /><path
+          d="M8 7v4.5M8 4.6v.1"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+        /></svg
+      >
+    </button>
+  </div>
+  <div class="legend">
+    <div class="bar" style:background={`linear-gradient(to right, ${gradient})`}>
+      {#if ui.ready}
+        <i style:left={pct(ui.mixedVenousSaturation)} title="Mixed venous"></i>
+        <i style:left={pct(ui.arterialSaturation)} title="Arterial"></i>
+      {/if}
+    </div>
+    <div class="ticks">
+      <span>0%</span>
+      <span class="mid">O₂ saturation</span>
+      {#if ui.ready}
+        <span class="mark" style:left={pct(ui.mixedVenousSaturation)}>venous {pct(ui.mixedVenousSaturation)}</span>
+        <span class="mark art" style:left={pct(ui.arterialSaturation)}>arterial {pct(ui.arterialSaturation)}</span>
+      {/if}
+    </div>
+  </div>
+</div>
+
+{#if ui.infoOpen}
+  <aside class="info">
+    <h2>What you are seeing</h2>
+    <p>
+      Each dot is one of {ui.cellCount.toLocaleString()} tracer red blood cells, sampled from the body's ~25 trillion and coloured by
+      how much oxygen its haemoglobin carries. They move at simulated physiological speed: at 1× a cell takes
+      {Math.round(ui.meanCirculationTime)} s on average to get round the body and back to the heart.
+    </p>
+    <p>
+      Vessels are coloured by the average saturation of the blood inside. Capillary beds (the short, thin loops in each organ)
+      are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long. Cells are drawn about 1000× too big.
+    </p>
+    <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan.</p>
+    <button class="close" onclick={() => (ui.infoOpen = false)}>Close</button>
+  </aside>
+{/if}
+
+<style>
+  .brand,
+  .clock,
+  .dock,
+  .info,
+  .loading {
+    pointer-events: auto;
+  }
+  .brand {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 14px);
+    left: 16px;
+    pointer-events: none;
+  }
+  h1 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 650;
+    font-stretch: 78%;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+  .brand p {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .clock {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 14px);
+    right: 16px;
+    display: grid;
+    justify-items: end;
+    pointer-events: none;
+  }
+  .clock .label,
+  .clock .sub {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .clock .value {
+    font: 500 22px/1.15 var(--font-data);
+    font-variant-numeric: tabular-nums;
+  }
+  .loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 12px;
+    color: var(--muted);
+  }
+  .pulse {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--steel);
+    animation: beat 0.86s ease-in-out infinite;
+  }
+  @keyframes beat {
+    0%, 100% { transform: scale(0.7); opacity: 0.5; }
+    20% { transform: scale(1.15); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse { animation: none; }
+  }
+  .dock {
+    position: absolute;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    transform: translateX(-50%);
+    width: min(560px, calc(100% - 32px));
+    display: grid;
+    gap: 10px;
+    padding: 10px 12px 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  button {
+    font: inherit;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--steel);
+    outline-offset: 2px;
+  }
+  .icon {
+    width: 36px;
+    height: 34px;
+    flex: none;
+    display: grid;
+    place-items: center;
+  }
+  .icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .speeds {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .speeds button {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+    height: 32px;
+    padding: 0;
+    font: 500 11px var(--font-data);
+    color: var(--muted);
+  }
+  .speeds button + button {
+    border-left: 1px solid var(--line);
+  }
+  .speeds button.active {
+    background: var(--steel);
+    color: #0b1220;
+  }
+  .legend .bar {
+    position: relative;
+    height: 8px;
+    border-radius: 4px;
+  }
+  .legend .bar i {
+    position: absolute;
+    top: -3px;
+    width: 2px;
+    height: 14px;
+    margin-left: -1px;
+    background: var(--text);
+    border-radius: 1px;
+  }
+  .ticks {
+    position: relative;
+    height: 16px;
+    margin-top: 3px;
+    font: 11px var(--font-data);
+    color: var(--muted);
+  }
+  .ticks span {
+    position: absolute;
+    top: 0;
+    white-space: nowrap;
+  }
+  .ticks .mid {
+    left: 26%;
+    transform: translateX(-50%);
+    font-family: var(--font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 10px;
+  }
+  .ticks .mark {
+    transform: translateX(-100%);
+    padding-right: 4px;
+    color: var(--text);
+  }
+  .ticks .mark.art {
+    left: auto !important;
+    right: 0;
+    transform: none;
+    padding: 0;
+  }
+  .info {
+    position: absolute;
+    right: 16px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 130px);
+    width: min(360px, calc(100% - 32px));
+    max-height: calc(100% - 220px);
+    overflow-y: auto;
+    padding: 14px 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .info h2 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-stretch: 85%;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .info p {
+    margin: 0 0 10px;
+    color: #c4ccd8;
+    font-size: 13px;
+  }
+  .close {
+    padding: 5px 12px;
+  }
+</style>

@@ -1,0 +1,25 @@
+/* Layout: full-bleed 3D canvas with a thin instrument HUD floating over it (top readouts, bottom control dock). */
+:root {
+  --void: #070a0f;
+  --haze: #142031;
+  --panel: rgb(14 19 28 / 0.78);
+  --line: #2a3546;
+  --text: #e7ecf3;
+  --muted: #8d99ab;
+  --steel: #a9bfdc;
+  --font-ui: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, var(--haze), var(--void) 70%);
+  color: var(--text);
+  font: 14px/1.4 var(--font-ui);
+  -webkit-tap-highlight-color: transparent;
+}
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+#hud { position: fixed; inset: 0; pointer-events: none; }

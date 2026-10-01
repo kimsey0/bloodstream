@@ -2,10 +2,10 @@
  * Milestone 1 diagnostics page: shows the simulation core's emergent numbers
  * and lets you follow one red cell. No 3D yet.
  */
-import { HEMOGLOBIN_STEP_COLORS, saturationCss } from './color/saturation';
-import { TISSUES, type Tissue } from './physiology/params';
-import { Simulation } from './sim/simulation';
-import { CellTracker, CirculationRecorder } from './sim/tracking';
+import { HEMOGLOBIN_STEP_COLORS, saturationCss } from '../color/saturation';
+import { TISSUES, type Tissue } from '../physiology/params';
+import { Simulation } from '../sim/simulation';
+import { CellTracker, CirculationRecorder } from '../sim/tracking';
 
 const app = document.getElementById('app')!;
 app.innerHTML = '<p class="lead">Solving steady state…</p>';

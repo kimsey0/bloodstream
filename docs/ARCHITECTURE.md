@@ -1,6 +1,6 @@
 # Bloodstream: architecture proposal
 
-Status: milestone 1 (simulation core + validation tests) implemented. See "Implementation status" at the end.
+Status: milestones 1 (simulation core) and 2 (body-level 3D view) implemented. See "Implementation status" at the end.
 
 ## Goal
 
@@ -242,8 +242,8 @@ tests/          physiology validation suites
 
 ## Milestones
 
-1. Sim core + validation tests (graph, routing, O₂ model). No 3D.
-2. Body-level 3D: stylised vessels, tracers, orbit controls, time controls.
+1. ✅ Sim core + validation tests (graph, routing, O₂ model). No 3D.
+2. ✅ Body-level 3D: stylised vessels, tracers, orbit controls, time controls.
 3. Follow-cell mode + HUD + haemoglobin inset.
 4. Organ/capillary zoom levels with procedural beds.
 5. Activity slider.
@@ -296,5 +296,33 @@ Known simplifications, to revisit:
   skimming / Zweifach–Fung effect).
 - Systemic O2 exchange happens only in capillaries (arteriolar O2 loss is
   ignored), and all exchange uses the standard curve (no Bohr shift at rest).
-- The simulation runs on the main thread; moving it to a Web Worker comes
-  with the 3D view. The steady-state calibration takes ~1 s at start-up.
+- The steady-state calibration takes ~1 s at start-up (in the worker since
+  milestone 2).
+
+### Milestone 2: body-level 3D view (done)
+
+| Module | Contents |
+|---|---|
+| `src/anatomy/layout.ts` | Stylised 3D coordinates (cm) for every named vessel and organ-bed centre |
+| `src/anatomy/paths.ts` | One Catmull–Rom curve per segment, auto-joined end to start; tube radii; arc-length lookup table |
+| `src/anatomy/lut.ts` | three.js-free LUT sampling used by the worker |
+| `src/sim/worker.ts`, `protocol.ts` | Simulation in a Web Worker; one tick per animation frame, ping-pong so slow devices never queue up; transferable buffers |
+| `src/render/` | Fresnel "glass" vessels coloured along their length by steady-state saturation; tracer cells as saturation-coloured point sprites with a light rim; translucent body (depth pre-pass, nearest surface only) and organ shells; orbit/pinch/pan controls |
+| `src/ui/` | Svelte HUD: body clock, play/pause, speed (0.01× to 30×), reset view, saturation legend with arterial/venous marks, explainer panel |
+
+Rendering decisions:
+
+- Gamma-encoded colours are written straight out by custom shaders, so the
+  colour-scale module is the single source of truth for on-screen colour.
+- Draw order: opaque cells, then translucent organ shells and vessels
+  (no depth write, so cells inside vessels stay visible), then the skin.
+- Cells are drawn ~0.7 cm wide (≈ 900× real size) with a minimum pixel
+  size. Capillary beds are drawn as short loops a few cm long (real: < 1 mm).
+- 3,000 tracers on phones / ≤ 4-core devices, 8,000 otherwise.
+- Branches leave from the end of their parent segment (a cell can't jump
+  mid-segment), so the aortic root and the abdominal aorta are split into
+  sub-segments where the coronaries and visceral arteries leave.
+
+`npm run artifact` builds the app as one self-contained HTML fragment
+(worker inlined as a blob) for publishing as a claude.ai Artifact. The
+milestone 1 diagnostics page now lives at `diagnostics.html`.

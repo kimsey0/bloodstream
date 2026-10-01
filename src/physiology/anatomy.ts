@@ -139,11 +139,12 @@ for (const side of ['L', 'R'] as const) {
   vessel(`pv_${side}`, `${sideName} pulmonary veins`, 'vein', lung, 30, 21, ['la'], 'pulmonary');
 }
 chamber('la', 'Left atrium', 70, 50, 'lv', 'systemic');
-chamber('lv', 'Left ventricle', 105, 80, 'aorta_asc', 'systemic');
+chamber('lv', 'Left ventricle', 105, 80, 'aortic_root', 'systemic');
 
 // ---- Aorta and coronary circulation --------------------------------------
 
-vessel('aorta_asc', 'Ascending aorta', 'artery', 'thorax', 50, 30, ['coronary_L', 'coronary_R', 'aorta_arch']);
+vessel('aortic_root', 'Aortic root', 'artery', 'heart', 20, 30, ['coronary_L', 'coronary_R', 'aorta_asc']);
+vessel('aorta_asc', 'Ascending aorta', 'artery', 'thorax', 50, 30, ['aorta_arch']);
 vessel('coronary_L', 'Left coronary artery', 'artery', 'heart', 60, 4, [
   bed({ id: 'heart_L', name: 'Myocardium (left coronary)', tissue: 'heart', region: 'heart', share: 0.7, drain: 'coronary_sinus' }),
 ]);
@@ -191,7 +192,8 @@ vessel('azygos', 'Azygos venous system', 'vein', 'trunk', 250, 8, ['svc']);
 
 // ---- Abdomen -------------------------------------------------------------
 
-vessel('aorta_abdominal', 'Abdominal aorta', 'artery', 'abdomen', 130, 19, ['celiac', 'sma', 'renal_L', 'renal_R', 'iliac_L', 'iliac_R']);
+vessel('aorta_abdominal', 'Abdominal aorta (suprarenal)', 'artery', 'abdomen', 60, 20, ['celiac', 'sma', 'renal_L', 'renal_R', 'aorta_infrarenal']);
+vessel('aorta_infrarenal', 'Abdominal aorta (infrarenal)', 'artery', 'abdomen', 70, 18, ['iliac_L', 'iliac_R']);
 vessel('celiac', 'Coeliac trunk', 'artery', 'abdomen', 20, 7, ['hepatic_artery', 'splenic_artery']);
 vessel('hepatic_artery', 'Hepatic artery', 'artery', 'abdomen', 80, 5, ['liver.art']);
 vessel('splenic_artery', 'Splenic & gastric arteries', 'artery', 'abdomen', 100, 5.5, [
