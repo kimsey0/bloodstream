@@ -18,7 +18,6 @@
  *   cell's extraction then depends on its own transit time.
  */
 import { o2Content, o2ContentSlope, po2FromContent, saturation, STANDARD_CONDITIONS, type BloodConditions } from '../physiology/dissociation';
-import { REST } from '../physiology/params';
 import type { Circulation, Segment } from './circulation';
 
 export interface ExchangeModel {
@@ -94,6 +93,8 @@ export interface SegmentO2 {
   po2Out: number;
   saturationIn: number;
   saturationOut: number;
+  /** Inlet PO2 under the segment's own blood conditions (differs from po2In only in working muscle). */
+  po2InLocal: number;
 }
 
 export interface OxygenParams {
@@ -113,7 +114,7 @@ export interface SteadyState {
  * Solve the deterministic steady state: flow-weighted mean O2 content at
  * every segment, plus the exchange model for every capillary bed.
  */
-export function solveSteadyState(circ: Circulation, params: OxygenParams = REST): SteadyState {
+export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.activity): SteadyState {
   const n = circ.segments.length;
   const lungCaps = circ.segments.filter((s) => s.exchange?.type === 'lung');
   const vc = lungCaps.reduce((a, s) => a + s.volume, 0);
@@ -172,17 +173,32 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = REST)
     if (s.exchange?.type === 'tissue') {
       exchange.set(
         s.index,
-        calibrateTissue(contentIn[s.index], contentOut[s.index], s.exchange.tissuePo2, transitQuadrature(s.transit, s.transitCv ?? 0), s.id),
+        calibrateTissue(
+          contentIn[s.index],
+          contentOut[s.index],
+          s.exchange.tissuePo2,
+          s.exchange.conditions ?? STANDARD_CONDITIONS,
+          transitQuadrature(s.transit, s.transitCv ?? 0),
+          s.id,
+        ),
       );
     }
   }
 
-  const describe = (cin: number, cout: number): SegmentO2 => {
+  const describe = (cin: number, cout: number, cond: BloodConditions): SegmentO2 => {
     const po2In = po2FromContent(cin);
     const po2Out = po2FromContent(cout);
-    return { contentIn: cin, contentOut: cout, po2In, po2Out, saturationIn: saturation(po2In), saturationOut: saturation(po2Out) };
+    return {
+      contentIn: cin,
+      contentOut: cout,
+      po2In,
+      po2Out,
+      po2InLocal: cond === STANDARD_CONDITIONS ? po2In : po2FromContent(cin, cond),
+      saturationIn: saturation(po2In),
+      saturationOut: saturation(po2Out),
+    };
   };
-  const segments = circ.segments.map((s) => describe(contentIn[s.index], contentOut[s.index]));
+  const segments = circ.segments.map((s) => describe(contentIn[s.index], contentOut[s.index], exchange.get(s.index)?.conditions ?? STANDARD_CONDITIONS));
   const ptrunk = segments[circ.get('pulm_trunk').index];
   return {
     segments,
@@ -192,12 +208,20 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = REST)
   };
 }
 
-function calibrateTissue(cin: number, ctarget: number, tissuePo2: number, nodes: number[], id: string): ExchangeModel {
-  const model: ExchangeModel = { conductance: 0, targetPo2: tissuePo2, conditions: STANDARD_CONDITIONS };
-  const po2In = po2FromContent(cin);
-  if (o2Content(tissuePo2) >= ctarget) {
-    throw new Error(`${id}: tissue PO2 ${tissuePo2} mmHg is too high to deliver the required VO2`);
-  }
+function calibrateTissue(
+  cin: number,
+  ctarget: number,
+  tissuePo2: number,
+  conditions: BloodConditions,
+  nodes: number[],
+  id: string,
+): ExchangeModel {
+  // When flow is cut (e.g. gut and kidney in hard exercise) a tissue must extract more, and its
+  // PO2 falls: cap the tissue PO2 at half the venous PO2 its O2 budget requires.
+  const venousPo2 = po2FromContent(ctarget, conditions);
+  if (!(venousPo2 > 0.5)) throw new Error(`${id}: VO2 exceeds the O2 delivered`);
+  const model: ExchangeModel = { conductance: 0, targetPo2: Math.min(tissuePo2, 0.5 * venousPo2), conditions };
+  const po2In = po2FromContent(cin, conditions);
   let lo = Math.log(1e-8);
   let hi = Math.log(1);
   for (let i = 0; i < 50; i++) {

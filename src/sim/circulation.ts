@@ -4,6 +4,8 @@
  * geometry, never set by hand.
  */
 import { SEGMENT_DEFS, type SegmentDef } from '../physiology/anatomy';
+import { REST_STATE, type ActivityState } from '../physiology/activity';
+import { STANDARD_CONDITIONS, type BloodConditions } from '../physiology/dissociation';
 import { REST } from '../physiology/params';
 
 export interface Segment extends SegmentDef {
@@ -25,8 +27,27 @@ export interface Segment extends SegmentDef {
 }
 
 export interface CirculationState {
-  /** Cardiac output, mL/s. */
-  cardiacOutput: number;
+  /** Cardiac output, mL/s (ignored when `activity` is given). */
+  cardiacOutput?: number;
+  /** Activity level: sets cardiac output, flow distribution, VO2, recruitment and muscle blood conditions. */
+  activity?: ActivityState;
+}
+
+/** How much a muscle bed takes part in running exercise (0 = not at all, 1 = fully working). */
+export function workingFraction(d: SegmentDef): number {
+  return d.tissue === 'muscle' ? Math.min(1, (d.exerciseShare ?? 0) / 0.15) : 0;
+}
+
+/** A bed's blood flow (mL/min) and VO2 (mL/min) at an activity level. */
+export function bedFlowAndVo2(d: SegmentDef, a: ActivityState): { flow: number; vo2: number } {
+  const t = d.tissue!;
+  const share = d.share ?? 1;
+  if (t !== 'muscle') return { flow: a.tissueFlow[t] * share, vo2: a.tissueVo2[t] * share };
+  const ex = d.exerciseShare ?? 0;
+  return {
+    flow: REST_STATE.tissueFlow.muscle * share + (a.tissueFlow.muscle - REST_STATE.tissueFlow.muscle) * ex,
+    vo2: REST_STATE.tissueVo2.muscle * share + (a.tissueVo2.muscle - REST_STATE.tissueVo2.muscle) * ex,
+  };
 }
 
 export class Circulation {
@@ -35,11 +56,13 @@ export class Circulation {
   /** Left ventricle: the reference point where each circuit starts. */
   readonly root: Segment;
   readonly cardiacOutput: number;
+  readonly activity: ActivityState;
   /** Segment indices in flow order starting at the left ventricle (edges into it cut). */
   readonly order: number[] = [];
 
-  constructor(state: CirculationState = { cardiacOutput: REST.cardiacOutput }, defs: readonly SegmentDef[] = SEGMENT_DEFS) {
-    this.cardiacOutput = state.cardiacOutput;
+  constructor(state: CirculationState = {}, defs: readonly SegmentDef[] = SEGMENT_DEFS) {
+    this.activity = state.activity ?? REST_STATE;
+    this.cardiacOutput = state.activity?.cardiacOutput ?? state.cardiacOutput ?? REST.cardiacOutput;
     this.segments = defs.map((d, index) => ({
       ...d,
       index,
@@ -67,12 +90,13 @@ export class Circulation {
     this.root = lv;
 
     this.computeBranchProbabilities();
-    // Volumes of lumped segments are fixed by resting flows.
+    // Volumes of lumped segments are fixed by resting flows, then scaled by recruitment/dilation.
     const restFlows = this.propagateFlows(REST.cardiacOutput);
     defs.forEach((d, i) => {
-      this.segments[i].volume = segmentVolume(d, restFlows[i], this.segments[i].hct);
+      this.segments[i].volume = segmentVolume(d, restFlows[i], this.segments[i].hct) * this.volumeScale(d);
     });
-    const flows = this.propagateFlows(state.cardiacOutput, this.order);
+    if (state.activity) this.applyActivity(state.activity);
+    const flows = this.propagateFlows(this.cardiacOutput, this.order);
     for (const s of this.segments) {
       s.flow = flows[s.index];
       s.transit = (s.volume * s.hct) / s.flow;
@@ -99,6 +123,39 @@ export class Circulation {
   /** Mean time for a red cell to return to the left ventricle, s. */
   get meanRbcCirculationTime(): number {
     return this.totalRbcVolume / this.cardiacOutput;
+  }
+
+  /** Capillary recruitment and arteriolar dilation at the current activity level. */
+  private volumeScale(d: SegmentDef): number {
+    const a = this.activity;
+    if (d.exchange?.type === 'lung') return a.lungCapillaryRecruitment;
+    const w = workingFraction(d);
+    if (w === 0) return 1;
+    if (d.kind === 'capillary') return 1 + (a.muscleCapillaryRecruitment - 1) * w;
+    if (d.kind === 'arteriole') return 1 + (a.muscleArterioleDilation - 1) * w;
+    return 1;
+  }
+
+  /** Redistribute flow, set tissue VO2 and working-muscle blood conditions for an activity level. */
+  private applyActivity(a: ActivityState): void {
+    for (const s of this.segments) {
+      if (!s.tissue) continue;
+      const { flow, vo2 } = bedFlowAndVo2(s, a);
+      if (s.supply !== undefined) s.supply = flow;
+      if (s.exchange?.type === 'tissue') {
+        const w = workingFraction(s);
+        const mix = (k: keyof BloodConditions) => STANDARD_CONDITIONS[k] + (a.muscleConditions[k] - STANDARD_CONDITIONS[k]) * w;
+        // Exercising muscle uses O2 faster than it diffuses in: tissue PO2 falls towards a few mmHg.
+        const tissuePo2 = s.tissue === 'muscle' ? s.exchange.tissuePo2 - (s.exchange.tissuePo2 - 4) * a.level : s.exchange.tissuePo2;
+        s.exchange = {
+          ...s.exchange,
+          vo2,
+          tissuePo2,
+          conditions: w > 0 && a.level > 0 ? { pH: mix('pH'), pco2: mix('pco2'), temperature: mix('temperature') } : undefined,
+        };
+      }
+    }
+    this.computeBranchProbabilities();
   }
 
   private computeBranchProbabilities(): void {

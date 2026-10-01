@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest';
+import { activityState } from '../src/physiology/activity';
+import { Circulation } from '../src/sim/circulation';
+import { solveSteadyState } from '../src/sim/oxygen';
+
+const levels = [0, 0.25, 0.6, 1].map((l) => {
+  const a = activityState(l);
+  const circ = new Circulation({ activity: a });
+  return { a, circ, ss: solveSteadyState(circ) };
+});
+const max = levels[3];
+
+describe('activity levels', () => {
+  it('raise cardiac output from 5 to 22 L/min and heart rate from 70 to 185', () => {
+    expect(levels.map((l) => Math.round(l.circ.cardiacOutput * 0.06))).toEqual([5, 9, 16, 22]);
+    expect(levels.map((l) => l.a.heartRate)).toEqual([70, 100, 145, 185]);
+    for (const { circ } of levels) expect(circ.returnFlow()).toBeCloseTo(circ.cardiacOutput, 6);
+  });
+
+  it('take up exactly the whole-body VO2 in the lungs (Fick)', () => {
+    for (const { a, circ, ss } of levels) {
+      const uptake = ['lung_L.cap', 'lung_R.cap'].reduce((acc, id) => {
+        const o = ss.segments[circ.get(id).index];
+        return acc + (o.contentOut - o.contentIn) * circ.get(id).flow * 60;
+      }, 0);
+      expect(uptake / a.vo2).toBeCloseTo(1, 3);
+    }
+  });
+
+  it('send ~85 % of cardiac output to muscle at maximal exercise, mostly to the legs', () => {
+    const muscle = max.circ.segments.filter((s) => s.tissue === 'muscle' && s.exchange).reduce((acc, s) => acc + s.flow, 0);
+    expect(muscle / max.circ.cardiacOutput).toBeGreaterThan(0.8);
+    const legs = max.circ.segments.filter((s) => s.tissue === 'muscle' && s.exchange && s.region.startsWith('leg_')).reduce((acc, s) => acc + s.flow, 0);
+    expect(legs / muscle).toBeGreaterThan(0.7);
+    // Kidneys fall to roughly a quarter of resting flow.
+    const kid = (c: Circulation) => c.get('kidney_L.cap').flow;
+    expect(kid(max.circ) / kid(levels[0].circ)).toBeLessThan(0.35);
+  });
+
+  it('keeps arterial blood saturated while venous saturation falls', () => {
+    for (const { ss } of levels) expect(ss.arterial.saturationIn).toBeGreaterThan(0.94);
+    const mv = levels.map((l) => l.ss.mixedVenous.saturationIn);
+    for (let i = 1; i < mv.length; i++) expect(mv[i]).toBeLessThan(mv[i - 1]);
+    // Mixed venous ~20–30 % and femoral venous ~10–25 % at maximal exercise.
+    expect(mv[3]).toBeGreaterThan(0.18);
+    expect(mv[3]).toBeLessThan(0.32);
+    const thigh = max.ss.segments[max.circ.get('leg_L.thigh.muscle.cap').index].saturationOut;
+    expect(thigh).toBeGreaterThan(0.08);
+    expect(thigh).toBeLessThan(0.25);
+  });
+
+  it('shortens pulmonary capillary transit to ~0.35–0.45 s at maximal exercise despite recruitment', () => {
+    const t = max.circ.get('lung_L.cap').transit;
+    expect(t).toBeGreaterThan(0.3);
+    expect(t).toBeLessThan(0.45);
+  });
+
+  it('right-shifts the curve in working muscle (Bohr effect) but not elsewhere', () => {
+    const thigh = max.ss.exchange.get(max.circ.get('leg_L.thigh.muscle.cap').index)!;
+    expect(thigh.conditions.pH).toBeLessThan(7.25);
+    expect(thigh.conditions.temperature).toBeGreaterThan(39);
+    expect(max.ss.exchange.get(max.circ.get('brain_L.cap').index)!.conditions.pH).toBe(7.4);
+  });
+
+  it('cuts mean circulation time to ~13 s at maximal exercise', () => {
+    expect(max.circ.meanRbcCirculationTime).toBeGreaterThan(10);
+    expect(max.circ.meanRbcCirculationTime).toBeLessThan(16);
+  });
+});

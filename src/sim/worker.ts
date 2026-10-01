@@ -60,7 +60,7 @@ function init(msg: InitMessage): void {
     const ex = sim.steady.exchange.get(s.index);
     for (let k = 0; k < PROFILE_SAMPLES; k++) {
       const f = k / (PROFILE_SAMPLES - 1);
-      profiles[s.index * PROFILE_SAMPLES + k] = ex ? saturation(integratePo2(o.po2In, f * s.transit, ex)) : o.saturationIn;
+      profiles[s.index * PROFILE_SAMPLES + k] = ex ? saturation(integratePo2(o.po2InLocal, f * s.transit, ex), ex.conditions) : o.saturationIn;
     }
   }
   post({
@@ -74,7 +74,8 @@ function init(msg: InitMessage): void {
       segment,
       conductance: ex.conductance,
       targetPo2: ex.targetPo2,
-      po2In: sim!.steady.segments[segment].po2In,
+      po2In: sim!.steady.segments[segment].po2InLocal,
+      conditions: ex.conditions,
       saturationIn: sim!.steady.segments[segment].saturationIn,
       saturationOut: sim!.steady.segments[segment].saturationOut,
     })),

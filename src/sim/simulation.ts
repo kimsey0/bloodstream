@@ -111,7 +111,7 @@ export class Simulation {
       this.duration[i] = this.drawTransit(s);
       this.elapsed[i] = this.rng.next() * this.duration[i];
       const ex = this.exchange[k];
-      const p0 = this.steady.segments[k].po2In;
+      const p0 = this.steady.segments[k].po2InLocal;
       this.po2[i] = ex ? integratePo2(p0, this.elapsed[i], ex) : p0;
     }
   }

@@ -135,7 +135,7 @@ export class MicroScene {
     net.capillaries.forEach((pts, i) => {
       const T = sim.capTransit[i];
       add(
-        colouredTube(pts, net.capRadius + 0.6, (u) => col(saturation(integratePo2(sim.params.po2In, u * T, sim.params.exchange)))),
+        colouredTube(pts, net.capRadius + 0.6, (u) => col(saturation(integratePo2(sim.params.po2In, u * T, sim.params.exchange), sim.params.exchange.conditions))),
         tubeMat(),
         2,
       );
@@ -318,7 +318,7 @@ export class MicroScene {
       }
       m.compose(pos, q, scale);
       this.cells.setMatrixAt(k, m);
-      const [cr, cg, cb] = saturationColorLinear(saturation(c.po2));
+      const [cr, cg, cb] = saturationColorLinear(saturation(c.po2, this.sim.params.exchange.conditions));
       this.cells.setColorAt(k, color.setRGB(cr, cg, cb));
       if (++k >= this.cells.instanceMatrix.count) break;
     }

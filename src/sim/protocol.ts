@@ -1,3 +1,5 @@
+import type { BloodConditions } from '../physiology/dissociation';
+
 /** Messages between the main thread and the simulation worker. */
 
 export interface InitMessage {
@@ -66,6 +68,9 @@ export interface ExchangeInfo {
   segment: number;
   conductance: number;
   targetPo2: number;
+  /** Blood conditions in this bed (standard except in working muscle). */
+  conditions: BloodConditions;
+  /** Inlet PO2 under those conditions. */
   po2In: number;
   saturationIn: number;
   saturationOut: number;

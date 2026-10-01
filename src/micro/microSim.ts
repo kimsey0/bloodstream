@@ -131,9 +131,9 @@ export class MicroSim {
         } else if (cell.s < r.capEnd) {
           const v = this.capSpeed[cell.route];
           const h = Math.min(remaining, (r.capEnd - cell.s) / v);
-          const before = saturation(cell.po2);
+          const before = saturation(cell.po2, this.params.exchange.conditions);
           cell.po2 = integratePo2(cell.po2, h, this.params.exchange);
-          const delta = (before - saturation(cell.po2)) * 4 * HB_PER_RBC;
+          const delta = (before - saturation(cell.po2, this.params.exchange.conditions)) * 4 * HB_PER_RBC;
           cell.s = Math.min(r.capEnd, cell.s + h * v);
           remaining -= h;
           cell.carry += Math.abs(delta) / MOLECULES_PER_DOT;
@@ -158,7 +158,7 @@ export class MicroSim {
     let n = 0;
     for (const c of this.cells) {
       if (c.s >= this.net.routes[c.route].capEnd) {
-        sum += saturation(c.po2);
+        sum += saturation(c.po2, this.params.exchange.conditions);
         n++;
       }
     }

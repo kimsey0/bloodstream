@@ -6,7 +6,6 @@ import { Circulation } from '../sim/circulation';
 import { microBedFor } from '../micro/beds';
 import { ARTERIOLE_SPEED, MicroSim, VENULE_SPEED } from '../micro/microSim';
 import { buildNetwork } from '../micro/network';
-import { STANDARD_CONDITIONS } from '../physiology/dissociation';
 import { HB_PER_RBC } from '../physiology/hemoglobin';
 import type { ExchangeInfo, FollowInfo, FromWorker, ToWorker } from '../sim/protocol';
 import { MicroScene } from '../render/microScene';
@@ -148,7 +147,7 @@ function openBed(capillary: number): void {
     transit: seg.transit,
     transitCv: seg.transitCv ?? 0,
     hctRatio: seg.hct,
-    exchange: { conductance: ex.conductance, targetPo2: ex.targetPo2, conditions: STANDARD_CONDITIONS },
+    exchange: { conductance: ex.conductance, targetPo2: ex.targetPo2, conditions: ex.conditions },
     po2In: ex.po2In,
   });
   micro = new MicroScene(canvas, bed, net, sim, ex.saturationIn, ex.saturationOut);

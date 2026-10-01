@@ -11,13 +11,14 @@
  * Mechanics of the Circulation). Paired structures are listed per side so
  * that 3D geometry can map 1:1 onto segments later.
  */
+import type { BloodConditions } from './dissociation';
 import { HCT_RATIO, LUNG, TISSUES, TRANSIT_CV, type Tissue } from './params';
 
 export type SegmentKind = 'chamber' | 'artery' | 'arteriole' | 'capillary' | 'venule' | 'vein';
 
 export type Exchange =
   | { type: 'lung' }
-  | { type: 'tissue'; tissue: Tissue; vo2: number; tissuePo2: number };
+  | { type: 'tissue'; tissue: Tissue; vo2: number; tissuePo2: number; conditions?: BloodConditions };
 
 export interface SegmentDef {
   id: string;
@@ -43,6 +44,10 @@ export interface SegmentDef {
   next: string[];
   /** Relative share of upstream flow, set on each bed's entry segment. */
   supply?: number;
+  /** Share of its tissue's flow and VO2 this bed gets at rest. */
+  share?: number;
+  /** For muscle beds: share of the extra flow and VO2 during running exercise. */
+  exerciseShare?: number;
   exchange?: Exchange;
 }
 
@@ -73,26 +78,29 @@ interface BedOptions {
   region: string;
   /** Share of this tissue's total resting flow and VO2 that goes to this bed. */
   share: number;
+  /** Muscle beds: share of the extra flow and VO2 during exercise (running: mostly legs). */
+  exerciseShare?: number;
   drain: string;
 }
 
 /** Standard three-segment microcirculation. Returns the entry segment id. */
-function bed({ id, name, tissue, region, share, drain }: BedOptions): string {
+function bed({ id, name, tissue, region, share, exerciseShare, drain }: BedOptions): string {
   const t = TISSUES[tissue];
+  const shares = { share, exerciseShare };
   defs.push(
     {
-      id: `${id}.art`, name: `${name}: arterioles`, kind: 'arteriole', circuit: 'systemic', region, tissue,
+      id: `${id}.art`, name: `${name}: arterioles`, kind: 'arteriole', circuit: 'systemic', region, tissue, ...shares,
       length: 50, diameter: 0.1, restTransit: t.arterialTransit, hctRatio: HCT_RATIO.arteriole,
       transitCv: TRANSIT_CV.arteriole, supply: t.flowFraction * share, next: [`${id}.cap`],
     },
     {
-      id: `${id}.cap`, name: `${name}: capillaries`, kind: 'capillary', circuit: 'systemic', region, tissue,
+      id: `${id}.cap`, name: `${name}: capillaries`, kind: 'capillary', circuit: 'systemic', region, tissue, ...shares,
       length: t.capillaryLength, diameter: t.capillaryDiameter / 1000, restTransit: t.capillaryTransit,
       hctRatio: HCT_RATIO.capillary, transitCv: TRANSIT_CV.capillary, next: [`${id}.ven`],
       exchange: { type: 'tissue', tissue, vo2: t.vo2 * share, tissuePo2: t.tissuePo2 },
     },
     {
-      id: `${id}.ven`, name: `${name}: venules & veins`, kind: 'venule', circuit: 'systemic', region, tissue,
+      id: `${id}.ven`, name: `${name}: venules & veins`, kind: 'venule', circuit: 'systemic', region, tissue, ...shares,
       length: 150, diameter: 0.2, restTransit: t.venousTransit, hctRatio: HCT_RATIO.venule,
       transitCv: TRANSIT_CV.venule, next: [drain],
     },
@@ -106,6 +114,9 @@ const SPLIT = {
   skin: { head: 0.075, arm: 0.045, hand: 0.03, trunk: 0.35, thigh: 0.09, lowerLeg: 0.055, foot: 0.03 },
   other: { arm: 0.035, hand: 0.015, trunk: 0.3, pelvis: 0.15, thigh: 0.08, lowerLeg: 0.05, foot: 0.02 },
 };
+
+/** Where the extra muscle flow and VO2 go during running: mostly the legs. Per side for paired regions. */
+const EXERCISE = { arm: 0.01, trunk: 0.08, pelvis: 0.05, thigh: 0.25, lowerLeg: 0.15 };
 
 const SIDE_NAME = { L: 'left', R: 'right' } as const;
 
@@ -169,7 +180,7 @@ for (const side of ['L', 'R'] as const) {
   const arm = `arm_${side}`;
   vessel(`subclavian_${side}`, `${s} subclavian artery`, 'artery', arm, side === 'L' ? 90 : 70, 8, [`brachial_${side}`]);
   vessel(`brachial_${side}`, `${s} axillary & brachial arteries`, 'artery', arm, 500, 4.5, [
-    bed({ id: `${arm}.muscle`, name: `${s} arm muscle`, tissue: 'muscle', region: arm, share: SPLIT.muscle.arm, drain: `arm_vein_${side}` }),
+    bed({ id: `${arm}.muscle`, name: `${s} arm muscle`, tissue: 'muscle', region: arm, share: SPLIT.muscle.arm, exerciseShare: EXERCISE.arm, drain: `arm_vein_${side}` }),
     bed({ id: `${arm}.skin`, name: `${s} arm skin`, tissue: 'skin', region: arm, share: SPLIT.skin.arm, drain: `arm_vein_${side}` }),
     bed({ id: `${arm}.other`, name: `${s} arm bone & connective tissue`, tissue: 'other', region: arm, share: SPLIT.other.arm, drain: `arm_vein_${side}` }),
     `forearm_artery_${side}`,
@@ -189,7 +200,7 @@ vessel('svc', 'Superior vena cava', 'vein', 'thorax', 70, 20, ['ra']);
 
 vessel('aorta_thoracic', 'Descending thoracic aorta', 'artery', 'thorax', 200, 24, [
   bed({ id: 'bronchial', name: 'Bronchial circulation', tissue: 'bronchial', region: 'thorax', share: 1, drain: 'pv_R' }),
-  bed({ id: 'trunk.muscle', name: 'Trunk wall muscle', tissue: 'muscle', region: 'trunk', share: SPLIT.muscle.trunk, drain: 'azygos' }),
+  bed({ id: 'trunk.muscle', name: 'Trunk wall muscle', tissue: 'muscle', region: 'trunk', share: SPLIT.muscle.trunk, exerciseShare: EXERCISE.trunk, drain: 'azygos' }),
   bed({ id: 'trunk.skin', name: 'Trunk skin', tissue: 'skin', region: 'trunk', share: SPLIT.skin.trunk, drain: 'azygos' }),
   bed({ id: 'trunk.other', name: 'Trunk bone, fat & connective tissue', tissue: 'other', region: 'trunk', share: SPLIT.other.trunk, drain: 'azygos' }),
   'aorta_abdominal',
@@ -219,7 +230,7 @@ vessel('portal_vein', 'Hepatic portal vein', 'vein', 'abdomen', 70, 13, ['liver.
     {
       id: 'liver.art', name: 'Liver: hepatic arterioles', kind: 'arteriole', circuit: 'systemic', region: 'abdomen', tissue: 'liver',
       length: 40, diameter: 0.1, restTransit: t.arterialTransit, hctRatio: HCT_RATIO.arteriole, transitCv: TRANSIT_CV.arteriole,
-      supply: t.flowFraction, next: ['liver.cap'],
+      supply: t.flowFraction, share: 1, next: ['liver.cap'],
     },
     {
       id: 'liver.portal', name: 'Liver: portal venules', kind: 'venule', circuit: 'systemic', region: 'abdomen', tissue: 'liver',
@@ -228,7 +239,7 @@ vessel('portal_vein', 'Hepatic portal vein', 'vein', 'abdomen', 70, 13, ['liver.
     {
       id: 'liver.cap', name: 'Liver: sinusoids', kind: 'capillary', circuit: 'systemic', region: 'abdomen', tissue: 'liver',
       length: t.capillaryLength, diameter: t.capillaryDiameter / 1000, restTransit: t.capillaryTransit,
-      hctRatio: HCT_RATIO.capillary, transitCv: TRANSIT_CV.capillary, next: ['liver.ven'],
+      hctRatio: HCT_RATIO.capillary, transitCv: TRANSIT_CV.capillary, share: 1, next: ['liver.ven'],
       exchange: { type: 'tissue', tissue: 'liver', vo2: t.vo2, tissuePo2: t.tissuePo2 },
     },
     {
@@ -250,7 +261,7 @@ for (const side of ['L', 'R'] as const) {
     {
       id: `${k}.art`, name: `${s} kidney: interlobar arteries & afferent arterioles`, kind: 'arteriole', circuit: 'systemic', region: 'abdomen', tissue: 'kidney',
       length: 40, diameter: 0.1, restTransit: t.arterialTransit, hctRatio: HCT_RATIO.arteriole, transitCv: TRANSIT_CV.arteriole,
-      supply: t.flowFraction / 2, next: [`${k}.glom`],
+      supply: t.flowFraction / 2, share: 0.5, next: [`${k}.glom`],
     },
     {
       id: `${k}.glom`, name: `${s} kidney: glomerular capillaries`, kind: 'capillary', circuit: 'systemic', region: 'abdomen', tissue: 'kidney',
@@ -263,7 +274,7 @@ for (const side of ['L', 'R'] as const) {
     {
       id: `${k}.cap`, name: `${s} kidney: peritubular capillaries`, kind: 'capillary', circuit: 'systemic', region: 'abdomen', tissue: 'kidney',
       length: t.capillaryLength, diameter: t.capillaryDiameter / 1000, restTransit: t.capillaryTransit,
-      hctRatio: HCT_RATIO.capillary, transitCv: TRANSIT_CV.capillary, next: [`${k}.ven`],
+      hctRatio: HCT_RATIO.capillary, transitCv: TRANSIT_CV.capillary, share: 0.5, next: [`${k}.ven`],
       exchange: { type: 'tissue', tissue: 'kidney', vo2: t.vo2 / 2, tissuePo2: t.tissuePo2 },
     },
     {
@@ -282,17 +293,17 @@ for (const side of ['L', 'R'] as const) {
   const leg = `leg_${side}`;
   vessel(`iliac_${side}`, `${s} common iliac artery`, 'artery', 'pelvis', 50, 10, [`int_iliac_${side}`, `femoral_${side}`]);
   vessel(`int_iliac_${side}`, `${s} internal iliac artery`, 'artery', 'pelvis', 40, 6, [
-    bed({ id: `pelvis_${side}.muscle`, name: `${s} gluteal & pelvic muscle`, tissue: 'muscle', region: 'pelvis', share: SPLIT.muscle.pelvis, drain: `int_iliac_vein_${side}` }),
+    bed({ id: `pelvis_${side}.muscle`, name: `${s} gluteal & pelvic muscle`, tissue: 'muscle', region: 'pelvis', share: SPLIT.muscle.pelvis, exerciseShare: EXERCISE.pelvis, drain: `int_iliac_vein_${side}` }),
     bed({ id: `pelvis_${side}.other`, name: `${s} pelvic organs & bone`, tissue: 'other', region: 'pelvis', share: SPLIT.other.pelvis, drain: `int_iliac_vein_${side}` }),
   ]);
   vessel(`femoral_${side}`, `${s} external iliac & femoral arteries`, 'artery', leg, 450, 7, [
-    bed({ id: `${leg}.thigh.muscle`, name: `${s} thigh muscle`, tissue: 'muscle', region: leg, share: SPLIT.muscle.thigh, drain: `femoral_vein_${side}` }),
+    bed({ id: `${leg}.thigh.muscle`, name: `${s} thigh muscle`, tissue: 'muscle', region: leg, share: SPLIT.muscle.thigh, exerciseShare: EXERCISE.thigh, drain: `femoral_vein_${side}` }),
     bed({ id: `${leg}.thigh.skin`, name: `${s} thigh skin`, tissue: 'skin', region: leg, share: SPLIT.skin.thigh, drain: `femoral_vein_${side}` }),
     bed({ id: `${leg}.thigh.other`, name: `${s} thigh bone & connective tissue`, tissue: 'other', region: leg, share: SPLIT.other.thigh, drain: `femoral_vein_${side}` }),
     `lower_leg_artery_${side}`,
   ]);
   vessel(`lower_leg_artery_${side}`, `${s} popliteal & tibial arteries`, 'artery', leg, 400, 3.5, [
-    bed({ id: `${leg}.lower.muscle`, name: `${s} calf muscle`, tissue: 'muscle', region: leg, share: SPLIT.muscle.lowerLeg, drain: `lower_leg_vein_${side}` }),
+    bed({ id: `${leg}.lower.muscle`, name: `${s} calf muscle`, tissue: 'muscle', region: leg, share: SPLIT.muscle.lowerLeg, exerciseShare: EXERCISE.lowerLeg, drain: `lower_leg_vein_${side}` }),
     bed({ id: `${leg}.lower.skin`, name: `${s} lower leg skin`, tissue: 'skin', region: leg, share: SPLIT.skin.lowerLeg, drain: `lower_leg_vein_${side}` }),
     bed({ id: `${leg}.lower.other`, name: `${s} lower leg bone & connective tissue`, tissue: 'other', region: leg, share: SPLIT.other.lowerLeg, drain: `lower_leg_vein_${side}` }),
     `foot_artery_${side}`,
