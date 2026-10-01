@@ -5,12 +5,39 @@
 
   interface Props {
     capillaryIndex: (id: string) => number;
+    allBeds: () => number[];
     onPick: (capillary: number) => void;
   }
-  let { capillaryIndex, onPick }: Props = $props();
+  let { capillaryIndex, allBeds, onPick }: Props = $props();
 
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   let items = $derived(MICRO_BEDS.map((b) => ({ ...b, index: capillaryIndex(b.capillary) })));
+  let showAll = $state(false);
+
+  const REGION_LABEL: Record<string, string> = {
+    lung_L: 'Lungs',
+    lung_R: 'Lungs',
+    heart: 'Heart',
+    head: 'Head',
+    thorax: 'Chest',
+    trunk: 'Trunk wall',
+    abdomen: 'Abdomen',
+    pelvis: 'Pelvis',
+    arm_L: 'Left arm & hand',
+    arm_R: 'Right arm & hand',
+    leg_L: 'Left leg & foot',
+    leg_R: 'Right leg & foot',
+  };
+  let groups = $derived.by(() => {
+    const map = new Map<string, number[]>();
+    for (const i of allBeds()) {
+      const g = REGION_LABEL[ui.segmentRegions[i]] ?? ui.segmentRegions[i];
+      map.set(g, [...(map.get(g) ?? []), i]);
+    }
+    return [...map.entries()];
+  });
+  const capitalise = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  const bedName = (i: number) => capitalise(ui.segmentNames[i].replace(/: .*$/, ''));
 </script>
 
 <div class="sheet" role="dialog" aria-label="Choose a capillary bed">
@@ -21,7 +48,7 @@
   {#if ui.follow && ui.followBed >= 0}
     <button class="item mine" onclick={() => onPick(ui.followBed)}>
       <span class="name">Where your cell is now</span>
-      <span class="sub">{ui.segmentNames[ui.followBed].replace(/: .*$/, '')}</span>
+      <span class="sub">{bedName(ui.followBed)}</span>
     </button>
   {/if}
   <ul>
@@ -41,6 +68,25 @@
       </li>
     {/each}
   </ul>
+  <button class="more" aria-expanded={showAll} onclick={() => (showAll = !showAll)}>
+    {showAll ? 'Hide' : 'Show'} all capillary beds
+  </button>
+  {#if showAll}
+    {#each groups as [group, beds] (group)}
+      <h3>{group}</h3>
+      <ul>
+        {#each beds as i (i)}
+          {@const sat = ui.bedSaturation[i]}
+          <li>
+            <button class="item small" onclick={() => onPick(i)}>
+              <span>{bedName(i)}</span>
+              {#if sat}<span class="sats">{pct(sat[0])} → {pct(sat[1])}</span>{/if}
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {/each}
+  {/if}
 </div>
 
 <style>
@@ -51,7 +97,7 @@
     transform: translateX(-50%);
     bottom: calc(env(safe-area-inset-bottom, 0px) + 140px);
     width: min(420px, calc(100% - 32px));
-    max-height: calc(100% - 200px);
+    max-height: calc(100% - 140px - 90px - env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     padding: 12px 14px;
     background: var(--panel);
@@ -102,6 +148,28 @@
     gap: 10px;
     padding: 9px 12px;
     text-align: left;
+  }
+  @media (max-width: 480px) {
+    .sheet {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 168px);
+      max-height: calc(100% - 168px - 90px - env(safe-area-inset-bottom, 0px));
+    }
+  }
+  .item.small {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .more {
+    justify-self: start;
+    font-size: 12px;
+  }
+  h3 {
+    margin: 6px 0 0;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
   .item:hover {
     border-color: var(--steel);

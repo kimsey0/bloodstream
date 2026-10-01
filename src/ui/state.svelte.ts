@@ -19,6 +19,7 @@ export const ui = $state({
   /** Segment names, indexed like the circulation graph. */
   segmentNames: [] as string[],
   segmentKinds: [] as string[],
+  segmentRegions: [] as string[],
   view: 'body' as 'body' | 'micro',
   pickerOpen: false,
   /** Capillary segment index of the bed the followed cell is in (or about to enter), else -1. */
@@ -29,6 +30,10 @@ export const ui = $state({
   microScalePx: 100,
   /** Where the followed cell is relative to the open microscope patch. */
   microFollow: 'none' as 'none' | 'here' | 'approaching' | 'elsewhere',
+  /** Choice shown after tapping the body near an organ: follow the cell there, or zoom into the bed. */
+  tapMenu: null as { x: number; y: number; cell: number | null; bed: number } | null,
+  /** First-visit hint card. */
+  hintOpen: false,
 });
 
 export interface MicroInfo {

@@ -1,6 +1,6 @@
 # Bloodstream: architecture proposal
 
-Status: milestones 1–4 implemented (simulation core, body view, follow a cell, microscope view). See "Implementation status" at the end.
+Status: milestones 1–6 implemented (simulation core, body view, follow a cell, microscope view, polish). Next: the activity-level stretch goal. See "Implementation status" at the end.
 
 ## Goal
 
@@ -246,8 +246,8 @@ tests/          physiology validation suites
 2. ✅ Body-level 3D: stylised vessels, tracers, orbit controls, time controls.
 3. ✅ Follow-cell mode + HUD + haemoglobin inset.
 4. ✅ Organ/capillary zoom levels with procedural beds.
-5. Activity slider.
-6. Polish: colour-blind palette, mobile tuning, onboarding tooltips.
+5. ✅ Polish (done before the activity slider, which is now the stretch goal).
+6. Activity slider.
 
 ## Open questions
 
@@ -374,6 +374,24 @@ overlap.
 Known simplifications: no anastomoses between capillaries; the kidney view
 shows only peritubular capillaries (not the glomerulus); dot animation is
 illustrative (the count is quantitative, the drift speed is not diffusion).
+
+### Polish milestone (done)
+
+- **Tap to zoom:** tapping near an organ in the body view projects every
+  bed centre and offers "Zoom into capillaries" (and "Follow this red
+  cell" if one was under the finger). Taps away from organs still follow
+  the nearest cell. The magnifier menu also lists every capillary bed,
+  grouped by body region.
+- **Onboarding:** a dismissable first-visit card (remembered in
+  `localStorage` when available) and a "Where the numbers come from" section
+  in the info panel.
+- **Performance:** adaptive drawing resolution (device pixel ratio 2 → 1.5 →
+  1.25 → 1 after a sustained run of frames over ~24 ms, never raised again to
+  avoid oscillation). The worker skips computing body-view cell positions
+  while the microscope is open.
+- **Colour-vision deficiency:** no separate palette; the default scale is
+  already tested against simulated deuteranopia, protanopia and tritanopia
+  (section 8).
 
 `npm run artifact` builds the app as one self-contained HTML fragment
 (worker inlined as a blob) for publishing as a claude.ai Artifact. The

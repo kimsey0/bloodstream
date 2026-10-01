@@ -1,5 +1,6 @@
 /** App controller: wires the simulation worker, the 3D scene and the HUD together. */
 import { mount } from 'svelte';
+import { BED_CENTERS } from '../anatomy/layout';
 import { buildPaths } from '../anatomy/paths';
 import { Circulation } from '../sim/circulation';
 import { microBedFor } from '../micro/beds';
@@ -23,6 +24,7 @@ ui.cardiacOutput = circ.cardiacOutput;
 ui.bloodVolume = circ.totalVolume;
 ui.segmentNames = circ.segments.map((s) => s.name);
 ui.segmentKinds = circ.segments.map((s) => s.kind);
+ui.segmentRegions = circ.segments.map((s) => s.region);
 
 const worker: Worker = new SimWorker();
 const send = (msg: ToWorker, transfer: Transferable[] = []) => worker.postMessage(msg, transfer);
@@ -48,11 +50,16 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
       ui.bedSaturation[ex.segment] = [ex.saturationIn, ex.saturationOut];
     }
     ui.ready = true;
+    try {
+      ui.hintOpen = localStorage.getItem('bloodstream.hintSeen') !== '1';
+    } catch {
+      ui.hintOpen = true;
+    }
     lastTick = performance.now();
     requestTick();
   } else if (msg.type === 'frame') {
     awaitingFrame = false;
-    scene.setCells(msg.positions, msg.saturations);
+    if (ui.view === 'body' && msg.positionsValid) scene.setCells(msg.positions, msg.saturations);
     ui.time = msg.time;
     spare = { positions: msg.positions, saturations: msg.saturations };
     if (msg.follow && wantFollow) {
@@ -66,6 +73,17 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
 };
 
 const exchange = new Map<number, ExchangeInfo>();
+
+/** Organ bed centres for tap-to-zoom, with the capillary segment each one opens. */
+const bedCaps: number[] = [];
+const bedPoints = new Float32Array(
+  Object.entries(BED_CENTERS).flatMap(([prefix, p]) => {
+    const cap = circ.byId.get(`${prefix}.cap`);
+    if (!cap?.exchange) return [];
+    bedCaps.push(cap.index);
+    return p;
+  }),
+);
 
 /** Capillary segment index of the microcirculation a segment belongs to, or -1 for named vessels. */
 function bedOf(segment: number): number {
@@ -100,6 +118,7 @@ function openBed(capillary: number): void {
   scene.controls.enabled = false;
   microRoute = -1;
   ui.pickerOpen = false;
+  ui.tapMenu = null;
   ui.view = 'micro';
   ui.micro = {
     capillary,
@@ -115,6 +134,15 @@ function openBed(capillary: number): void {
     fiberLabel: bed.fiberLabel,
     lung: seg.exchange?.type === 'lung',
   };
+}
+
+function dismissHint(): void {
+  ui.hintOpen = false;
+  try {
+    localStorage.setItem('bloodstream.hintSeen', '1');
+  } catch {
+    // Storage unavailable: the hint simply shows again next time.
+  }
 }
 
 function closeBed(): void {
@@ -203,20 +231,26 @@ function recordHistory(t: number, s: number, v: number): void {
   }
 }
 
-// Tap (not drag) on the scene picks the nearest cell.
-let down: { x: number; y: number; t: number } | null = null;
+// Tap (not drag) on the scene: near an organ, offer to zoom in or follow; elsewhere, follow the nearest cell.
+let down: { x: number; y: number; t: number; menuWasOpen: boolean } | null = null;
 canvas.addEventListener('pointerdown', (e) => {
-  down = e.isPrimary ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
+  down = e.isPrimary ? { x: e.clientX, y: e.clientY, t: performance.now(), menuWasOpen: !!ui.tapMenu } : null;
+  ui.tapMenu = null;
+  if (ui.hintOpen) dismissHint();
 });
 canvas.addEventListener('pointerup', (e) => {
   if (!down || !e.isPrimary) return;
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
   const quick = performance.now() - down.t < 400;
+  const wasOpen = down.menuWasOpen;
   down = null;
+  if (wasOpen) return;
   if (moved > 6 || !quick || !ui.ready) return;
   if (ui.view !== 'body') return;
   const cell = scene.pick(e.clientX, e.clientY);
-  if (cell !== null) followCell(cell);
+  const bed = scene.nearestOnScreen(bedPoints, e.clientX, e.clientY, 36);
+  if (bed !== null) ui.tapMenu = { x: e.clientX, y: e.clientY, cell, bed: bedCaps[bed] };
+  else if (cell !== null) followCell(cell);
 });
 
 function requestTick(): void {
@@ -226,7 +260,7 @@ function requestTick(): void {
   lastTick = now;
   awaitingFrame = true;
   const transfer = [spare.positions?.buffer, spare.saturations?.buffer].filter((b): b is ArrayBuffer => !!b);
-  send({ type: 'tick', wallDt, ...spare }, transfer);
+  send({ type: 'tick', wallDt, skipPositions: ui.view !== 'body', ...spare }, transfer);
   spare = {};
 }
 
@@ -237,10 +271,31 @@ function fitBodyView(): void {
   scene.resetView();
 }
 
+/**
+ * Adaptive quality: if frames take longer than ~24 ms (under ~40 fps) for a sustained stretch,
+ * lower the drawing resolution a notch. Never raise it again, to avoid oscillating.
+ */
+const PIXEL_RATIO_STEPS = [2, 1.5, 1.25, 1];
+let ratioStep = 0;
+let frameAvg = 16;
+let slowFrames = 0;
+function adaptQuality(frameMs: number): void {
+  if (!ui.ready || document.hidden || frameMs > 250) return;
+  frameAvg += (frameMs - frameAvg) * 0.05;
+  slowFrames = frameAvg > 24 ? slowFrames + 1 : 0;
+  if (slowFrames > 90 && ratioStep < PIXEL_RATIO_STEPS.length - 1 && window.devicePixelRatio > PIXEL_RATIO_STEPS[ratioStep + 1]) {
+    ratioStep++;
+    scene.setMaxPixelRatio(PIXEL_RATIO_STEPS[ratioStep]);
+    slowFrames = 0;
+    frameAvg = 16;
+  }
+}
+
 let lastFrame = performance.now();
 function loop(): void {
   requestTick();
   const now = performance.now();
+  adaptQuality(now - lastFrame);
   const wallDt = Math.min(0.1, (now - lastFrame) / 1000);
   lastFrame = now;
   if (micro && ui.micro) {
@@ -275,6 +330,12 @@ const hud = mount(Hud, {
     onFollowRandom: () => followCell(-1),
     onStopFollow: stopFollowing,
     onOpenBed: openBed,
+    onFollowCell: (cell: number) => {
+      ui.tapMenu = null;
+      followCell(cell);
+    },
+    onDismissHint: dismissHint,
+    allBeds: () => bedCaps.slice(),
     onBackToBody: closeBed,
     onMicroReset: () => micro?.resetView(),
     capillaryIndex: (id: string) => circ.get(id).index,

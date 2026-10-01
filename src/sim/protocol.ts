@@ -12,6 +12,8 @@ export interface TickMessage {
   type: 'tick';
   /** Wall-clock seconds since the previous tick. */
   wallDt: number;
+  /** True while the body view is hidden: skip computing cell positions. */
+  skipPositions?: boolean;
   /** Buffers handed back for reuse. */
   positions?: Float32Array;
   saturations?: Float32Array;
@@ -94,6 +96,8 @@ export interface FrameMessage {
   /** cellCount × 3, cm. */
   positions: Float32Array;
   saturations: Float32Array;
+  /** False when positions were skipped for this frame (contents are stale). */
+  positionsValid: boolean;
   follow?: FollowInfo;
 }
 

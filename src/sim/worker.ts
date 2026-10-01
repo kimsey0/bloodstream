@@ -68,7 +68,7 @@ function init(msg: InitMessage): void {
   });
 }
 
-function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Array): void {
+function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Array, skipPositions = false): void {
   if (!sim) return;
   if (!paused) {
     const dt = Math.min(MAX_STEP, Math.max(0, wallDt) * speed);
@@ -78,12 +78,12 @@ function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Arr
   const n = sim.count;
   const pos = positions?.length === n * 3 ? positions : new Float32Array(n * 3);
   const sat = saturations?.length === n ? saturations : new Float32Array(n);
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < n && !skipPositions; i++) {
     const seg = sim.segment[i];
     samplePath(lut, radius, seg, sim.progress(i), offsetR[i], offsetTheta[i], pos, i * 3);
     sat[i] = sim.saturation(i);
   }
-  post({ type: 'frame', time: sim.time, positions: pos, saturations: sat, follow: followInfo() }, [pos.buffer, sat.buffer]);
+  post({ type: 'frame', time: sim.time, positions: pos, saturations: sat, positionsValid: !skipPositions, follow: followInfo() }, [pos.buffer, sat.buffer]);
 }
 
 function follow(cell: number | null): void {
@@ -129,7 +129,7 @@ self.onmessage = (e: MessageEvent<ToWorker>) => {
       init(msg);
       break;
     case 'tick':
-      tick(msg.wallDt, msg.positions, msg.saturations);
+      tick(msg.wallDt, msg.positions, msg.saturations, msg.skipPositions);
       break;
     case 'follow':
       follow(msg.cell);

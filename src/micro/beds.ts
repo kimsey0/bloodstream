@@ -108,7 +108,7 @@ export function microBedFor(seg: Segment): MicroBed {
   const key = seg.exchange?.type === 'lung' ? 'lung' : (seg.tissue ?? 'other');
   return {
     capillary: seg.id,
-    label: seg.name.replace(/: .*$/, ''),
+    label: seg.name.replace(/: .*$/, '').replace(/^./, (c) => c.toUpperCase()),
     ...TISSUE_STYLE[key],
     blurb: 'A representative patch of this capillary bed, drawn from the same model as the body view.',
   };

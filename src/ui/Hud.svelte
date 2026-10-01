@@ -3,6 +3,7 @@
   import BedPicker from './BedPicker.svelte';
   import FollowPanel from './FollowPanel.svelte';
   import MicroPanel from './MicroPanel.svelte';
+  import TapMenu from './TapMenu.svelte';
   import { SPEEDS, ui } from './state.svelte';
 
   interface Props {
@@ -14,10 +15,25 @@
     onOpenBed: (capillary: number) => void;
     onBackToBody: () => void;
     onMicroReset: () => void;
+    onFollowCell: (cell: number) => void;
+    onDismissHint: () => void;
     capillaryIndex: (id: string) => number;
+    allBeds: () => number[];
   }
-  let { onSpeed, onPause, onResetView, onFollowRandom, onStopFollow, onOpenBed, onBackToBody, onMicroReset, capillaryIndex }: Props =
-    $props();
+  let {
+    onSpeed,
+    onPause,
+    onResetView,
+    onFollowRandom,
+    onStopFollow,
+    onOpenBed,
+    onBackToBody,
+    onMicroReset,
+    onFollowCell,
+    onDismissHint,
+    capillaryIndex,
+    allBeds,
+  }: Props = $props();
 
   const gradient = Array.from({ length: 21 }, (_, i) => `${saturationCss(i / 20)} ${i * 5}%`).join(', ');
 
@@ -41,7 +57,23 @@
 {/if}
 
 {#if ui.pickerOpen}
-  <BedPicker {capillaryIndex} onPick={(c) => onOpenBed(c)} />
+  <BedPicker {capillaryIndex} {allBeds} onPick={(c) => onOpenBed(c)} />
+{/if}
+
+{#if ui.tapMenu && ui.view === 'body'}
+  <TapMenu menu={ui.tapMenu} onFollow={onFollowCell} onOpenBed={(c) => onOpenBed(c)} />
+{/if}
+
+{#if ui.hintOpen && ui.ready && ui.view === 'body' && !ui.follow && !ui.pickerOpen}
+  <aside class="hint" aria-label="How to use">
+    <p><b>Each dot is a red blood cell</b>, coloured by how much oxygen it carries, moving at real speed.</p>
+    <ul>
+      <li>Tap a cell to follow it round the body, or tap near an organ to zoom into its capillaries.</li>
+      <li>Drag to rotate, pinch to zoom, two fingers to pan.</li>
+      <li>Slow time down to 0.01× to watch oxygen load in the lungs.</li>
+    </ul>
+    <button onclick={onDismissHint}>Got it</button>
+  </aside>
 {/if}
 
 <header class="brand" class:following={!!ui.follow || ui.view === 'micro'}>
@@ -175,11 +207,19 @@
       for a billion O₂ molecules crossing the capillary wall.
     </p>
     <p>
-      Tap any cell, or the target button, to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,
+      Tap near an organ to zoom into its capillaries, or tap any cell (or the target button) to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,
       how long its current trip round the body has taken, and one of its haemoglobin molecules. At 1× the four binding sites flip
       faster than the eye can follow (the last O₂ stays bound for ~7 ms on average); slow down to 0.01× to watch them.
     </p>
     <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan.</p>
+    <h2>Where the numbers come from</h2>
+    <p class="sources">
+      Blood volume, flows and organ O₂ use: Guyton &amp; Hall; Ganong. Lung diffusion and transit: West, Respiratory Physiology.
+      O₂ dissociation curve: Severinghaus 1979. Haemoglobin binding steps: Imai's Adair constants; on/off rates within Gibson's
+      measured T- and R-state ranges. Red cell shape: Evans &amp; Fung 1972. Capillary haematocrit: Pries et al. 1990. Arterial and
+      venous saturations, circuit times and per-organ O₂ extraction are not set by hand: they emerge from the model and are checked by
+      automated tests.
+    </p>
     <button class="close" onclick={() => (ui.infoOpen = false)}>Close</button>
   </aside>
 {/if}
@@ -233,6 +273,39 @@
   }
   .follow-wrap {
     display: contents;
+  }
+  .hint {
+    pointer-events: auto;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 150px);
+    width: min(420px, calc(100% - 32px));
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-size: 13px;
+  }
+  .hint p {
+    margin: 0 0 6px;
+  }
+  .hint ul {
+    margin: 0 0 10px;
+    padding-left: 18px;
+    color: #c4ccd8;
+    display: grid;
+    gap: 3px;
+  }
+  .hint button {
+    padding: 5px 14px;
+  }
+  @media (max-width: 480px) {
+    .hint {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 190px);
+    }
   }
   @media (max-width: 820px) {
     .follow-wrap.micro {
@@ -430,5 +503,13 @@
   }
   .close {
     padding: 5px 12px;
+  }
+  .info h2 + .sources,
+  .sources {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .info h2:not(:first-child) {
+    margin-top: 14px;
   }
 </style>
