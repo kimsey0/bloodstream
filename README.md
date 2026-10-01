@@ -64,7 +64,7 @@ principle, with each cell's extraction depending on how long it lingers.
 ```
 physiology/  parameters, O2 curve, haemoglobin, activity, heartbeat
      │
-sim/circulation   186-segment vascular graph → flows, volumes, transit times
+sim/circulation   220-segment vascular graph → flows, volumes, transit times
      │
 sim/oxygen        steady state + per-organ calibration (Bohr integration)
      │
@@ -112,15 +112,15 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (~60 tests)
+npm test            # physiology validation suite (61 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```
 
 Every push to `main` runs the typecheck, tests and build, then deploys `dist/`
 to GitHub Pages ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
-`npm run artifact` produces a single self-contained HTML file. It was used
-to share previews during development.
+`npm run artifact` builds a single self-contained HTML file, for hosts that
+need the whole app in one file.
 
 Contributions are welcome. Please keep physiological changes backed by a
 source, and run `npm run typecheck && npm test` before opening a pull

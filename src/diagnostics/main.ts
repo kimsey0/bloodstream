@@ -1,5 +1,5 @@
 /**
- * Milestone 1 diagnostics page: shows the simulation core's emergent numbers
+ * Diagnostics page: shows the simulation core's emergent numbers
  * and lets you follow one red cell. No 3D yet.
  */
 import { HEMOGLOBIN_STEP_COLORS, saturationCss } from '../color/saturation';
@@ -39,7 +39,7 @@ function init(): void {
 
   app.innerHTML = `
     <h1>Bloodstream: simulation core</h1>
-    <p class="lead">A resting adult. ${sim.count.toLocaleString()} tracer red cells, timed in physiological seconds. Milestone 1 diagnostics; the 3D view comes next.</p>
+    <p class="lead">A resting adult. ${sim.count.toLocaleString()} tracer red cells, timed in physiological seconds. Diagnostics for the simulation core; the 3D app is at <a href="./">the main page</a>.</p>
     <div class="grid">
       <section>
         <h2>Whole body</h2>
