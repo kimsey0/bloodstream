@@ -19,7 +19,33 @@ export const ui = $state({
   /** Segment names, indexed like the circulation graph. */
   segmentNames: [] as string[],
   segmentKinds: [] as string[],
+  view: 'body' as 'body' | 'micro',
+  pickerOpen: false,
+  /** Capillary segment index of the bed the followed cell is in (or about to enter), else -1. */
+  followBed: -1,
+  /** Steady-state inlet/outlet saturation per capillary segment index. */
+  bedSaturation: {} as Record<number, [number, number]>,
+  micro: null as MicroInfo | null,
+  microScalePx: 100,
+  /** Where the followed cell is relative to the open microscope patch. */
+  microFollow: 'none' as 'none' | 'here' | 'approaching' | 'elsewhere',
 });
+
+export interface MicroInfo {
+  capillary: number;
+  label: string;
+  blurb: string;
+  lengthUm: number;
+  diameterUm: number;
+  transit: number;
+  speedUm: number;
+  saturationIn: number;
+  saturationOut: number;
+  /** Mean O2 dots per cell passage (each dot = 10⁹ molecules). */
+  dotsPerPass: number;
+  fiberLabel?: string;
+  lung: boolean;
+}
 
 /** Recent (time, saturation, speed) samples of the followed cell, for the sparkline. Not reactive on purpose. */
 export const history = { t: [] as number[], s: [] as number[], v: [] as number[] };

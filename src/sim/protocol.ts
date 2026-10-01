@@ -40,6 +40,17 @@ export interface ReadyMessage {
   arterialSaturation: number;
   mixedVenousSaturation: number;
   meanCirculationTime: number;
+  /** Exchange models of every capillary bed, for the microscope view. */
+  exchange: ExchangeInfo[];
+}
+
+export interface ExchangeInfo {
+  segment: number;
+  conductance: number;
+  targetPo2: number;
+  po2In: number;
+  saturationIn: number;
+  saturationOut: number;
 }
 
 export interface RouteStep {

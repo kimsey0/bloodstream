@@ -1,6 +1,8 @@
 <script lang="ts">
   import { saturationCss } from '../color/saturation';
+  import BedPicker from './BedPicker.svelte';
   import FollowPanel from './FollowPanel.svelte';
+  import MicroPanel from './MicroPanel.svelte';
   import { SPEEDS, ui } from './state.svelte';
 
   interface Props {
@@ -9,8 +11,13 @@
     onResetView: () => void;
     onFollowRandom: () => void;
     onStopFollow: () => void;
+    onOpenBed: (capillary: number) => void;
+    onBackToBody: () => void;
+    onMicroReset: () => void;
+    capillaryIndex: (id: string) => number;
   }
-  let { onSpeed, onPause, onResetView, onFollowRandom, onStopFollow }: Props = $props();
+  let { onSpeed, onPause, onResetView, onFollowRandom, onStopFollow, onOpenBed, onBackToBody, onMicroReset, capillaryIndex }: Props =
+    $props();
 
   const gradient = Array.from({ length: 21 }, (_, i) => `${saturationCss(i / 20)} ${i * 5}%`).join(', ');
 
@@ -24,15 +31,25 @@
 </script>
 
 {#if ui.follow}
-  <FollowPanel info={ui.follow} onStop={onStopFollow} />
+  <div class="follow-wrap" class:micro={ui.view === 'micro'}>
+    <FollowPanel info={ui.follow} onStop={onStopFollow} onZoom={ui.view === 'body' && ui.followBed >= 0 ? () => onOpenBed(ui.followBed) : undefined} />
+  </div>
 {/if}
 
-<header class="brand" class:following={!!ui.follow}>
+{#if ui.view === 'micro' && ui.micro}
+  <MicroPanel info={ui.micro} onBack={onBackToBody} onResetView={onMicroReset} />
+{/if}
+
+{#if ui.pickerOpen}
+  <BedPicker {capillaryIndex} onPick={(c) => onOpenBed(c)} />
+{/if}
+
+<header class="brand" class:following={!!ui.follow || ui.view === 'micro'}>
   <h1>Bloodstream</h1>
   <p>Resting adult · {(ui.cardiacOutput * 0.06).toFixed(1)} L/min · {(ui.bloodVolume / 1000).toFixed(1)} L blood</p>
 </header>
 
-<div class="clock" class:following={!!ui.follow} aria-live="off">
+<div class="clock" class:following={!!ui.follow || ui.view === 'micro'} aria-live="off">
   <span class="label">Body time</span>
   <span class="value">{clock(ui.time)}</span>
   <span class="sub">{ui.paused ? 'paused' : ui.speed === 1 ? 'real time' : `${speedLabel(ui.speed)} real time`}</span>
@@ -45,7 +62,7 @@
   </div>
 {/if}
 
-<div class="dock">
+<div class="dock" id="dock">
   <div class="row">
     <button
       id="pause"
@@ -85,7 +102,24 @@
         /><path d="M8 0.5v2.4M8 13.1v2.4M0.5 8h2.4M13.1 8h2.4" stroke="currentColor" stroke-width="1.5" /></svg
       >
     </button>
-    <button class="icon" aria-label="Reset view" title="Reset view" onclick={onResetView}>
+    <button
+      class="icon"
+      class:on={ui.pickerOpen || ui.view === 'micro'}
+      aria-label="Zoom into a capillary bed"
+      title="Zoom into a capillary bed"
+      aria-expanded={ui.pickerOpen}
+      onclick={() => (ui.pickerOpen = !ui.pickerOpen)}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true"
+        ><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path
+          d="M10 10l4.5 4.5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        /><path d="M4.5 6.5h4M6.5 4.5v4" stroke="currentColor" stroke-width="1.3" /></svg
+      >
+    </button>
+    <button class="icon" aria-label="Reset view" title="Reset view" onclick={() => (ui.view === 'micro' ? onMicroReset() : onResetView())}>
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><path d="M8 2.5a5.5 5.5 0 1 1-5.2 3.7" stroke="currentColor" stroke-width="1.6" fill="none" /><path
           d="M1.8 2.8l1.1 3.7 3.6-1.2"
@@ -137,6 +171,10 @@
       are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long. Cells are drawn about 600× too big.
     </p>
     <p>
+      The magnifier opens a capillary bed at true scale: real cell sizes, capillary widths and speeds, with each white dot standing
+      for a billion O₂ molecules crossing the capillary wall.
+    </p>
+    <p>
       Tap any cell, or the target button, to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,
       how long its current trip round the body has taken, and one of its haemoglobin molecules. At 1× the four binding sites flip
       faster than the eye can follow (the last O₂ stays bound for ~7 ms on average); slow down to 0.01× to watch them.
@@ -181,17 +219,27 @@
     justify-items: end;
     pointer-events: none;
   }
-  @media (max-width: 420px) {
+  @media (max-width: 480px) {
+    /* Speeds get their own full-width row on phones. */
     .row {
-      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      row-gap: 8px;
     }
-    .icon {
-      width: 32px;
-    }
-    .speeds button {
-      font-size: 10.5px;
+    .row .speeds {
+      order: -1;
+      flex: 1 0 100%;
     }
   }
+  .follow-wrap {
+    display: contents;
+  }
+  @media (max-width: 820px) {
+    .follow-wrap.micro {
+      display: none;
+    }
+  }
+  .icon.on,
   .follow.on {
     background: var(--steel);
     color: #0b1220;

@@ -57,6 +57,14 @@ function init(msg: InitMessage): void {
     arterialSaturation: sim.steady.arterial.saturationIn,
     mixedVenousSaturation: sim.steady.mixedVenous.saturationIn,
     meanCirculationTime: sim.circulation.meanRbcCirculationTime,
+    exchange: [...sim.steady.exchange].map(([segment, ex]) => ({
+      segment,
+      conductance: ex.conductance,
+      targetPo2: ex.targetPo2,
+      po2In: sim!.steady.segments[segment].po2In,
+      saturationIn: sim!.steady.segments[segment].saturationIn,
+      saturationOut: sim!.steady.segments[segment].saturationOut,
+    })),
   });
 }
 

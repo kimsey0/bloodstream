@@ -1,6 +1,6 @@
 # Bloodstream: architecture proposal
 
-Status: milestones 1 (simulation core), 2 (body-level 3D view) and 3 (follow a cell) implemented. See "Implementation status" at the end.
+Status: milestones 1–4 implemented (simulation core, body view, follow a cell, microscope view). See "Implementation status" at the end.
 
 ## Goal
 
@@ -245,7 +245,7 @@ tests/          physiology validation suites
 1. ✅ Sim core + validation tests (graph, routing, O₂ model). No 3D.
 2. ✅ Body-level 3D: stylised vessels, tracers, orbit controls, time controls.
 3. ✅ Follow-cell mode + HUD + haemoglobin inset.
-4. Organ/capillary zoom levels with procedural beds.
+4. ✅ Organ/capillary zoom levels with procedural beds.
 5. Activity slider.
 6. Polish: colour-blind palette, mobile tuning, onboarding tooltips.
 
@@ -346,6 +346,34 @@ Rendering decisions:
   ~270 M Hb over 0–4 bound O2; an SO2 + speed (log) sparkline over a window
   scaled to playback speed; and an expandable journey log. On phones the
   panel starts compact.
+
+### Milestone 4: microscope view (done)
+
+The organ and capillary zoom levels are one "microscope" view, opened from
+the magnifier button (menu of seven representative beds) or from the follow
+panel ("Zoom into this capillary bed", for any bed the followed cell is in).
+
+| Module | Contents |
+|---|---|
+| `src/micro/beds.ts` | Menu beds (lung, heart muscle, brain, thigh muscle, kidney, liver, fingertip skin) and a tissue → network-style mapping for every other bed |
+| `src/micro/network.ts` | Procedural networks in µm: one terminal arteriole, N capillaries, one venule. Styles: `fibers` (capillaries in the corners between muscle fibres / cardiomyocytes / tubules / hepatocyte plates), `alveoli` (a capillary sheet between air sacs), `tortuous` (brain-like 3D mesh), `hairpin` (skin papillary loops). Each capillary is fitted by bisection so its length equals the modelled capillary length |
+| `src/micro/microSim.ts` | Local cells: single file at one velocity per capillary (no overtaking), capillary transits from the same log-normal quantiles as the body model, equal cell flux per capillary, spacing from tube haematocrit (90 fL cell, Hct 0.45 × Fåhraeus ratio). O2 uses the bed's calibrated exchange model. One "dot" per 10⁹ O2 molecules moved |
+| `src/render/microScene.ts` | Evans–Fung biconcave discs (instanced), folded to fit and facing the flow in capillaries, tumbling in arterioles/venules. Capillaries coloured along their length by their own transit's saturation profile. Tissue context drawn as translucent fibres, alveoli or epidermis. O2 dots drift ~14 µm across the wall (outwards in tissue, inwards in lungs) |
+
+Validated in `tests/micro.test.ts`: capillary lengths within 3 %, mean
+capillary transit equals the body model, outlet saturation within 2 % of the
+body model for lung, heart and kidney, and dot counts within 15 % of
+ΔSO2 × 4 × 270 M / 10⁹ per passage.
+
+The followed cell appears in the open patch for the last stretch of its
+arterioles, its whole capillary passage (progress from the body simulation)
+and the first stretch of its venules, on the route whose transit is closest
+to its own. Local cells near it on that route are hidden so they don't
+overlap.
+
+Known simplifications: no anastomoses between capillaries; the kidney view
+shows only peritubular capillaries (not the glomerulus); dot animation is
+illustrative (the count is quantitative, the drift speed is not diffusion).
 
 `npm run artifact` builds the app as one self-contained HTML fragment
 (worker inlined as a blob) for publishing as a claude.ai Artifact. The

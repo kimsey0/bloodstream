@@ -6,8 +6,10 @@
   interface Props {
     info: FollowInfo;
     onStop: () => void;
+    /** Open the microscope on the bed the cell is in; absent when not applicable. */
+    onZoom?: () => void;
   }
-  let { info, onStop }: Props = $props();
+  let { info, onStop, onZoom }: Props = $props();
 
   let journeyOpen = $state(false);
   /** Phones start compact: saturation, location, circuit timer and the molecule only. */
@@ -159,6 +161,9 @@
   {/if}
 
   <div class="toggles">
+    {#if onZoom}
+      <button class="zoom" onclick={onZoom}>Zoom into this capillary bed</button>
+    {/if}
     <button aria-expanded={details} onclick={() => (details = !details)}>{details ? 'Fewer details' : 'More details'}</button>
     <button aria-expanded={journeyOpen} onclick={() => (journeyOpen = !journeyOpen)}>
       {journeyOpen ? 'Hide' : 'Show'} journey log
@@ -362,6 +367,10 @@
   }
   .toggles button {
     font-size: 12px;
+  }
+  .toggles .zoom {
+    border-color: var(--steel);
+    color: var(--steel);
   }
   .journey {
     list-style: none;

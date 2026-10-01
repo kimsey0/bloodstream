@@ -3,8 +3,6 @@ import { BufferAttribute, BufferGeometry, Line, LineBasicMaterial, Points, Shade
 import { saturationColorLinear } from '../color/saturation';
 
 const TRAIL_POINTS = 600;
-/** Minimum spacing between trail points, cm. */
-const TRAIL_STEP = 0.25;
 
 export class FollowMarker {
   readonly marker: Points;
@@ -14,7 +12,14 @@ export class FollowMarker {
   private count = 0;
   private readonly last = new Vector3(Infinity, 0, 0);
 
-  constructor() {
+  /**
+   * @param step Minimum spacing between trail points (world units).
+   * @param jump A move longer than this starts a fresh trail.
+   */
+  constructor(
+    private readonly step = 0.25,
+    private readonly jump = 25,
+  ) {
     const g = new BufferGeometry();
     g.setAttribute('position', new BufferAttribute(new Float32Array(3), 3));
     this.marker = new Points(
@@ -76,8 +81,8 @@ export class FollowMarker {
     mp.setXYZ(0, p.x, p.y, p.z);
     mp.needsUpdate = true;
     // A long jump means a new cell or a reset; start a fresh trail.
-    if (this.last.x !== Infinity && p.distanceTo(this.last) > 25) this.clearTrail();
-    if (p.distanceTo(this.last) < TRAIL_STEP && this.count > 0) return;
+    if (this.last.x !== Infinity && p.distanceTo(this.last) > this.jump) this.clearTrail();
+    if (p.distanceTo(this.last) < this.step && this.count > 0) return;
     if (this.count === TRAIL_POINTS) {
       this.trailPos.copyWithin(0, 3);
       this.trailCol.copyWithin(0, 3);
