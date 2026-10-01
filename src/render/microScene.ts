@@ -34,7 +34,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { saturationColor, saturationColorLinear } from '../color/saturation';
 import { saturation } from '../physiology/dissociation';
 import type { MicroBed } from '../micro/beds';
-import { ARTERIOLE_SPEED, VENULE_SPEED, type DotEvent, type MicroSim } from '../micro/microSim';
+import { ARTERIOLE_SPEED, VENULE_SPEED, type DotEvent, type MicroCell, type MicroSim } from '../micro/microSim';
 import { sampleLine, type MicroNetwork } from '../micro/network';
 import { integratePo2 } from '../sim/oxygen';
 import { FollowMarker } from './follow';
@@ -338,6 +338,29 @@ export class MicroScene {
       (this.followCell.material as MeshStandardMaterial).color.setRGB(cr, cg, cb);
       this.marker.update(pos, f.saturation);
     }
+  }
+
+  /** The local cell drawn nearest to a screen point (CSS px), or null if none within reach. */
+  pickCell(clientX: number, clientY: number, rect: DOMRect, maxDistPx = 24): MicroCell | null {
+    const m = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse).elements;
+    const p = new Vector3();
+    let best: MicroCell | null = null;
+    let bestD = maxDistPx * maxDistPx;
+    let bestDepth = Infinity;
+    for (const c of this.sim.cells) {
+      sampleLine(this.net.routes[c.route].line, c.s, p);
+      const w = m[3] * p.x + m[7] * p.y + m[11] * p.z + m[15];
+      if (w <= 0) continue;
+      const sx = rect.left + ((m[0] * p.x + m[4] * p.y + m[8] * p.z + m[12]) / w + 1) * 0.5 * rect.width;
+      const sy = rect.top + (1 - ((m[1] * p.x + m[5] * p.y + m[9] * p.z + m[13]) / w + 1) * 0.5) * rect.height;
+      const d = (sx - clientX) ** 2 + (sy - clientY) ** 2;
+      if (d < bestD || (d < bestD * 1.5 && w < bestDepth)) {
+        bestD = Math.min(d, bestD);
+        bestDepth = w;
+        best = c;
+      }
+    }
+    return best;
   }
 
   /** Map the followed cell's body-scale state to a position in this patch. */

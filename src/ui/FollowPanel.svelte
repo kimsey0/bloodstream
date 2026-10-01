@@ -39,7 +39,7 @@
   const fmtTime = (t: number) => (t < 10 ? `${t.toFixed(2)} s` : t < 60 ? `${t.toFixed(1)} s` : `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`);
   const shortVia = (via: string[]) => (via.length ? via.join(' + ') : '—');
 
-  let name = $derived(ui.segmentNames[info.segment] ?? '');
+  let name = $derived((ui.segmentNames[info.segment] ?? '').replace(/^./, (c) => c.toUpperCase()));
   let kind = $derived(KIND_LABEL[ui.segmentKinds[info.segment]] ?? '');
   let recent = $derived([...info.route].reverse().slice(0, 12));
   let span = $derived(Math.min(120, Math.max(2, 20 * ui.speed)));
@@ -96,6 +96,14 @@
   });
 </script>
 
+{#if ui.followCollapsed}
+  <button class="pill left" aria-label="Show the followed cell's panel" onclick={() => (ui.followCollapsed = false)}>
+    <span class="dot small" style:background={saturationCss(info.saturation)}></span>
+    <b class="num">{pct(info.saturation)}</b>
+    <span class="pill-name">{name}</span>
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
+  </button>
+{:else}
 <section class="panel" aria-label="Followed red blood cell">
   <div class="top">
     <span class="dot" style:background={saturationCss(info.saturation)}></span>
@@ -104,6 +112,7 @@
       <span>SO₂ · {info.po2.toFixed(0)} mmHg</span>
     </div>
     <button class="stop" onclick={onStop} aria-label="Stop following">Stop</button>
+    <button class="collapse" onclick={() => (ui.followCollapsed = true)} aria-label="Collapse panel" title="Collapse"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg></button>
   </div>
 
   <div class="where">
@@ -182,8 +191,65 @@
     </ol>
   {/if}
 </section>
+{/if}
 
 <style>
+  .pill {
+    pointer-events: auto;
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 8px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    max-width: calc(100% - 32px);
+  }
+  .pill svg,
+  .collapse svg {
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+  .pill:focus-visible {
+    outline: 2px solid var(--steel);
+    outline-offset: 2px;
+  }
+  .collapse {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 28px;
+    padding: 0;
+  }
+  .pill.left {
+    left: 16px;
+  }
+  .dot.small {
+    width: 12px;
+    height: 12px;
+    box-shadow: 0 0 0 1.5px rgba(231, 236, 243, 0.6);
+  }
+  .num {
+    font: 500 13px var(--font-data);
+  }
+  .pill-name {
+    color: var(--muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
+
   .panel {
     pointer-events: auto;
     position: absolute;

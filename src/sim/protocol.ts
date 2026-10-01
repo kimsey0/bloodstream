@@ -31,7 +31,19 @@ export interface FollowMessage {
   cell: number | null;
 }
 
-export type ToWorker = InitMessage | TickMessage | ControlMessage | FollowMessage;
+/**
+ * Follow a cell picked in the microscope view: a tracer takes over that local cell's place
+ * (segment, time into the segment, transit time and PO2) and is followed from there.
+ */
+export interface AdoptMessage {
+  type: 'adopt';
+  segment: number;
+  elapsed: number;
+  duration: number;
+  po2: number;
+}
+
+export type ToWorker = InitMessage | TickMessage | ControlMessage | FollowMessage | AdoptMessage;
 
 /** Steady-state oxygen along each segment, for colouring vessels. */
 export interface ReadyMessage {

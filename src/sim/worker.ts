@@ -7,7 +7,7 @@
 import { samplePath } from '../anatomy/lut';
 import { saturation } from '../physiology/dissociation';
 import { integratePo2 } from './oxygen';
-import { PROFILE_SAMPLES, type FromWorker, type InitMessage, type ToWorker } from './protocol';
+import { PROFILE_SAMPLES, type AdoptMessage, type FromWorker, type InitMessage, type ToWorker } from './protocol';
 import { Rng } from './rng';
 import { Simulation } from './simulation';
 import { CellTracker } from './tracking';
@@ -100,6 +100,31 @@ function follow(cell: number | null): void {
   tracker = new CellTracker(sim, cell, Math.floor(pickRng.next() * 1e9));
 }
 
+/**
+ * Put a tracer where the user tapped a microscope cell and follow it. Prefer a tracer already
+ * in that segment (closest in progress), so the sample is disturbed as little as possible.
+ */
+function adopt(msg: AdoptMessage): void {
+  if (!sim) return;
+  const target = msg.elapsed / msg.duration;
+  let cell = -1;
+  let best = Infinity;
+  for (let i = 0; i < sim.count; i++) {
+    if (sim.segment[i] !== msg.segment) continue;
+    const d = Math.abs(sim.progress(i) - target);
+    if (d < best) {
+      best = d;
+      cell = i;
+    }
+  }
+  if (cell < 0) cell = Math.floor(pickRng.next() * sim.count);
+  sim.segment[cell] = msg.segment;
+  sim.duration[cell] = msg.duration;
+  sim.elapsed[cell] = Math.min(msg.elapsed, msg.duration * 0.999);
+  sim.po2[cell] = msg.po2;
+  follow(cell);
+}
+
 function followInfo() {
   if (!sim || !tracker) return undefined;
   const c = tracker.cell;
@@ -133,6 +158,9 @@ self.onmessage = (e: MessageEvent<ToWorker>) => {
       break;
     case 'follow':
       follow(msg.cell);
+      break;
+    case 'adopt':
+      adopt(msg);
       break;
     case 'control':
       if (msg.speed !== undefined) speed = msg.speed;

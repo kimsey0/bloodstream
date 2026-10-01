@@ -32,6 +32,9 @@ export const ui = $state({
   microFollow: 'none' as 'none' | 'here' | 'approaching' | 'elsewhere',
   /** Choice shown after tapping the body near an organ: follow the cell there, or zoom into the bed. */
   tapMenu: null as { x: number; y: number; cell: number | null; bed: number } | null,
+  /** Panels collapsed to a small pill so the cells can be watched unobstructed. */
+  followCollapsed: false,
+  microCollapsed: false,
   /** First-visit hint card. */
   hintOpen: false,
 });

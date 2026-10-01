@@ -4,7 +4,7 @@ import { BED_CENTERS } from '../anatomy/layout';
 import { buildPaths } from '../anatomy/paths';
 import { Circulation } from '../sim/circulation';
 import { microBedFor } from '../micro/beds';
-import { MicroSim } from '../micro/microSim';
+import { ARTERIOLE_SPEED, MicroSim, VENULE_SPEED } from '../micro/microSim';
 import { buildNetwork } from '../micro/network';
 import { STANDARD_CONDITIONS } from '../physiology/dissociation';
 import { HB_PER_RBC } from '../physiology/hemoglobin';
@@ -59,6 +59,7 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
     requestTick();
   } else if (msg.type === 'frame') {
     awaitingFrame = false;
+    framesReceived++;
     if (ui.view === 'body' && msg.positionsValid) scene.setCells(msg.positions, msg.saturations);
     ui.time = msg.time;
     spare = { positions: msg.positions, saturations: msg.saturations };
@@ -99,6 +100,42 @@ function bedOf(segment: number): number {
 let micro: MicroScene | null = null;
 /** Route the followed cell takes through the open patch on its current visit. */
 let microRoute = -1;
+/** Route of a microscope cell the user just tapped, applied once the worker reports the new followed cell. */
+let adoptedRoute: { route: number; afterTick: number } | null = null;
+/** Ticks sent / frames received; they pair one-to-one, so a frame's number says which tick it answers. */
+let ticksSent = 0;
+let framesReceived = 0;
+
+/** Follow the microscope cell under a tap: a body-scale tracer takes over its exact place. */
+function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolean {
+  const c = m.pickCell(clientX, clientY, canvas.getBoundingClientRect());
+  if (!c || !ui.micro) return false;
+  const capSeg = circ.segments[ui.micro.capillary];
+  const r = m.net.routes[c.route];
+  let segment: number;
+  let elapsed: number;
+  let duration: number;
+  if (c.s < r.capStart) {
+    // Still in the terminal arteriole: the end of the bed's feeding segment.
+    segment = capSeg.prevIndex[0];
+    const remaining = (r.capStart - c.s) / ARTERIOLE_SPEED;
+    duration = Math.max(circ.segments[segment].transit, remaining * 1.01);
+    elapsed = duration - remaining;
+  } else if (c.s <= r.capEnd) {
+    segment = capSeg.index;
+    duration = m.sim.capTransit[c.route];
+    elapsed = ((c.s - r.capStart) / (r.capEnd - r.capStart)) * duration;
+  } else {
+    // In the collecting venule: the start of the bed's draining segment.
+    segment = capSeg.nextIndex[0];
+    elapsed = (c.s - r.capEnd) / VENULE_SPEED;
+    duration = Math.max(circ.segments[segment].transit, elapsed * 1.5);
+  }
+  adoptedRoute = { route: c.route, afterTick: ticksSent };
+  wantFollow = true;
+  send({ type: 'adopt', segment, elapsed, duration, po2: c.po2 });
+  return true;
+}
 
 function openBed(capillary: number): void {
   const seg = circ.segments[capillary];
@@ -170,6 +207,11 @@ function mapFollowToMicro(m: MicroScene, f: FollowInfo | null): void {
     ui.microFollow = bedOf(f.segment) === cap ? 'approaching' : 'elsewhere';
     m.setFollow(null);
     return;
+  }
+  // Frames answering ticks sent after the adopt message already reflect the new cell.
+  if (adoptedRoute && framesReceived > adoptedRoute.afterTick) {
+    microRoute = adoptedRoute.route;
+    adoptedRoute = null;
   }
   if (microRoute < 0) microRoute = MicroScene.routeFor(m.sim, inCap ? f.segmentDuration : m.sim.params.transit);
   const r = m.net.routes[microRoute];
@@ -246,7 +288,10 @@ canvas.addEventListener('pointerup', (e) => {
   down = null;
   if (wasOpen) return;
   if (moved > 6 || !quick || !ui.ready) return;
-  if (ui.view !== 'body') return;
+  if (ui.view === 'micro') {
+    if (micro) adoptMicroCell(micro, e.clientX, e.clientY);
+    return;
+  }
   const cell = scene.pick(e.clientX, e.clientY);
   const bed = scene.nearestOnScreen(bedPoints, e.clientX, e.clientY, 36);
   if (bed !== null) ui.tapMenu = { x: e.clientX, y: e.clientY, cell, bed: bedCaps[bed] };
@@ -260,6 +305,7 @@ function requestTick(): void {
   lastTick = now;
   awaitingFrame = true;
   const transfer = [spare.positions?.buffer, spare.saturations?.buffer].filter((b): b is ArrayBuffer => !!b);
+  ticksSent++;
   send({ type: 'tick', wallDt, skipPositions: ui.view !== 'body', ...spare }, transfer);
   spare = {};
 }

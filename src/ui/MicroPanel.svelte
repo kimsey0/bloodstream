@@ -22,6 +22,18 @@
   const fmtSpeed = (um: number) => (um >= 1000 ? `${(um / 1000).toFixed(2)} mm/s` : `${Math.round(um)} µm/s`);
 </script>
 
+{#if ui.microCollapsed}
+  <div class="pill-row">
+    <button class="pill back-pill" onclick={onBack} aria-label="Back to the body">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
+      Body
+    </button>
+    <button class="pill" aria-label="Show the capillary bed panel" onclick={() => (ui.microCollapsed = false)}>
+      {info.label}
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
+    </button>
+  </div>
+{:else}
 <section class="panel" aria-label="Capillary bed">
   <div class="head">
     <button class="back" onclick={onBack}>
@@ -30,6 +42,7 @@
     </button>
     <h2>{info.label}</h2>
     <button class="ghost" onclick={onResetView} aria-label="Reset microscope view">Recentre</button>
+    <button class="collapse" onclick={() => (ui.microCollapsed = true)} aria-label="Collapse panel" title="Collapse"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg></button>
   </div>
   <p class="blurb">{info.blurb}</p>
   <dl>
@@ -64,8 +77,64 @@
     </p>
   {/if}
 </section>
+{/if}
 
 <style>
+  .pill {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 8px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    max-width: calc(100% - 32px);
+  }
+  .pill svg,
+  .collapse svg {
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+  .pill:focus-visible {
+    outline: 2px solid var(--steel);
+    outline-offset: 2px;
+  }
+  .collapse {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 28px;
+    padding: 0;
+  }
+  .pill-row {
+    pointer-events: auto;
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    max-width: calc(100% - 32px);
+  }
+  @media (min-width: 821px) {
+    .pill-row {
+      top: calc(env(safe-area-inset-top, 0px) + 84px);
+    }
+  }
+  @media (max-width: 520px) {
+    .pill-row {
+      left: 16px;
+      right: auto;
+    }
+  }
+
   .panel {
     pointer-events: auto;
     position: absolute;
