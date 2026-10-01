@@ -1,0 +1,236 @@
+# Bloodstream: architecture proposal
+
+Status: draft for discussion. Nothing is implemented yet.
+
+## Goal
+
+A browser app (desktop and Android) that shows a translucent 3D body with its
+vascular tree, a sample of individual red blood cells (RBCs) moving through
+it, and each cell's oxygen state down to the four haem sites of a
+representative haemoglobin molecule. The user can pan, rotate, zoom, follow a
+single cell, and read real-time transit times and velocities. Timings and
+ratios should match published physiology. Stretch goal: an activity-level
+slider (rest → maximal exercise).
+
+## Stack
+
+| Concern | Choice | Why |
+|---|---|---|
+| Language / build | TypeScript + Vite | Fast dev loop, static output, no backend needed |
+| 3D | three.js (WebGL2) | Runs on any recent Android Chrome; mature instancing, `OrbitControls` handle touch pinch/rotate/pan out of the box. WebGPU is optional later (three's `WebGPURenderer` falls back to WebGL2) |
+| UI / HUD | Svelte 5 (or Preact) for panels, plain DOM overlay | Small bundle, no React reconciler in the frame loop. The 3D scene is driven imperatively, not through a component tree |
+| Simulation | Plain TS module, run in a Web Worker | Keeps the main thread free for rendering on phones; positions shared via `SharedArrayBuffer` if cross-origin isolation is available, otherwise transferable `Float32Array` snapshots each frame |
+| Charts (saturation curve, timelines) | uPlot or hand-drawn canvas | Tiny, fast |
+| Tests | Vitest | Physiology regression tests run headless (see "Validation") |
+| Hosting | GitHub Pages via GitHub Actions | Static site, free |
+
+No backend. All data (geometry, physiological parameters) ships as static
+assets.
+
+## Core architectural decisions
+
+### 1. Separate the physiological model from the 3D geometry
+
+The real body has ~25 trillion RBCs, ~10 billion capillaries and on the
+order of 100,000 km of vessels. None of that can be rendered literally, so
+the app is built from two layers that share an ID space:
+
+- **Circulation graph (the truth).** A directed graph of vessel segments
+  and organ beds: heart chambers → aorta → major arteries → organ beds
+  (arterioles → capillaries → venules) → veins → vena cava → right heart →
+  pulmonary arteries → pulmonary capillaries → pulmonary veins → left heart.
+  Each edge carries length, total cross-sectional area, flow fraction and
+  compliance. Velocity and transit time follow from flow / area, so they are
+  derived values, not hand-tuned ones.
+- **Geometry (the picture).** 3D centrelines (splines) and tube meshes for
+  the visible vessels, keyed to graph edges. Many graph edges (e.g. "kidney
+  capillary bed") map to a procedurally generated local mesh rather than to
+  real anatomy.
+
+A cell's state is `(edgeId, arcLength s, …)`. The renderer maps that to a
+3D position by sampling the edge's spline. This lets the physics be
+validated in tests without any rendering.
+
+### 2. Multi-scale view with semantic zoom
+
+Scales run from about 1 m (body) to about 5 nm (haemoglobin), nine orders of
+magnitude. A single continuous zoom would break depth precision and show
+nothing useful in between. The proposal is distinct levels with animated
+transitions:
+
+1. **Body**: translucent skin shell, major arteries/veins, organs as faint
+   shells, RBCs as glowing points coloured by saturation.
+2. **Organ / bed**: zoom into a region (lung, kidney, a muscle). A
+   procedurally generated arteriole → capillary → venule network is shown,
+   with RBCs as instanced biconcave discs.
+3. **Capillary close-up**: single-file RBCs squeezing through ~5–8 µm
+   capillaries, O₂ diffusion visualised as particles/gradient.
+4. **Molecular inset (HUD, not 3D zoom)**: one representative haemoglobin
+   molecule (2α2β) with its four haem sites, lit when O₂ is bound. Also shows
+   the cell's overall SO₂, local PO₂, and position on the dissociation
+   curve.
+
+Level 4 is always available as an inset for the followed cell, so the user
+does not need to zoom to see binding state.
+
+### 3. Sampled cells, not all cells
+
+The sim tracks a configurable sample (about 2k on phones, 10–20k on desktop)
+of "tracer" RBCs. Each one routes through the graph exactly as a real cell
+would statistically: at each bifurcation it picks a child with probability
+proportional to flow (red cells do not split exactly by flow because of the
+Zweifach–Fung effect / plasma skimming, but flow weighting is a reasonable
+first approximation). Every cell therefore has its own route and round-trip
+time, and the distribution of round-trip times (short coronary loops of a
+few seconds up to over a minute through the legs) emerges from the model
+instead of being scripted.
+
+Within a vessel, a cell's speed is the segment's mean velocity times a
+radial-position factor (Poiseuille profile, cells near the axis go faster),
+plus pulsatility in large arteries (see 5).
+
+### 4. Oxygen: two models at two scales
+
+- **Cell-level saturation (deterministic ODE).** Each tracer carries SO₂.
+  In a capillary segment, plasma PO₂ and SO₂ evolve by Roughton–Forster
+  style uptake/unloading: flux = D_m·(P_alv − P_plasma), with the in-cell
+  reaction rate θ·V_c, and SO₂ related to PO₂ via the Hill/Adair
+  dissociation curve (P50 ≈ 26.8 mmHg, n ≈ 2.7), shifted by pH, PCO₂,
+  temperature and 2,3-DPG (Bohr effect, needed for the exercise mode). In
+  systemic beds, each organ has an O₂ consumption (VO₂) and the
+  Fick principle sets how much each pass extracts. Tissue PO₂ comes from
+  that, not the other way round.
+- **Molecule-level occupancy (stochastic).** The inset haemoglobin is a
+  continuous-time Markov chain over 0–4 bound O₂ using Adair stepwise
+  constants (the 4th site has much higher affinity than the 1st:
+  cooperativity). Its rates are scaled to the cell's local PO₂, so averaged
+  over time it matches the cell's SO₂ while each site visibly binds and
+  releases. A small panel shows "this molecule: 3/4" next to "this cell:
+  96.8 %, about 1.0×10⁹ of 1.08×10⁹ sites" (270 M Hb × 4).
+
+O₂-binding chemistry itself is fast (ms). Lung equilibration (~0.25 s) is
+limited mostly by diffusion across the alveolar membrane and plasma, so the
+model has to include that resistance. Otherwise lung loading would look
+instantaneous.
+
+### 5. Time
+
+- Simulation clock in real physiological seconds, fixed timestep (e.g. 1 ms
+  in capillaries, adaptive elsewhere), decoupled from frame rate.
+- Playback speed control from 0.01× (watch 0.25 s of lung loading over
+  25 s) up to 10× (watch a whole circulation in seconds). "Real time" is
+  1×.
+- Optional cardiac cycle (~0.8 s at 75 bpm) modulates arterial velocity
+  (aortic peak ~1 m/s vs mean ~0.2 m/s). Damped towards steady flow by the
+  capillaries.
+- A followed cell has a stopwatch: time since leaving the left ventricle,
+  segment times, a log of lung and tissue capillary visits.
+
+### 6. Activity level (stretch, but designed in from the start)
+
+One scalar, "metabolic rate" (MET 1 → ~15), drives a parameter set:
+heart rate, stroke volume → cardiac output (5 → 20–25 L/min); flow
+redistribution (muscle from ~20 % to ~80 %+ of CO, splanchnic/renal
+reduced); muscle VO₂; capillary recruitment; temperature/pH/PCO₂ shifts in
+working muscle (right-shift of the curve); shorter pulmonary transit
+(~0.75 s → ~0.3 s). Because velocities, transit times and extraction are all
+derived from these parameters, the slider changes everything consistently.
+
+### 7. Rendering notes for phones
+
+- One `InstancedMesh` per cell LOD (point sprite far away, low-poly
+  biconcave disc near). Instance colour = saturation (dark red ↔ bright
+  red, optionally with a blue-ish colour-blind mode).
+- Translucent body: a single skin mesh with a fresnel shader, depth-write
+  off, drawn last. Vessels and cells are opaque, so sorting stays simple and
+  order-independent transparency is not needed.
+- Vessels as tube geometry merged per region. Arteries red, veins blue, by
+  convention, with an option to colour by actual mean SO₂.
+- Adaptive quality: measure frame time, scale tracer count and pixel ratio.
+- `OrbitControls` (or `CameraControls`) for touch/mouse. "Follow cell"
+  locks the target to the cell and lerps the camera behind it.
+
+### 8. Anatomy source
+
+Options, in order of preference:
+
+1. **Stylised, hand-authored centrelines** for about 60–100 named vessels
+   (aorta, carotids, subclavians, coeliac, renals, iliacs, femorals, venae
+   cavae, pulmonary trunk and so on) on top of a low-poly body silhouette.
+   Fully under our control and easy to map to the graph.
+2. **Z-Anatomy / BodyParts3D** meshes (CC BY-SA). Anatomically real, but
+   heavy, with licence obligations, and the meshes are surfaces rather than
+   centrelines, so they need preprocessing.
+
+Recommended: start with (1), structured so (2) can replace the visuals
+later without touching the sim.
+
+## Physiological parameters (starting values, adult at rest)
+
+These are textbook values used as targets. Each will be given a citation in
+`src/physiology/params.ts` when implemented.
+
+| Quantity | Value |
+|---|---|
+| Blood volume | ~5 L |
+| Cardiac output (rest / max exercise) | ~5 L/min / 20–25 L/min |
+| Heart rate (rest) | ~70 bpm |
+| Mean whole-body circulation time | ~1 min (= volume / CO) |
+| RBC count / size | ~25×10¹² cells, ~7.5–8 µm × 2 µm |
+| Hb molecules per RBC | ~270×10⁶ |
+| Pulmonary capillary transit (rest / exercise) | ~0.75 s / ~0.25–0.35 s |
+| Time to O₂ equilibrium in pulmonary capillary | ~0.25 s (first third of transit) |
+| Arterial SO₂ / PO₂ | ~97–98 % / ~95–100 mmHg |
+| Mixed venous SO₂ / PO₂ (rest) | ~75 % / ~40 mmHg |
+| Mixed venous SO₂ (heavy exercise) | ~20–40 % |
+| P50 / Hill n | ~26.8 mmHg / ~2.7 |
+| Systemic capillary transit | ~1–2 s, length ~0.5–1 mm |
+| Velocity: aorta (mean / peak) | ~20 cm/s / ~100 cm/s |
+| Velocity: capillary | ~0.3–1 mm/s |
+| Velocity: vena cava | ~10–20 cm/s |
+| CO fraction (rest): splanchnic+liver / kidneys / muscle / brain / skin / heart | ~25 / ~20 / ~20 / ~14 / ~6 / ~4–5 % |
+| O₂ extraction (rest): heart / brain / kidney / resting muscle | ~70 % / ~35 % / ~8–10 % / ~25–30 % |
+| Special topology | Hepatic portal (gut/spleen → liver, two capillary beds in series), renal glomerular → peritubular (two in series), bronchial & Thebesian shunts (small venous admixture) |
+
+## Validation (automated)
+
+Headless Vitest suites run the sim (no rendering) and assert emergent
+behaviour against the table above, within tolerances, e.g.:
+
+- Mean round-trip time ≈ blood volume / CO (±10 %), with plausible minimum
+  (coronary) and maximum (lower limb) loop times.
+- Fraction of tracers per organ bed ≈ CO fraction.
+- Pulmonary capillary: SO₂ 75 → >95 % within ~0.25–0.3 s at rest.
+- Arterial and mixed-venous SO₂ at steady state.
+- Time-averaged single-molecule occupancy / 4 ≈ cell SO₂.
+- Exercise preset reproduces the exercise targets.
+
+## Proposed layout
+
+```
+src/
+  physiology/   params.ts, activity.ts (presets), dissociation.ts (Hill/Adair, Bohr shifts)
+  sim/          graph.ts, router.ts, oxygen.ts, hemoglobin.ts (Markov), worker.ts
+  anatomy/      vessels.json (centrelines + graph mapping), capillaryGen.ts
+  render/       scene.ts, cells.ts (instancing), vessels.ts, body.ts, follow.ts
+  ui/           HUD, inset molecule, controls, charts
+tests/          physiology validation suites
+```
+
+## Milestones
+
+1. Sim core + validation tests (graph, routing, O₂ model). No 3D.
+2. Body-level 3D: stylised vessels, tracers, orbit controls, time controls.
+3. Follow-cell mode + HUD + haemoglobin inset.
+4. Organ/capillary zoom levels with procedural beds.
+5. Activity slider.
+6. Polish: colour-blind palette, mobile tuning, onboarding tooltips.
+
+## Open questions
+
+- Stylised anatomy vs. real meshes (see 8)?
+- Svelte vs. Preact for the HUD (minor; either works)?
+- Should tracers be a statistically representative sample (proportional to
+  flow everywhere, so capillary beds look sparse) or over-sampled in the
+  region being viewed? Proposal: representative globally, with extra
+  "local-only" tracers spawned when zoomed into a bed.
