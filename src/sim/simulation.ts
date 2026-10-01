@@ -8,7 +8,9 @@
  * `oxygen.ts`. Everything is in physiological seconds and independent of
  * frame rate.
  */
-import { saturation } from '../physiology/dissociation';
+import { o2Content, po2FromContent, saturation, STANDARD_CONDITIONS, type BloodConditions } from '../physiology/dissociation';
+import { CardiacWaveform, flowRate, pulsatility } from '../physiology/heartbeat';
+import { REST } from '../physiology/params';
 import { Circulation, type Segment } from './circulation';
 import { integratePo2, solveSteadyState, type ExchangeModel, type SteadyState } from './oxygen';
 import { Rng } from './rng';
@@ -18,6 +20,8 @@ export interface SimulationOptions {
   seed?: number;
   circulation?: Circulation;
   steadyState?: SteadyState;
+  /** Heart rate, beats/min (default: resting). Set to 0 for steady, non-pulsatile flow. */
+  heartRate?: number;
 }
 
 export interface TransitionEvent {
@@ -46,8 +50,10 @@ const rampUp = (t: number) => RAMP_MIN * t + (1 - RAMP_MIN) * t * t;
 const rampUpSlope = (t: number) => RAMP_MIN + 2 * (1 - RAMP_MIN) * t;
 
 export class Simulation {
-  readonly circulation: Circulation;
-  readonly steady: SteadyState;
+  circulation: Circulation;
+  steady: SteadyState;
+  /** Aortic flow waveform, or null for steady flow. */
+  waveform: CardiacWaveform | null;
   readonly count: number;
   time = 0;
 
@@ -61,7 +67,13 @@ export class Simulation {
   readonly po2: Float64Array;
 
   private readonly rng: Rng;
-  private readonly exchange: (ExchangeModel | undefined)[];
+  private exchange: (ExchangeModel | undefined)[];
+  /** Per-segment pulsatility (see heartbeat.ts). */
+  private alpha: Float64Array;
+  /** Blood conditions a cell's PO2 refers to in each segment (non-standard in exercising muscle). */
+  private conditions: BloodConditions[];
+  /** Flow-rate factor at the current instant, per unit pulsatility. */
+  private pulseNow = 1;
   private readonly listeners = new Set<TransitionListener>();
 
   constructor(opts: SimulationOptions) {
@@ -70,6 +82,10 @@ export class Simulation {
     this.count = opts.cellCount;
     this.rng = new Rng(opts.seed ?? 1);
     this.exchange = this.circulation.segments.map((s) => this.steady.exchange.get(s.index));
+    this.alpha = new Float64Array(this.circulation.segments.map(pulsatility));
+    this.conditions = this.circulation.segments.map((s) => this.exchange[s.index]?.conditions ?? STANDARD_CONDITIONS);
+    const hr = opts.heartRate ?? REST.heartRate;
+    this.waveform = hr > 0 ? new CardiacWaveform(hr) : null;
     this.segment = new Int32Array(this.count);
     this.elapsed = new Float64Array(this.count);
     this.duration = new Float64Array(this.count);
@@ -121,17 +137,23 @@ export class Simulation {
   step(dt: number): void {
     const segs = this.circulation.segments;
     const t0 = this.time;
+    // Mean pulse over this step: segments advance at mean × (1 + α (W − 1)).
+    const W = this.waveform ? this.waveform.meanOver(t0, t0 + dt) : 1;
     for (let i = 0; i < this.count; i++) {
       let remaining = dt;
       while (remaining > 0) {
         const k = this.segment[i];
+        const rate = flowRate(this.alpha[k], W);
+        // `elapsed` and `duration` are in flow-weighted time: a segment's transit is reached
+        // after `duration` seconds of mean flow, faster in systole, slower (or not at all) in diastole.
         const left = this.duration[i] - this.elapsed[i];
-        const h = Math.min(remaining, left);
+        const needed = rate > 1e-9 ? left / rate : Infinity;
+        const h = Math.min(remaining, needed);
         const ex = this.exchange[k];
         if (ex && h > 0) this.po2[i] = integratePo2(this.po2[i], h, ex);
         remaining -= h;
-        if (h < left) {
-          this.elapsed[i] += h;
+        if (h < needed) {
+          this.elapsed[i] += h * rate;
           break;
         }
         const s = segs[k];
@@ -139,6 +161,10 @@ export class Simulation {
         let c = 0;
         while (c < s.nextCumulative.length - 1 && u >= s.nextCumulative[c]) c++;
         const next = s.nextIndex[c];
+        if (this.conditions[next] !== this.conditions[k]) {
+          // Same O2 content, different curve: re-express PO2 under the new segment's conditions.
+          this.po2[i] = po2FromContent(o2Content(this.po2[i], this.conditions[k]), this.conditions[next]);
+        }
         this.segment[i] = next;
         this.elapsed[i] = 0;
         this.duration[i] = this.drawTransit(segs[next]);
@@ -149,10 +175,16 @@ export class Simulation {
       }
     }
     this.time = t0 + dt;
+    this.pulseNow = this.waveform ? this.waveform.w(this.waveform.phase(this.time)) : 1;
+  }
+
+  /** Phase within the current heartbeat (0 = start of ejection), or 0 for steady flow. */
+  get beatPhase(): number {
+    return this.waveform ? this.waveform.phase(this.time) : 0;
   }
 
   saturation(cell: number): number {
-    return saturation(this.po2[cell]);
+    return saturation(this.po2[cell], this.conditions[this.segment[cell]]);
   }
 
   /** Fraction (0–1) of the current segment's transit time already spent. */
@@ -181,7 +213,7 @@ export class Simulation {
   /** The cell's current speed, mm/s. */
   speed(cell: number): number {
     const seg = this.circulation.segments[this.segment[cell]];
-    const mean = seg.length / this.duration[cell];
+    const mean = (seg.length / this.duration[cell]) * flowRate(this.alpha[seg.index], this.pulseNow);
     const t = this.progress(cell);
     if (seg.kind === 'venule') return mean * rampUpSlope(t);
     if (seg.kind === 'arteriole') return mean * rampUpSlope(1 - t);
