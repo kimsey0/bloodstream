@@ -1,6 +1,6 @@
 # Bloodstream: architecture proposal
 
-Status: draft for discussion. Nothing is implemented yet.
+Status: milestone 1 (simulation core + validation tests) implemented. See "Implementation status" at the end.
 
 ## Goal
 
@@ -18,7 +18,7 @@ slider (rest → maximal exercise).
 |---|---|---|
 | Language / build | TypeScript + Vite | Fast dev loop, static output, no backend needed |
 | 3D | three.js (WebGL2) | Runs on any recent Android Chrome; mature instancing, `OrbitControls` handle touch pinch/rotate/pan out of the box. WebGPU is optional later (three's `WebGPURenderer` falls back to WebGL2) |
-| UI / HUD | Svelte 5 (or Preact) for panels, plain DOM overlay | Small bundle, no React reconciler in the frame loop. The 3D scene is driven imperatively, not through a component tree |
+| UI / HUD | Svelte 5 for panels, plain DOM overlay | Picked over Preact: components are plain HTML + script with no JSX/virtual DOM, and it compiles to a smaller bundle. The 3D scene is driven imperatively, not through a component tree. (Milestone 1's diagnostics page is vanilla TS; Svelte arrives with the HUD.) |
 | Simulation | Plain TS module, run in a Web Worker | Keeps the main thread free for rendering on phones; positions shared via `SharedArrayBuffer` if cross-origin isolation is available, otherwise transferable `Float32Array` snapshots each frame |
 | Charts (saturation curve, timelines) | uPlot or hand-drawn canvas | Tiny, fast |
 | Tests | Vitest | Physiology regression tests run headless (see "Validation") |
@@ -150,7 +150,31 @@ derived from these parameters, the slider changes everything consistently.
 - `OrbitControls` (or `CameraControls`) for touch/mouse. "Follow cell"
   locks the target to the cell and lerps the camera behind it.
 
-### 8. Anatomy source
+### 8. Saturation colour scale
+
+There is no formal standard for colouring O2 saturation. Two conventions
+overlap: anatomical illustration (arteries red, veins blue) and oximetry /
+photoacoustic sO2 imaging (a blue → red ramp). The scale follows both:
+
+- 0 % deep navy → 50 % blue → 75 % violet/magenta → 100 % red,
+  interpolated in OKLab (`src/color/saturation.ts`).
+- Lightness rises monotonically with saturation, so it also reads in
+  greyscale.
+- Blue ↔ red is the hue axis that deuteranopia and protanopia (the
+  red–green deficiencies, ~8 % of men) preserve. A "realistic"
+  bright-red ↔ dark-red ramp is avoided because those viewers can barely
+  tell it apart.
+- Stops are denser above 50 %, where physiology happens (arterial 97 %,
+  mixed venous 73 %, coronary sinus 32 %).
+- The same scale is used everywhere: vessels (by mean segment saturation),
+  individual cells, and the haemoglobin molecule's five states (0–4 O2,
+  coloured at 0, 25, 50, 75, 100 %).
+
+Tests check monotonic lightness and that the five haemoglobin steps and
+arterial vs. venous blood stay distinguishable under simulated
+deuteranopia, protanopia and tritanopia (Machado et al. 2009).
+
+### 9. Anatomy source
 
 Options, in order of preference:
 
@@ -162,8 +186,7 @@ Options, in order of preference:
    heavy, with licence obligations, and the meshes are surfaces rather than
    centrelines, so they need preprocessing.
 
-Recommended: start with (1), structured so (2) can replace the visuals
-later without touching the sim.
+Decided: (1) stylised anatomy.
 
 ## Physiological parameters (starting values, adult at rest)
 
@@ -228,9 +251,50 @@ tests/          physiology validation suites
 
 ## Open questions
 
-- Stylised anatomy vs. real meshes (see 8)?
-- Svelte vs. Preact for the HUD (minor; either works)?
 - Should tracers be a statistically representative sample (proportional to
   flow everywhere, so capillary beds look sparse) or over-sampled in the
   region being viewed? Proposal: representative globally, with extra
   "local-only" tracers spawned when zoomed into a bed.
+
+## Implementation status
+
+### Milestone 1: simulation core (done)
+
+| Module | Contents |
+|---|---|
+| `src/physiology/dissociation.ts` | Severinghaus curve, analytic inverse, O2 content and capacitance, virtual-PO2 Bohr/temperature/CO2 shift |
+| `src/physiology/hemoglobin.ts` | Adair equilibrium (Imai constants), single-tetramer Gillespie chain with T/R-range kinetics |
+| `src/physiology/params.ts` | Resting physiology with sources: cardiac output, VO2, per-tissue flow/VO2/transit/tissue PO2, Fåhraeus ratios |
+| `src/physiology/anatomy.ts` | 186 segments: heart chambers, named vessels (per side), 3-segment organ beds, portal and renal serial beds, bronchial shunt |
+| `src/sim/circulation.ts` | Graph build, flow propagation, volumes, transit times, velocities |
+| `src/sim/oxygen.ts` | Bohr-integration exchange (RK4), whole-body steady-state solver, per-bed Fick calibration |
+| `src/sim/simulation.ts` | Tracer red cells: flow-weighted routing, log-normal capillary transit, blunted radial velocity profile in large vessels |
+| `src/sim/tracking.ts` | Lap and capillary-visit recorder, follow-one-cell tracker with a live haemoglobin molecule |
+| `src/color/saturation.ts` | Colour scale + colour-vision-deficiency simulation |
+| `src/main.ts` | Diagnostics page (no 3D) |
+
+Emergent results at rest (asserted in `tests/`):
+
+| Quantity | Model | Reference |
+|---|---|---|
+| Blood volume | 4.83 L | ~5 L |
+| Volume distribution (veins / pulmonary / heart / arterial+micro) | 64 / 10 / 7 / 19 % | 64 / 9 / 7 / 20 % |
+| Mean red-cell circulation time | 54 s (plasma 58 s) | ~60 s; F-cell ratio ~0.9 |
+| Arterial SO2 / PO2 | 97.5 % / 96 mmHg | 97–98 % / 95–100 |
+| Mixed venous SO2 / PO2 | 73.4 % / 39 mmHg | ~75 % / ~40 |
+| Pulmonary capillary: time to 95 % PO2 equilibrium | ≈ 0.25 s of 0.75 s | ~0.25 s of 0.75 s |
+| Coronary sinus / jugular / renal vein SO2 | 32 / 66 / 89 % | 25–40 / 55–75 / ~90 % |
+| Median circuit time via heart wall / brain / kidney / lower leg | ~17 / 21 / 23 / ~95 s | — (emergent) |
+
+Known simplifications, to revisit:
+
+- Flow is steady (no cardiac pulsatility yet); heart-chamber residence is a
+  log-normal around volume/flow rather than beat-by-beat ejection.
+- Vertebral arteries are folded into the carotids; anterior cardiac and
+  Thebesian veins into the coronary sinus.
+- Red cells split at bifurcations in proportion to blood flow (no plasma
+  skimming / Zweifach–Fung effect).
+- Systemic O2 exchange happens only in capillaries (arteriolar O2 loss is
+  ignored), and all exchange uses the standard curve (no Bohr shift at rest).
+- The simulation runs on the main thread; moving it to a Web Worker comes
+  with the 3D view. The steady-state calibration takes ~1 s at start-up.
