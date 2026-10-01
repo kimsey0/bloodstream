@@ -1,6 +1,10 @@
-# Bloodstream: architecture proposal
+# Bloodstream architecture
 
-Status: all milestones implemented, including the activity-level slider and a pulsatile heartbeat. See "Implementation status" at the end.
+This document started as the design proposal and grew into the record of
+how the app is built. The first half covers the design decisions; the second
+half ("Implementation status") describes each milestone as built, with its
+validation results and known simplifications. Some details in the first
+half were superseded during implementation; the later sections say where.
 
 ## Goal
 
@@ -228,17 +232,9 @@ behaviour against the table above, within tolerances, e.g.:
 - Time-averaged single-molecule occupancy / 4 ≈ cell SO₂.
 - Exercise preset reproduces the exercise targets.
 
-## Proposed layout
+## Code layout
 
-```
-src/
-  physiology/   params.ts, activity.ts (presets), dissociation.ts (Hill/Adair, Bohr shifts)
-  sim/          graph.ts, router.ts, oxygen.ts, hemoglobin.ts (Markov), worker.ts
-  anatomy/      vessels.json (centrelines + graph mapping), capillaryGen.ts
-  render/       scene.ts, cells.ts (instancing), vessels.ts, body.ts, follow.ts
-  ui/           HUD, inset molecule, controls, charts
-tests/          physiology validation suites
-```
+See the project layout table in the [README](../README.md#project-layout).
 
 ## Milestones
 
@@ -249,12 +245,11 @@ tests/          physiology validation suites
 5. ✅ Polish (done before the activity slider, which is now the stretch goal).
 6. ✅ Activity slider and heartbeat.
 
-## Open questions
+## Resolved design questions
 
-- Should tracers be a statistically representative sample (proportional to
-  flow everywhere, so capillary beds look sparse) or over-sampled in the
-  region being viewed? Proposal: representative globally, with extra
-  "local-only" tracers spawned when zoomed into a bed.
+- Tracers are a representative sample (proportional to red-cell volume
+  everywhere); the microscope view runs its own local cell stream for the
+  open bed, and a tapped local cell is handed over to a body-scale tracer.
 
 ## Implementation status
 
