@@ -106,6 +106,8 @@ describe('following one cell', () => {
       tracker.stepMolecule(0.01);
     }
     expect(tracker.lapTimes.length).toBeGreaterThan(1);
+    // Every completed circuit passes at least one systemic capillary bed.
+    for (const lap of tracker.laps) expect(lap.via.length).toBeGreaterThan(0);
     expect(tracker.route.length).toBeGreaterThan(20);
     for (let i = 1; i < tracker.route.length; i++) {
       expect(tracker.route[i].enter).toBeCloseTo(tracker.route[i - 1].exit!, 9);

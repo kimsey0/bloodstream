@@ -48,6 +48,15 @@ describe('circulation graph', () => {
     expect(seg('liver.cap').flow / REST.cardiacOutput).toBeCloseTo(0.255, 3);
   });
 
+  it('perfuses the hands and feet', () => {
+    for (const side of ['L', 'R']) {
+      for (const id of [`arm_${side}.hand.skin.cap`, `leg_${side}.foot.skin.cap`]) {
+        // Resting hand or foot skin flow is tens of mL/min.
+        expect(seg(id).flow * 60, id).toBeGreaterThan(5);
+      }
+    }
+  });
+
   it('gives realistic mean velocities', () => {
     const cms = (id: string) => seg(id).velocity / 10;
     // Time-averaged aortic velocity ~10–25 cm/s (peak systolic ~100 cm/s).

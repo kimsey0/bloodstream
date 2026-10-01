@@ -103,8 +103,8 @@ function bed({ id, name, tissue, region, share, drain }: BedOptions): string {
 /** Regional split of muscle, skin and "other" tissue (bone, fat, connective, pelvic organs). */
 const SPLIT = {
   muscle: { arm: 0.1, trunk: 0.25, pelvis: 0.075, thigh: 0.12, lowerLeg: 0.08 },
-  skin: { head: 0.075, arm: 0.075, trunk: 0.35, thigh: 0.09, lowerLeg: 0.085 },
-  other: { arm: 0.05, trunk: 0.3, pelvis: 0.15, thigh: 0.08, lowerLeg: 0.07 },
+  skin: { head: 0.075, arm: 0.045, hand: 0.03, trunk: 0.35, thigh: 0.09, lowerLeg: 0.055, foot: 0.03 },
+  other: { arm: 0.035, hand: 0.015, trunk: 0.3, pelvis: 0.15, thigh: 0.08, lowerLeg: 0.05, foot: 0.02 },
 };
 
 const SIDE_NAME = { L: 'left', R: 'right' } as const;
@@ -172,7 +172,13 @@ for (const side of ['L', 'R'] as const) {
     bed({ id: `${arm}.muscle`, name: `${s} arm muscle`, tissue: 'muscle', region: arm, share: SPLIT.muscle.arm, drain: `arm_vein_${side}` }),
     bed({ id: `${arm}.skin`, name: `${s} arm skin`, tissue: 'skin', region: arm, share: SPLIT.skin.arm, drain: `arm_vein_${side}` }),
     bed({ id: `${arm}.other`, name: `${s} arm bone & connective tissue`, tissue: 'other', region: arm, share: SPLIT.other.arm, drain: `arm_vein_${side}` }),
+    `forearm_artery_${side}`,
   ]);
+  vessel(`forearm_artery_${side}`, `${s} radial & ulnar arteries`, 'artery', arm, 260, 3.5, [
+    bed({ id: `${arm}.hand.skin`, name: `${s} hand skin`, tissue: 'skin', region: arm, share: SPLIT.skin.hand, drain: `forearm_vein_${side}` }),
+    bed({ id: `${arm}.hand.other`, name: `${s} hand muscle, bone & tendon`, tissue: 'other', region: arm, share: SPLIT.other.hand, drain: `forearm_vein_${side}` }),
+  ]);
+  vessel(`forearm_vein_${side}`, `${s} forearm veins`, 'vein', arm, 260, 5, [`arm_vein_${side}`]);
   vessel(`arm_vein_${side}`, `${s} brachial & basilic veins`, 'vein', arm, 500, 7, [`subclavian_vein_${side}`]);
   vessel(`subclavian_vein_${side}`, `${s} subclavian vein`, 'vein', arm, 80, 11, [`brachiocephalic_vein_${side}`]);
   vessel(`brachiocephalic_vein_${side}`, `${s} brachiocephalic vein`, 'vein', 'thorax', side === 'L' ? 60 : 25, 13, ['svc']);
@@ -286,10 +292,16 @@ for (const side of ['L', 'R'] as const) {
     `lower_leg_artery_${side}`,
   ]);
   vessel(`lower_leg_artery_${side}`, `${s} popliteal & tibial arteries`, 'artery', leg, 400, 3.5, [
-    bed({ id: `${leg}.lower.muscle`, name: `${s} calf & foot muscle`, tissue: 'muscle', region: leg, share: SPLIT.muscle.lowerLeg, drain: `lower_leg_vein_${side}` }),
-    bed({ id: `${leg}.lower.skin`, name: `${s} lower leg & foot skin`, tissue: 'skin', region: leg, share: SPLIT.skin.lowerLeg, drain: `lower_leg_vein_${side}` }),
+    bed({ id: `${leg}.lower.muscle`, name: `${s} calf muscle`, tissue: 'muscle', region: leg, share: SPLIT.muscle.lowerLeg, drain: `lower_leg_vein_${side}` }),
+    bed({ id: `${leg}.lower.skin`, name: `${s} lower leg skin`, tissue: 'skin', region: leg, share: SPLIT.skin.lowerLeg, drain: `lower_leg_vein_${side}` }),
     bed({ id: `${leg}.lower.other`, name: `${s} lower leg bone & connective tissue`, tissue: 'other', region: leg, share: SPLIT.other.lowerLeg, drain: `lower_leg_vein_${side}` }),
+    `foot_artery_${side}`,
   ]);
+  vessel(`foot_artery_${side}`, `${s} dorsalis pedis & plantar arteries`, 'artery', leg, 150, 2.5, [
+    bed({ id: `${leg}.foot.skin`, name: `${s} foot skin`, tissue: 'skin', region: leg, share: SPLIT.skin.foot, drain: `foot_vein_${side}` }),
+    bed({ id: `${leg}.foot.other`, name: `${s} foot muscle, bone & tendon`, tissue: 'other', region: leg, share: SPLIT.other.foot, drain: `foot_vein_${side}` }),
+  ]);
+  vessel(`foot_vein_${side}`, `${s} foot veins`, 'vein', leg, 150, 4, [`lower_leg_vein_${side}`]);
   vessel(`lower_leg_vein_${side}`, `${s} tibial & popliteal veins`, 'vein', leg, 400, 6, [`femoral_vein_${side}`]);
   vessel(`femoral_vein_${side}`, `${s} femoral & external iliac veins`, 'vein', leg, 450, 11, [`common_iliac_vein_${side}`]);
   vessel(`int_iliac_vein_${side}`, `${s} internal iliac vein`, 'vein', 'pelvis', 40, 10, [`common_iliac_vein_${side}`]);

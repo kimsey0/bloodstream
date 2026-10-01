@@ -89,15 +89,22 @@ export interface RouteEntry {
   saturationOut?: number;
 }
 
+export interface TrackedLap {
+  duration: number;
+  /** Names of the exchanging capillary beds the cell passed (lungs excluded). */
+  via: string[];
+}
+
 /**
  * Follows one cell: its route log, lap times, and a single representative
  * haemoglobin molecule whose four sites bind and release O2 stochastically.
  */
 export class CellTracker {
   readonly route: RouteEntry[] = [];
-  readonly lapTimes: number[] = [];
+  readonly laps: TrackedLap[] = [];
   readonly molecule: HemoglobinMolecule;
   private lapStart = -1;
+  private lapVia: string[] = [];
   private readonly detach: () => void;
 
   constructor(
@@ -109,6 +116,8 @@ export class CellTracker {
     const s = sim.saturation(cell);
     this.molecule = new HemoglobinMolecule(new Rng(seed), Math.round(s * 4));
     this.route.push({ segment: sim.segment[cell], enter: sim.time - sim.elapsed[cell], saturationIn: s });
+    // Already in the left ventricle: this circuit starts now-ish.
+    if (sim.segment[cell] === sim.circulation.root.index) this.lapStart = sim.time - sim.elapsed[cell];
     this.detach = sim.addListener((e) => {
       if (e.cell === cell) this.onTransition(e);
     });
@@ -124,10 +133,22 @@ export class CellTracker {
     last.saturationOut = saturation(e.po2);
     this.route.push({ segment: e.to, enter: e.time, saturationIn: saturation(e.po2) });
     if (this.route.length > this.maxRoute) this.route.shift();
+    const from = this.sim.circulation.segments[e.from];
+    if (from.exchange?.type === 'tissue') this.lapVia.push(from.name.replace(/: .*$/, ''));
     if (e.to === this.sim.circulation.root.index) {
-      if (this.lapStart >= 0) this.lapTimes.push(e.time - this.lapStart);
+      if (this.lapStart >= 0) this.laps.push({ duration: e.time - this.lapStart, via: this.lapVia });
       this.lapStart = e.time;
+      this.lapVia = [];
     }
+  }
+
+  get lapTimes(): number[] {
+    return this.laps.map((l) => l.duration);
+  }
+
+  /** Beds passed so far in the current circuit. */
+  get currentVia(): string[] {
+    return this.lapVia;
   }
 
   /** Effective PO2 driving the molecule, matched to the cell's saturation. */

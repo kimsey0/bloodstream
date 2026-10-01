@@ -1,13 +1,16 @@
 <script lang="ts">
   import { saturationCss } from '../color/saturation';
+  import FollowPanel from './FollowPanel.svelte';
   import { SPEEDS, ui } from './state.svelte';
 
   interface Props {
     onSpeed: (speed: number) => void;
     onPause: (paused: boolean) => void;
     onResetView: () => void;
+    onFollowRandom: () => void;
+    onStopFollow: () => void;
   }
-  let { onSpeed, onPause, onResetView }: Props = $props();
+  let { onSpeed, onPause, onResetView, onFollowRandom, onStopFollow }: Props = $props();
 
   const gradient = Array.from({ length: 21 }, (_, i) => `${saturationCss(i / 20)} ${i * 5}%`).join(', ');
 
@@ -20,12 +23,16 @@
   const pct = (x: number) => `${Math.round(x * 100)}%`;
 </script>
 
-<header class="brand">
+{#if ui.follow}
+  <FollowPanel info={ui.follow} onStop={onStopFollow} />
+{/if}
+
+<header class="brand" class:following={!!ui.follow}>
   <h1>Bloodstream</h1>
   <p>Resting adult · {(ui.cardiacOutput * 0.06).toFixed(1)} L/min · {(ui.bloodVolume / 1000).toFixed(1)} L blood</p>
 </header>
 
-<div class="clock" aria-live="off">
+<div class="clock" class:following={!!ui.follow} aria-live="off">
   <span class="label">Body time</span>
   <span class="value">{clock(ui.time)}</span>
   <span class="sub">{ui.paused ? 'paused' : ui.speed === 1 ? 'real time' : `${speedLabel(ui.speed)} real time`}</span>
@@ -62,6 +69,22 @@
         >
       {/each}
     </div>
+    <button
+      class="icon follow"
+      class:on={!!ui.follow}
+      aria-label={ui.follow ? 'Stop following' : 'Follow a cell leaving the heart'}
+      title={ui.follow ? 'Stop following' : 'Follow a cell leaving the heart'}
+      onclick={() => (ui.follow ? onStopFollow() : onFollowRandom())}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true"
+        ><circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.5" fill="none" /><circle
+          cx="8"
+          cy="8"
+          r="2.2"
+          fill="currentColor"
+        /><path d="M8 0.5v2.4M8 13.1v2.4M0.5 8h2.4M13.1 8h2.4" stroke="currentColor" stroke-width="1.5" /></svg
+      >
+    </button>
     <button class="icon" aria-label="Reset view" title="Reset view" onclick={onResetView}>
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><path d="M8 2.5a5.5 5.5 0 1 1-5.2 3.7" stroke="currentColor" stroke-width="1.6" fill="none" /><path
@@ -111,7 +134,12 @@
     </p>
     <p>
       Vessels are coloured by the average saturation of the blood inside. Capillary beds (the short, thin loops in each organ)
-      are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long. Cells are drawn about 1000× too big.
+      are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long. Cells are drawn about 600× too big.
+    </p>
+    <p>
+      Tap any cell, or the target button, to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,
+      how long its current trip round the body has taken, and one of its haemoglobin molecules. At 1× the four binding sites flip
+      faster than the eye can follow (the last O₂ stays bound for ~7 ms on average); slow down to 0.01× to watch them.
     </p>
     <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan.</p>
     <button class="close" onclick={() => (ui.infoOpen = false)}>Close</button>
@@ -152,6 +180,32 @@
     display: grid;
     justify-items: end;
     pointer-events: none;
+  }
+  @media (max-width: 420px) {
+    .row {
+      gap: 6px;
+    }
+    .icon {
+      width: 32px;
+    }
+    .speeds button {
+      font-size: 10.5px;
+    }
+  }
+  .follow.on {
+    background: var(--steel);
+    color: #0b1220;
+  }
+  @media (max-width: 820px) {
+    .brand.following,
+    .clock.following {
+      display: none;
+    }
+  }
+  @media (min-width: 821px) {
+    .brand.following {
+      display: none;
+    }
   }
   .clock .label,
   .clock .sub {

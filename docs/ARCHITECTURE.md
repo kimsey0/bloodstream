@@ -1,6 +1,6 @@
 # Bloodstream: architecture proposal
 
-Status: milestones 1 (simulation core) and 2 (body-level 3D view) implemented. See "Implementation status" at the end.
+Status: milestones 1 (simulation core), 2 (body-level 3D view) and 3 (follow a cell) implemented. See "Implementation status" at the end.
 
 ## Goal
 
@@ -244,7 +244,7 @@ tests/          physiology validation suites
 
 1. ✅ Sim core + validation tests (graph, routing, O₂ model). No 3D.
 2. ✅ Body-level 3D: stylised vessels, tracers, orbit controls, time controls.
-3. Follow-cell mode + HUD + haemoglobin inset.
+3. ✅ Follow-cell mode + HUD + haemoglobin inset.
 4. Organ/capillary zoom levels with procedural beds.
 5. Activity slider.
 6. Polish: colour-blind palette, mobile tuning, onboarding tooltips.
@@ -322,6 +322,30 @@ Rendering decisions:
 - Branches leave from the end of their parent segment (a cell can't jump
   mid-segment), so the aortic root and the abdominal aorta are split into
   sub-segments where the coronaries and visceral arteries leave.
+
+### Milestone 3: follow a cell (done)
+
+- Hands and feet now have their own beds (skin and muscle/bone/tendon) fed by
+  the radial/ulnar and foot arteries and drained by forearm and foot veins.
+  Their flow is carved out of the arm and lower-leg skin and "other" shares,
+  so tissue totals are unchanged.
+- Tap a cell (nearest projected cell within ~28 px, nearer cells preferred)
+  or press the target button to follow a random cell that is just leaving
+  the left ventricle, so its first circuit is timed from the start.
+- The worker runs a `CellTracker` for the followed cell and sends its state
+  with every frame: segment, progress, PO2/SO2, speed, circuit timer, organ
+  beds passed, the last circuits with their routes, the journey log, and
+  the live haemoglobin tetramer.
+- The camera flies in to ~45 cm and then moves with the cell; orbiting and
+  zooming still work around it. A screen-space ring marks the cell and a
+  trail coloured by saturation shows where it has been.
+- Follow panel: SO2 and PO2; location, vessel type and speed; time in the
+  segment; circuit timer and previous circuit times with the beds they went
+  through; the haemoglobin tetramer (α1 β1 β2 α2, tinted by its 0–4 step
+  colour, with O2 drawn on occupied haems); the distribution of the cell's
+  ~270 M Hb over 0–4 bound O2; an SO2 + speed (log) sparkline over a window
+  scaled to playback speed; and an expandable journey log. On phones the
+  panel starts compact.
 
 `npm run artifact` builds the app as one self-contained HTML fragment
 (worker inlined as a blob) for publishing as a claude.ai Artifact. The

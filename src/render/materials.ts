@@ -85,7 +85,7 @@ export function cellMaterial(colormap: DataTexture): ShaderMaterial {
     uniforms: {
       colormap: { value: colormap },
       /** Drawn cell diameter in world units (cm). Real cells are 0.0008 cm. */
-      worldSize: { value: 0.7 },
+      worldSize: { value: 0.5 },
       projScale: { value: 1 },
       minPx: { value: 2.5 },
       maxPx: { value: 28 },

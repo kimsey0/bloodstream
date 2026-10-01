@@ -10,6 +10,7 @@ import { integratePo2 } from './oxygen';
 import { PROFILE_SAMPLES, type FromWorker, type InitMessage, type ToWorker } from './protocol';
 import { Rng } from './rng';
 import { Simulation } from './simulation';
+import { CellTracker } from './tracking';
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -24,6 +25,8 @@ let paused = false;
 /** Fixed per-cell radial offset inside large vessels, so cells don't run single file down the centre line. */
 let offsetR: Float32Array;
 let offsetTheta: Float32Array;
+let tracker: CellTracker | undefined;
+const pickRng = new Rng(99);
 
 function post(msg: FromWorker, transfer: Transferable[] = []): void {
   self.postMessage(msg, transfer);
@@ -59,7 +62,11 @@ function init(msg: InitMessage): void {
 
 function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Array): void {
   if (!sim) return;
-  if (!paused) sim.step(Math.min(MAX_STEP, Math.max(0, wallDt) * speed));
+  if (!paused) {
+    const dt = Math.min(MAX_STEP, Math.max(0, wallDt) * speed);
+    sim.step(dt);
+    tracker?.stepMolecule(dt);
+  }
   const n = sim.count;
   const pos = positions?.length === n * 3 ? positions : new Float32Array(n * 3);
   const sat = saturations?.length === n ? saturations : new Float32Array(n);
@@ -68,7 +75,43 @@ function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Arr
     samplePath(lut, radius, seg, sim.progress(i), offsetR[i], offsetTheta[i], pos, i * 3);
     sat[i] = sim.saturation(i);
   }
-  post({ type: 'frame', time: sim.time, positions: pos, saturations: sat }, [pos.buffer, sat.buffer]);
+  post({ type: 'frame', time: sim.time, positions: pos, saturations: sat, follow: followInfo() }, [pos.buffer, sat.buffer]);
+}
+
+function follow(cell: number | null): void {
+  tracker?.dispose();
+  tracker = undefined;
+  if (!sim || cell === null) return;
+  if (cell < 0) {
+    // A random cell currently in the left ventricle, so its first circuit is timed from the start.
+    const lv = sim.circulation.root.index;
+    const candidates: number[] = [];
+    for (let i = 0; i < sim.count; i++) if (sim.segment[i] === lv) candidates.push(i);
+    cell = candidates.length ? candidates[Math.floor(pickRng.next() * candidates.length)] : Math.floor(pickRng.next() * sim.count);
+  }
+  tracker = new CellTracker(sim, cell, Math.floor(pickRng.next() * 1e9));
+}
+
+function followInfo() {
+  if (!sim || !tracker) return undefined;
+  const c = tracker.cell;
+  return {
+    cell: c,
+    segment: sim.segment[c],
+    progress: sim.progress(c),
+    segmentElapsed: sim.elapsed[c],
+    segmentDuration: sim.duration[c],
+    po2: sim.po2[c],
+    saturation: sim.saturation(c),
+    speed: sim.speed(c),
+    circuitElapsed: tracker.timeSinceLapStart,
+    circuitVia: [...tracker.currentVia],
+    laps: tracker.laps.slice(-8),
+    route: tracker.route.slice(-16).map((r) => ({ ...r })),
+    sites: [...tracker.molecule.sites],
+    bound: tracker.molecule.bound,
+    hbDistribution: tracker.hemoglobinDistribution,
+  };
 }
 
 self.onmessage = (e: MessageEvent<ToWorker>) => {
@@ -79,6 +122,9 @@ self.onmessage = (e: MessageEvent<ToWorker>) => {
       break;
     case 'tick':
       tick(msg.wallDt, msg.positions, msg.saturations);
+      break;
+    case 'follow':
+      follow(msg.cell);
       break;
     case 'control':
       if (msg.speed !== undefined) speed = msg.speed;

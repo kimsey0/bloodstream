@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { VesselPaths } from '../anatomy/paths';
 import type { Circulation } from '../sim/circulation';
 import { createBody } from './body';
+import { FollowMarker } from './follow';
 import { cellMaterial, saturationTexture } from './materials';
 import { colorVessels, createVessels } from './vessels';
 
@@ -17,6 +18,12 @@ export class BodyScene {
   private readonly vessels: Mesh;
   private cells?: Points<BufferGeometry, ShaderMaterial>;
   private readonly colormap = saturationTexture();
+  private readonly follow = new FollowMarker();
+  private followCell: number | null = null;
+  private readonly followPos = new Vector3();
+  /** 0→1 while the camera flies in to a newly followed cell. */
+  private flyIn = 1;
+  private lastRender = performance.now();
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -37,6 +44,7 @@ export class BodyScene {
     this.scene.add(createBody());
     this.vessels = createVessels(circ, paths);
     this.scene.add(this.vessels);
+    this.scene.add(this.follow.marker, this.follow.trail);
 
     this.resize();
     this.resetView();
@@ -91,11 +99,76 @@ export class BodyScene {
     (sat.array as Float32Array).set(saturations);
     pos.needsUpdate = true;
     sat.needsUpdate = true;
+    if (this.followCell !== null && this.followCell < saturations.length) {
+      const i = this.followCell * 3;
+      this.followPos.set(positions[i], positions[i + 1], positions[i + 2]);
+      this.follow.update(this.followPos, saturations[this.followCell]);
+    }
+  }
+
+  /** Start (cell index) or stop (null) following a cell with the camera. */
+  setFollow(cell: number | null): void {
+    if (cell === this.followCell) return;
+    this.followCell = cell;
+    this.follow.show(cell !== null);
+    this.follow.clearTrail();
+    this.flyIn = cell === null ? 1 : 0;
+  }
+
+  /** Index of the cell drawn nearest to a screen point (CSS px), or null if none within reach. */
+  pick(clientX: number, clientY: number, maxDistPx = 28): number | null {
+    if (!this.cells) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const arr = this.cells.geometry.getAttribute('position').array as Float32Array;
+    const m = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse).elements;
+    let best: number | null = null;
+    let bestD = maxDistPx * maxDistPx;
+    let bestDepth = Infinity;
+    for (let i = 0; i < arr.length / 3; i++) {
+      const x = arr[i * 3];
+      const y = arr[i * 3 + 1];
+      const z = arr[i * 3 + 2];
+      const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+      if (w <= 0) continue;
+      const sx = rect.left + ((m[0] * x + m[4] * y + m[8] * z + m[12]) / w + 1) * 0.5 * rect.width;
+      const sy = rect.top + (1 - ((m[1] * x + m[5] * y + m[9] * z + m[13]) / w + 1) * 0.5) * rect.height;
+      const d = (sx - clientX) ** 2 + (sy - clientY) ** 2;
+      // Prefer nearer cells when several are under the finger.
+      if (d < bestD || (d < bestD * 1.5 && w < bestDepth)) {
+        bestD = Math.min(d, bestD);
+        bestDepth = w;
+        best = i;
+      }
+    }
+    return best;
   }
 
   render(): void {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastRender) / 1000);
+    this.lastRender = now;
+    if (this.followCell !== null) this.trackCamera(dt);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Keep the followed cell at the orbit centre; on a new follow, fly in to ~30 cm. */
+  private trackCamera(dt: number): void {
+    const target = this.controls.target;
+    if (this.flyIn < 1) {
+      this.flyIn = Math.min(1, this.flyIn + dt / 1.2);
+      const k = 1 - Math.pow(1 - this.flyIn, 3);
+      const offset = this.camera.position.clone().sub(target);
+      const dist = offset.length();
+      const wanted = Math.min(dist, 45);
+      offset.setLength(dist + (wanted - dist) * k);
+      target.lerp(this.followPos, k);
+      this.camera.position.copy(target).add(offset);
+    } else {
+      const delta = this.followPos.clone().sub(target);
+      target.add(delta);
+      this.camera.position.add(delta);
+    }
   }
 
   private resize(): void {
@@ -115,6 +188,7 @@ export class BodyScene {
     const h = this.renderer.domElement.height;
     this.cells.material.uniforms.projScale.value = h / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
     this.cells.material.uniforms.minPx.value = 2.2 * this.renderer.getPixelRatio();
-    this.cells.material.uniforms.maxPx.value = 40 * this.renderer.getPixelRatio();
+    this.cells.material.uniforms.maxPx.value = 16 * this.renderer.getPixelRatio();
+    this.follow.setPixelRatio(this.renderer.getPixelRatio());
   }
 }

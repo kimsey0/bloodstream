@@ -23,7 +23,13 @@ export interface ControlMessage {
   paused?: boolean;
 }
 
-export type ToWorker = InitMessage | TickMessage | ControlMessage;
+/** Follow a cell by index, a random cell just leaving the heart (-1), or stop (null). */
+export interface FollowMessage {
+  type: 'follow';
+  cell: number | null;
+}
+
+export type ToWorker = InitMessage | TickMessage | ControlMessage | FollowMessage;
 
 /** Steady-state oxygen along each segment, for colouring vessels. */
 export interface ReadyMessage {
@@ -36,6 +42,40 @@ export interface ReadyMessage {
   meanCirculationTime: number;
 }
 
+export interface RouteStep {
+  segment: number;
+  enter: number;
+  exit?: number;
+  saturationIn: number;
+  saturationOut?: number;
+}
+
+export interface FollowInfo {
+  cell: number;
+  segment: number;
+  /** 0–1 through the current segment. */
+  progress: number;
+  /** Time spent / expected in the current segment, s. */
+  segmentElapsed: number;
+  segmentDuration: number;
+  po2: number;
+  saturation: number;
+  /** Current speed, mm/s. */
+  speed: number;
+  /** Time since this cell last left the left ventricle, s (NaN until it gets there). */
+  circuitElapsed: number;
+  /** Organ beds passed so far in this circuit. */
+  circuitVia: string[];
+  laps: { duration: number; via: string[] }[];
+  /** Most recent segments, oldest first. */
+  route: RouteStep[];
+  /** The representative haemoglobin: which of α1, β1, α2, β2 hold O2. */
+  sites: boolean[];
+  bound: number;
+  /** Fraction of this cell's Hb molecules with 0..4 O2 bound. */
+  hbDistribution: number[];
+}
+
 export interface FrameMessage {
   type: 'frame';
   /** Simulation time, s. */
@@ -43,6 +83,7 @@ export interface FrameMessage {
   /** cellCount × 3, cm. */
   positions: Float32Array;
   saturations: Float32Array;
+  follow?: FollowInfo;
 }
 
 export type FromWorker = ReadyMessage | FrameMessage;
