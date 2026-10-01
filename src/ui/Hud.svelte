@@ -1,5 +1,6 @@
 <script lang="ts">
   import { saturationCss } from '../color/saturation';
+  import ActivityPanel from './ActivityPanel.svelte';
   import BedPicker from './BedPicker.svelte';
   import FollowPanel from './FollowPanel.svelte';
   import MicroPanel from './MicroPanel.svelte';
@@ -16,6 +17,7 @@
     onBackToBody: () => void;
     onMicroReset: () => void;
     onFollowCell: (cell: number) => void;
+    onActivity: (level: number) => void;
     onDismissHint: () => void;
     capillaryIndex: (id: string) => number;
     allBeds: () => number[];
@@ -30,6 +32,7 @@
     onBackToBody,
     onMicroReset,
     onFollowCell,
+    onActivity,
     onDismissHint,
     capillaryIndex,
     allBeds,
@@ -44,6 +47,8 @@
   };
   const speedLabel = (s: number) => (s < 1 ? `${s}×` : `${s}×`);
   const pct = (x: number) => `${Math.round(x * 100)}%`;
+  // The heart icon swells with each ejection.
+  let heartScale = $derived(ui.beatPhase < ui.systole ? 1 + 0.25 * Math.sin((Math.PI * ui.beatPhase) / ui.systole) : 1);
 </script>
 
 {#if ui.follow}
@@ -54,6 +59,10 @@
 
 {#if ui.view === 'micro' && ui.micro}
   <MicroPanel info={ui.micro} onBack={onBackToBody} onResetView={onMicroReset} />
+{/if}
+
+{#if ui.activityOpen}
+  <ActivityPanel onApply={onActivity} />
 {/if}
 
 {#if ui.pickerOpen}
@@ -78,13 +87,19 @@
 
 <header class="brand" class:following={!!ui.follow || ui.view === 'micro'}>
   <h1>Bloodstream</h1>
-  <p>Resting adult · {(ui.cardiacOutput * 0.06).toFixed(1)} L/min · {(ui.bloodVolume / 1000).toFixed(1)} L blood</p>
+  <p>{ui.activity.label} · {(ui.cardiacOutput * 0.06).toFixed(1)} L/min · {(ui.bloodVolume / 1000).toFixed(1)} L blood</p>
 </header>
 
 <div class="clock" class:following={!!ui.follow || ui.view === 'micro'} aria-live="off">
   <span class="label">Body time</span>
   <span class="value">{clock(ui.time)}</span>
   <span class="sub">{ui.paused ? 'paused' : ui.speed === 1 ? 'real time' : `${speedLabel(ui.speed)} real time`}</span>
+  <span class="beat" aria-label={`Heart rate ${Math.round(ui.activity.heartRate)} beats per minute`}>
+    <svg viewBox="0 0 16 16" aria-hidden="true" style:transform={`scale(${heartScale})`}
+      ><path d="M8 14s-5.5-3.4-5.5-7.3A3 3 0 0 1 8 4.6a3 3 0 0 1 5.5 2.1C13.5 10.6 8 14 8 14z" fill="currentColor" /></svg
+    >
+    {Math.round(ui.activity.heartRate)} bpm
+  </span>
 </div>
 
 {#if !ui.ready}
@@ -136,11 +151,30 @@
     </button>
     <button
       class="icon"
+      class:on={ui.activityOpen || ui.activity.level > 0}
+      aria-label="Activity level"
+      title="Activity level"
+      aria-expanded={ui.activityOpen}
+      onclick={() => ((ui.activityOpen = !ui.activityOpen), (ui.pickerOpen = false))}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true"
+        ><circle cx="10" cy="2.6" r="1.6" fill="currentColor" /><path
+          d="M3 8.5l2.5-2.8 3 .8 1.6 2.6 2.4.6M8.5 6.5L7 10.5l2.6 1.6-1 3M7 10.5l-2.6 3.8"
+          stroke="currentColor"
+          stroke-width="1.5"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        /></svg
+      >
+    </button>
+    <button
+      class="icon"
       class:on={ui.pickerOpen || ui.view === 'micro'}
       aria-label="Zoom into a capillary bed"
       title="Zoom into a capillary bed"
       aria-expanded={ui.pickerOpen}
-      onclick={() => (ui.pickerOpen = !ui.pickerOpen)}
+      onclick={() => ((ui.pickerOpen = !ui.pickerOpen), (ui.activityOpen = false))}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path
@@ -180,10 +214,15 @@
       {/if}
     </div>
     <div class="ticks">
-      <span>0%</span>
-      <span class="mid">O₂ saturation</span>
+      {#if !ui.ready || ui.mixedVenousSaturation > 0.45}
+        <span>0%</span>
+        <span class="mid">O₂ saturation</span>
+      {/if}
       {#if ui.ready}
-        <span class="mark" style:left={pct(ui.mixedVenousSaturation)}>venous {pct(ui.mixedVenousSaturation)}</span>
+        <!-- Low venous saturation (exercise): put the label to the right of its mark. -->
+        <span class="mark" class:right={ui.mixedVenousSaturation < 0.45} style:left={pct(ui.mixedVenousSaturation)}
+          >venous {pct(ui.mixedVenousSaturation)}</span
+        >
         <span class="mark art" style:left={pct(ui.arterialSaturation)}>arterial {pct(ui.arterialSaturation)}</span>
       {/if}
     </div>
@@ -210,6 +249,12 @@
       Tap near an organ to zoom into its capillaries, or tap any cell (or the target button) to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,
       how long its current trip round the body has taken, and one of its haemoglobin molecules. At 1× the four binding sites flip
       faster than the eye can follow (the last O₂ stays bound for ~7 ms on average); slow down to 0.01× to watch them.
+    </p>
+    <p>
+      The running figure sets the activity level, from rest to maximal exercise. Heart rate, cardiac output, O₂ use and where
+      the blood goes all change; working leg muscle can take over 80 % of the flow and pull venous blood below 20 % saturation.
+      Each heartbeat ejects blood only for about a third of the beat, so cells in the aorta surge and pause, while flow in
+      capillaries and veins stays almost steady.
     </p>
     <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan.</p>
     <h2>Where the numbers come from</h2>
@@ -334,6 +379,18 @@
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+  .beat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    font: 12px var(--font-data);
+    color: #f0838a;
+  }
+  .beat svg {
+    width: 13px;
+    height: 13px;
   }
   .clock .value {
     font: 500 22px/1.15 var(--font-data);
@@ -468,6 +525,10 @@
     transform: translateX(-100%);
     padding-right: 4px;
     color: var(--text);
+  }
+  .ticks .mark.right {
+    transform: none;
+    padding: 0 0 0 4px;
   }
   .ticks .mark.art {
     left: auto !important;

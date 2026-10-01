@@ -2,6 +2,7 @@
 import { mount } from 'svelte';
 import { BED_CENTERS } from '../anatomy/layout';
 import { buildPaths } from '../anatomy/paths';
+import { activityState } from '../physiology/activity';
 import { Circulation } from '../sim/circulation';
 import { microBedFor } from '../micro/beds';
 import { ARTERIOLE_SPEED, MicroSim, VENULE_SPEED } from '../micro/microSim';
@@ -38,15 +39,24 @@ let spare: { positions?: Float32Array; saturations?: Float32Array } = {};
 
 worker.onmessage = (e: MessageEvent<FromWorker>) => {
   const msg = e.data;
-  if (msg.type === 'ready') {
+  if (msg.type === 'ready' || msg.type === 'state') {
     scene.setSaturationProfiles(msg.profiles);
     ui.cellCount = msg.cellCount;
     ui.arterialSaturation = msg.arterialSaturation;
     ui.mixedVenousSaturation = msg.mixedVenousSaturation;
     ui.meanCirculationTime = msg.meanCirculationTime;
+    ui.activity = msg.activity;
+    ui.cardiacOutput = msg.activity.cardiacOutput;
+    circNow = msg.activity.level === 0 ? circ : new Circulation({ activity: activityState(msg.activity.level) });
     for (const ex of msg.exchange) {
       exchange.set(ex.segment, ex);
       ui.bedSaturation[ex.segment] = [ex.saturationIn, ex.saturationOut];
+    }
+    if (msg.type === 'state') {
+      ui.activityPending = null;
+      // Rebuild an open microscope view with the new flows and O2 use.
+      if (ui.micro) openBed(ui.micro.capillary, { keepFollow: true });
+      return;
     }
     ui.ready = true;
     try {
@@ -61,6 +71,9 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
     framesReceived++;
     if (ui.view === 'body' && msg.positionsValid) scene.setCells(msg.positions, msg.saturations);
     ui.time = msg.time;
+    ui.beatPhase = msg.beatPhase;
+    ui.systole = msg.systole;
+    scene.setBeat(msg.beatPhase, msg.systole);
     spare = { positions: msg.positions, saturations: msg.saturations };
     if (msg.follow && wantFollow) {
       if (ui.follow?.cell !== msg.follow.cell) clearHistory();
@@ -73,6 +86,13 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
 };
 
 const exchange = new Map<number, ExchangeInfo>();
+/** The circulation at the current activity level (flows, transits) for the microscope view. */
+let circNow = circ;
+
+function setActivity(level: number): void {
+  ui.activityPending = level;
+  send({ type: 'activity', level });
+}
 
 /** Organ bed centres for tap-to-zoom, with the capillary segment each one opens. */
 const bedCaps: number[] = [];
@@ -109,7 +129,7 @@ let framesReceived = 0;
 function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolean {
   const c = m.pickCell(clientX, clientY, canvas.getBoundingClientRect());
   if (!c || !ui.micro) return false;
-  const capSeg = circ.segments[ui.micro.capillary];
+  const capSeg = circNow.segments[ui.micro.capillary];
   const r = m.net.routes[c.route];
   let segment: number;
   let elapsed: number;
@@ -118,7 +138,7 @@ function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolea
     // Still in the terminal arteriole: the end of the bed's feeding segment.
     segment = capSeg.prevIndex[0];
     const remaining = (r.capStart - c.s) / ARTERIOLE_SPEED;
-    duration = Math.max(circ.segments[segment].transit, remaining * 1.01);
+    duration = Math.max(circNow.segments[segment].transit, remaining * 1.01);
     elapsed = duration - remaining;
   } else if (c.s <= r.capEnd) {
     segment = capSeg.index;
@@ -128,7 +148,7 @@ function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolea
     // In the collecting venule: the start of the bed's draining segment.
     segment = capSeg.nextIndex[0];
     elapsed = (c.s - r.capEnd) / VENULE_SPEED;
-    duration = Math.max(circ.segments[segment].transit, elapsed * 1.5);
+    duration = Math.max(circNow.segments[segment].transit, elapsed * 1.5);
   }
   adoptedRoute = { route: c.route, afterTick: ticksSent };
   wantFollow = true;
@@ -136,8 +156,11 @@ function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolea
   return true;
 }
 
-function openBed(capillary: number): void {
-  const seg = circ.segments[capillary];
+function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
+  const seg = circNow.segments[capillary];
+  const keepRoute = opts.keepFollow ? microRoute : -1;
+  // Keep the camera when rebuilding the same bed.
+  const view = micro && ui.micro?.capillary === capillary ? { pos: micro.camera.position.clone(), target: micro.controls.target.clone() } : null;
   const ex = exchange.get(capillary);
   if (!ex) return;
   closeBed();
@@ -152,7 +175,12 @@ function openBed(capillary: number): void {
   });
   micro = new MicroScene(canvas, bed, net, sim, ex.saturationIn, ex.saturationOut);
   scene.controls.enabled = false;
-  microRoute = -1;
+  microRoute = keepRoute;
+  if (view) {
+    micro.camera.position.copy(view.pos);
+    micro.controls.target.copy(view.target);
+    micro.controls.update();
+  }
   ui.pickerOpen = false;
   ui.tapMenu = null;
   ui.view = 'micro';
@@ -373,6 +401,7 @@ const hud = mount(Hud, {
       fitBodyView();
     },
     onFollowRandom: () => followCell(-1),
+    onActivity: setActivity,
     onStopFollow: stopFollowing,
     onOpenBed: openBed,
     onFollowCell: (cell: number) => {

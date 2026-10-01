@@ -1,5 +1,5 @@
 /** three.js scene: camera, touch/mouse controls, body, vessels and cells. */
-import { BufferAttribute, BufferGeometry, PerspectiveCamera, Points, Scene, Vector3, WebGLRenderer, type ShaderMaterial } from 'three';
+import { BufferAttribute, BufferGeometry, Object3D, PerspectiveCamera, Points, Scene, Vector3, WebGLRenderer, type ShaderMaterial } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { VesselPaths } from '../anatomy/paths';
 import type { Circulation } from '../sim/circulation';
@@ -25,6 +25,7 @@ export class BodyScene {
   private flyIn = 1;
   private lastRender = performance.now();
   private maxPixelRatio = 2;
+  private heart: Object3D | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -72,6 +73,14 @@ export class BodyScene {
     this.camera.position.set(0, target.y + 8, d);
     this.camera.lookAt(target);
     this.controls.update();
+  }
+
+  /** Contract the heart shell during ejection. */
+  setBeat(phase: number, systole: number): void {
+    this.heart ??= this.scene.getObjectByName('Heart') ?? null;
+    if (!this.heart) return;
+    const squeeze = phase < systole ? Math.sin((Math.PI * phase) / systole) : 0;
+    this.heart.scale.setScalar(1 - 0.09 * squeeze);
   }
 
   setSaturationProfiles(profiles: Float32Array): void {

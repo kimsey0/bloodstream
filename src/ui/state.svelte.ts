@@ -35,6 +35,13 @@ export const ui = $state({
   /** Panels collapsed to a small pill so the cells can be watched unobstructed. */
   followCollapsed: false,
   microCollapsed: false,
+  /** Applied activity state, and the level being applied (null when idle). */
+  activity: { level: 0, label: 'Rest', met: 1, heartRate: 70, cardiacOutput: 5000 / 60, vo2: 250 },
+  activityPending: null as number | null,
+  activityOpen: false,
+  /** Heartbeat phase (0 = start of ejection) and systolic fraction, updated every frame. */
+  beatPhase: 0,
+  systole: 0.35,
   /** First-visit hint card. */
   hintOpen: false,
 });

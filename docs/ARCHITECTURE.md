@@ -1,6 +1,6 @@
 # Bloodstream: architecture proposal
 
-Status: milestones 1–6 implemented (simulation core, body view, follow a cell, microscope view, polish). Next: the activity-level stretch goal. See "Implementation status" at the end.
+Status: all milestones implemented, including the activity-level slider and a pulsatile heartbeat. See "Implementation status" at the end.
 
 ## Goal
 
@@ -247,7 +247,7 @@ tests/          physiology validation suites
 3. ✅ Follow-cell mode + HUD + haemoglobin inset.
 4. ✅ Organ/capillary zoom levels with procedural beds.
 5. ✅ Polish (done before the activity slider, which is now the stretch goal).
-6. Activity slider.
+6. ✅ Activity slider and heartbeat.
 
 ## Open questions
 
@@ -293,8 +293,8 @@ Known simplifications, to revisit:
   slow to ~2 mm/s entering capillaries and speed up to ~1 cm/s in small
   veins, matching intravital measurements (venules < 30 µm: ~1.9 mm/s).
 
-- Flow is steady (no cardiac pulsatility yet); heart-chamber residence is a
-  log-normal around volume/flow rather than beat-by-beat ejection.
+- Atria and veins are treated as steady (no venous pulse or atrial kick);
+  activity changes take effect instantly rather than over 1–2 minutes.
 - Vertebral arteries are folded into the carotids; anterior cardiac and
   Thebesian veins into the coronary sinus.
 - Red cells split at bifurcations in proportion to blood flow (no plasma
@@ -413,6 +413,36 @@ affects where cells are drawn. Strands are rendered as thin lines (one draw
 call); named vessels stay glass tubes. Bronchial venous blood now drains
 into the right pulmonary veins (as the deep bronchial veins do), so that no
 microcirculation drains into another bed's venules.
+
+### Activity levels and heartbeat (done)
+
+`src/physiology/activity.ts` interpolates four anchor states (rest 1 MET,
+walking 3.5, jogging 8, maximal 13) from a 0–1 slider level. Each sets heart
+rate (70 → 185), cardiac output (5 → 22 L/min), VO2 (0.25 → 3.25 L/min),
+per-tissue flow and VO2 (muscle gets the remainder; its extra flow and VO2
+go 80 % to the legs), muscle capillary recruitment (up to 4×) and arteriolar
+dilation, pulmonary capillary recruitment (2.2×) and DLO2 (→ 75), alveolar
+PO2, and working-muscle blood conditions (pH 7.2, PCO2 60, 39.5 °C at
+maximum). `Circulation` takes the state, `solveSteadyState` calibrates with
+those conditions, and tissue PO2 falls where extraction must rise. The
+worker caches solved states per 0.01 level (~1.5–2 s each) and
+`Simulation.setState` swaps them live: cells keep their place, time in the
+current segment is rescaled, PO2 is re-expressed under new conditions, and
+the heartbeat phase stays continuous.
+
+Validated (`tests/activity.test.ts`): Fick uptake = VO2 at every level;
+> 80 % of cardiac output to muscle at maximum, > 70 % of it to the legs;
+arterial SO2 > 94 % throughout; mixed venous 73 → 50 → 35 → 23 %; femoral
+venous 16 % at maximum; pulmonary transit 0.37 s; mean circulation 54 →
+13 s.
+
+`src/physiology/heartbeat.ts`: a half-sine aortic ejection waveform (mean
+1, ~4.5× peak at rest) with ejection lasting 0.30 s at 70 bpm and 0.20 s near
+180 bpm. Ventricles empty only while ejecting; other segments follow
+`1 + α (w − 1)` with α 0.9 in the aorta, 0.7 in medium arteries, 0.5 in small
+arteries, 0.25 in arterioles, 0.08 in systemic capillaries, 0 in veins.
+Mean transits are unchanged. The UI shows heart rate with a beating icon,
+and the heart shell contracts in systole.
 
 `npm run artifact` builds the app as one self-contained HTML fragment
 (worker inlined as a blob) for publishing as a claude.ai Artifact. The

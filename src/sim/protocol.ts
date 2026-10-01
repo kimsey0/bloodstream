@@ -49,11 +49,30 @@ export interface AdoptMessage {
   po2: number;
 }
 
-export type ToWorker = InitMessage | TickMessage | ControlMessage | FollowMessage | AdoptMessage;
+/** Change the activity level (0 = rest, 1 = maximal exercise). */
+export interface ActivityMessage {
+  type: 'activity';
+  level: number;
+}
+
+export type ToWorker = InitMessage | TickMessage | ControlMessage | FollowMessage | AdoptMessage | ActivityMessage;
+
+export interface ActivitySummary {
+  level: number;
+  label: string;
+  met: number;
+  heartRate: number;
+  /** mL/s. */
+  cardiacOutput: number;
+  /** mL/min. */
+  vo2: number;
+}
 
 /** Steady-state oxygen along each segment, for colouring vessels. */
 export interface ReadyMessage {
-  type: 'ready';
+  /** 'ready' once after start-up, 'state' after each activity change. */
+  type: 'ready' | 'state';
+  activity: ActivitySummary;
   cellCount: number;
   /** segments × PROFILE_SAMPLES saturations from inlet to outlet. */
   profiles: Float32Array;
@@ -119,6 +138,9 @@ export interface FrameMessage {
   saturations: Float32Array;
   /** False when positions were skipped for this frame (contents are stale). */
   positionsValid: boolean;
+  /** Phase within the heartbeat (0 = start of ejection) and the systolic fraction of the beat. */
+  beatPhase: number;
+  systole: number;
   follow?: FollowInfo;
 }
 

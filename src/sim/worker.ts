@@ -9,6 +9,9 @@ import { saturation } from '../physiology/dissociation';
 import { integratePo2 } from './oxygen';
 import { PROFILE_SAMPLES, type AdoptMessage, type FromWorker, type InitMessage, type ToWorker } from './protocol';
 import { Rng } from './rng';
+import { activityState } from '../physiology/activity';
+import { Circulation } from './circulation';
+import { solveSteadyState, type SteadyState } from './oxygen';
 import { Simulation } from './simulation';
 import { CellTracker } from './tracking';
 
@@ -53,7 +56,14 @@ function init(msg: InitMessage): void {
   offsetR = new Float32Array(sim.count).map(() => 0.75 * Math.sqrt(rng.next()));
   offsetTheta = new Float32Array(sim.count).map(() => rng.next() * 2 * Math.PI);
 
+  postState('ready');
+}
+
+/** Send the current physiological state: vessel colours, headline numbers and exchange models. */
+function postState(type: 'ready' | 'state'): void {
+  if (!sim) return;
   const segs = sim.circulation.segments;
+  const a = sim.circulation.activity;
   const profiles = new Float32Array(segs.length * PROFILE_SAMPLES);
   for (const s of segs) {
     const o = sim.steady.segments[s.index];
@@ -64,12 +74,13 @@ function init(msg: InitMessage): void {
     }
   }
   post({
-    type: 'ready',
+    type,
     cellCount: sim.count,
     profiles,
     arterialSaturation: sim.steady.arterial.saturationIn,
     mixedVenousSaturation: sim.steady.mixedVenous.saturationIn,
     meanCirculationTime: sim.circulation.meanRbcCirculationTime,
+    activity: { level: a.level, label: a.label, met: a.met, heartRate: a.heartRate, cardiacOutput: a.cardiacOutput, vo2: a.vo2 },
     exchange: [...sim.steady.exchange].map(([segment, ex]) => ({
       segment,
       conductance: ex.conductance,
@@ -80,6 +91,22 @@ function init(msg: InitMessage): void {
       saturationOut: sim!.steady.segments[segment].saturationOut,
     })),
   });
+}
+
+/** Solved states per activity level (rounded to 0.01), since solving takes ~1–2 s. */
+const stateCache = new Map<number, { circ: Circulation; steady: SteadyState }>();
+
+function setActivity(level: number): void {
+  if (!sim) return;
+  const key = Math.round(level * 100);
+  let st = stateCache.get(key);
+  if (!st) {
+    const circ = new Circulation({ activity: activityState(key / 100) });
+    st = { circ, steady: solveSteadyState(circ) };
+    stateCache.set(key, st);
+  }
+  sim.setState(st.circ, st.steady, st.circ.activity.heartRate);
+  postState('state');
 }
 
 function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Array, skipPositions = false): void {
@@ -98,7 +125,19 @@ function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Arr
     samplePath(lut, radius, path, sim.positionFraction(i), offsetR[i], offsetTheta[i], pos, i * 3);
     sat[i] = sim.saturation(i);
   }
-  post({ type: 'frame', time: sim.time, positions: pos, saturations: sat, positionsValid: !skipPositions, follow: followInfo() }, [pos.buffer, sat.buffer]);
+  post(
+    {
+      type: 'frame',
+      time: sim.time,
+      positions: pos,
+      saturations: sat,
+      positionsValid: !skipPositions,
+      beatPhase: sim.beatPhase,
+      systole: sim.waveform?.systole ?? 0.35,
+      follow: followInfo(),
+    },
+    [pos.buffer, sat.buffer],
+  );
 }
 
 function follow(cell: number | null): void {
@@ -173,6 +212,9 @@ self.onmessage = (e: MessageEvent<ToWorker>) => {
       break;
     case 'follow':
       follow(msg.cell);
+      break;
+    case 'activity':
+      setActivity(msg.level);
       break;
     case 'adopt':
       adopt(msg);

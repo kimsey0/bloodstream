@@ -76,8 +76,10 @@ export function createBody(): Group {
 function createOrgans(): Group {
   const g = new Group();
   for (const o of ORGANS) {
-    const m = new Mesh(ellipsoid(o.shape.center, o.shape.scale, 20), glassMaterial({ tint: o.tint, alphaCenter: 0.02, alphaEdge: 0.2 }));
+    // Built at the origin and positioned, so organs (the heart) can be scaled about their centre.
+    const m = new Mesh(ellipsoid([0, 0, 0], o.shape.scale, 20), glassMaterial({ tint: o.tint, alphaCenter: 0.02, alphaEdge: 0.2 }));
     m.name = o.name;
+    m.position.set(...o.shape.center);
     m.renderOrder = 1;
     g.add(m);
   }
