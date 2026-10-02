@@ -154,7 +154,7 @@ function init(): void {
       <div class="muted">Previous circuits: ${tracker.lapTimes.slice(-5).map((t) => `${t.toFixed(1)} s`).join(', ') || '—'}</div>
       <div class="muted">Of this cell's ~270 million Hb: ${tracker.hemoglobinDistribution.map((f, n) => `${n}: ${pct(f, 0)}`).join(' · ')}</div>`;
     moleculeEl.innerHTML = tracker.molecule.sites
-      .map((on, i) => `<div class="${on ? 'on' : ''}" style="background:${on ? HEMOGLOBIN_STEP_COLORS[tracker.molecule.bound] : 'transparent'}">${SITE_NAMES[i]}</div>`)
+      .map((on, i) => `<div class="${on ? 'on' : ''}" style="background:${on ? HEMOGLOBIN_STEP_COLORS[4] : HEMOGLOBIN_STEP_COLORS[0]}">${SITE_NAMES[i]}</div>`)
       .join('');
     const items = tracker.route
       .slice(-12)

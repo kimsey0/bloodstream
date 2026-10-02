@@ -145,9 +145,12 @@
   {#if details}
   <div class="hb-row">
     <figure class="hb">
-      <svg viewBox="0 0 84 84" role="img" aria-label={`Haemoglobin with ${info.bound} of 4 sites holding oxygen`}>
+      <svg viewBox="-5 -5 94 94" role="img" aria-label={`Haemoglobin with ${info.bound} of 4 sites holding oxygen`}>
+        <!-- The whole molecule, coloured by its overall saturation (bound/4). -->
+        <circle cx="42" cy="42" r="46" fill={HEMOGLOBIN_STEP_COLORS[info.bound]} stroke="rgba(231,236,243,0.25)" stroke-width="1" />
         {#each SITE_POS as [cx, cy], k (k)}
-          <circle {cx} {cy} r="17" fill={HEMOGLOBIN_STEP_COLORS[info.bound]} stroke="rgba(231,236,243,0.35)" stroke-width="1" />
+          <!-- Each site on its own: oxygenated or not. -->
+          <circle {cx} {cy} r="17" fill={HEMOGLOBIN_STEP_COLORS[info.sites[k] ? 4 : 0]} stroke="#0b1018" stroke-width="1.5" />
           <rect x={cx - 6} y={cy - 6} width="12" height="12" rx="2" fill="#0b1018" opacity="0.55" />
           {#if info.sites[k]}
             <circle cx={cx - 3} cy={cy} r="3.2" fill="#f4f7fb" />
@@ -159,7 +162,8 @@
       <figcaption><b>{info.bound}/4</b> O₂ on one of ~270 million Hb</figcaption>
     </figure>
     <p class="hb-note">
-      One molecule's four binding sites. They bind and release O₂ in milliseconds, so at normal speed they flicker; slow to
+      One molecule's four binding sites, each red with O₂ and blue without; the disc behind shows the whole molecule's
+      saturation. They bind and release O₂ in milliseconds, so at normal speed they flicker; slow to
       0.01× to watch individual sites.
     </p>
   </div>
