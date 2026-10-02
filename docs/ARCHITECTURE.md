@@ -326,22 +326,36 @@ Rodahl; Rowell; Hsia (pulmonary recruitment).
 
 ## Colour scale
 
-`src/color/saturation.ts` runs from deep navy at 0 % through blue at 50 % and
-violet at 75 % to red at 100 %, interpolated in OKLab. This follows both the
-anatomical red/blue convention and the blue → red ramp of oximetry imaging:
+`src/color/saturation.ts` has two scales, both interpolated in OKLab. The
+viewer switches between them under the colour bar, and the choice is saved
+in `localStorage`.
 
-- Lightness rises monotonically, so the scale also reads in greyscale.
-- The blue ↔ red axis survives red–green colour blindness.
-- Stops are denser above 50 %, where most blood sits.
-- The haemoglobin molecule's five states (0–4 O2) use the colours at 0, 25,
+- **Code** (default): deep navy at 0 % through blue at 50 % and violet at
+  75 % to red at 100 %. This follows both the anatomical red/blue convention
+  and the blue → red ramp of oximetry imaging. The blue ↔ red axis survives
+  red–green colour blindness.
+- **True colour**: dark maroon at 0 % through crimson to bright scarlet at
+  100 %, close to how blood actually looks. Deoxygenated blood is never
+  blue, and the legend says so whenever the code scale is shown.
+
+Both scales:
+
+- Rise monotonically in lightness, so they also read in greyscale.
+- Have denser stops above 50 %, where most blood sits.
+- Give the haemoglobin molecule's five states (0–4 O2) the colours at 0, 25,
   50, 75 and 100 %.
 
-Tests check the scale under simulated deuteranopia, protanopia and
+Tests check both scales under simulated deuteranopia, protanopia and
 tritanopia (Machado et al. 2009).
+
+The active scale is module state in `saturation.ts`. Changing it refills
+the cells' lookup texture, recolours the vessels from the last saturation
+profiles, clears the follow trail and rebuilds an open microscope view. The
+HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 61 headless tests. The main emergent results:
+`npm test` runs 70 headless tests. The main emergent results:
 
 | Quantity | Model | Reference |
 |---|---|---|

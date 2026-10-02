@@ -31,6 +31,17 @@ export type ColorScale = 'blue-red' | 'natural';
 
 export const COLOR_SCALES: readonly ColorScale[] = ['blue-red', 'natural'];
 
+let active: ColorScale = 'blue-red';
+
+/** The scale the colour functions use when none is passed. */
+export function colorScale(): ColorScale {
+  return active;
+}
+
+export function setColorScale(scale: ColorScale): void {
+  active = scale;
+}
+
 interface Oklch {
   l: number;
   c: number;
@@ -102,7 +113,7 @@ function oklabToLinearInGamut(lab: [number, number, number]): Rgb {
 }
 
 /** Colour as OKLab for saturation s (0–1). */
-export function saturationOklab(s: number, scale: ColorScale = 'blue-red'): [number, number, number] {
+export function saturationOklab(s: number, scale: ColorScale = active): [number, number, number] {
   const stops = STOPS[scale];
   const x = Math.min(1, Math.max(0, s));
   let i = 0;
@@ -116,26 +127,25 @@ export function saturationOklab(s: number, scale: ColorScale = 'blue-red'): [num
 }
 
 /** Linear-light sRGB (what three.js expects for vertex/instance colours). */
-export function saturationColorLinear(s: number, scale: ColorScale = 'blue-red'): Rgb {
+export function saturationColorLinear(s: number, scale: ColorScale = active): Rgb {
   return oklabToLinearInGamut(saturationOklab(s, scale));
 }
 
 /** Gamma-encoded sRGB, 0–1. */
-export function saturationColor(s: number, scale: ColorScale = 'blue-red'): Rgb {
+export function saturationColor(s: number, scale: ColorScale = active): Rgb {
   return saturationColorLinear(s, scale).map(toGamma) as Rgb;
 }
 
-export function saturationCss(s: number, scale: ColorScale = 'blue-red'): string {
+export function saturationCss(s: number, scale: ColorScale = active): string {
   const [r, g, b] = saturationColor(s, scale).map((x) => Math.round(x * 255));
   return `rgb(${r} ${g} ${b})`;
 }
 
 /** Colours for a haemoglobin tetramer with 0, 1, 2, 3, 4 O2 bound. */
-export function hemoglobinStepColors(scale: ColorScale = 'blue-red'): string[] {
+export function hemoglobinStepColors(scale: ColorScale = active): string[] {
   return [0, 1, 2, 3, 4].map((n) => saturationCss(n / 4, scale));
 }
 
-export const HEMOGLOBIN_STEP_COLORS: string[] = hemoglobinStepColors();
 
 /**
  * Colour-vision-deficiency simulation, Machado, Oliveira & Fernandes 2009,

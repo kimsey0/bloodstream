@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { HEMOGLOBIN_STEP_COLORS, saturationCss } from '../color/saturation';
+  import { hemoglobinStepColors, saturationCss } from '../color/saturation';
   import type { FollowInfo } from '../sim/protocol';
   import { history, ui } from './state.svelte';
 
@@ -43,6 +43,8 @@
   let kind = $derived(KIND_LABEL[ui.segmentKinds[info.segment]] ?? '');
   let recent = $derived([...info.route].reverse().slice(0, 12));
   let span = $derived(Math.min(120, Math.max(2, 20 * ui.speed)));
+  let stepColors = $derived(hemoglobinStepColors(ui.colorScale));
+  let siteWords = $derived(ui.colorScale === 'natural' ? 'bright red with O₂ and dark red without' : 'red with O₂ and blue without');
 
   /** SO₂ (coloured) and speed (log scale, grey) over the last `window` seconds of body time. */
   function draw(): void {
@@ -81,7 +83,7 @@
     ctx.setLineDash([]);
     ctx.lineWidth = 2;
     for (let i = Math.max(i0, 1); i < t.length; i++) {
-      ctx.strokeStyle = saturationCss(s[i]);
+      ctx.strokeStyle = saturationCss(s[i], ui.colorScale);
       ctx.beginPath();
       ctx.moveTo(x(t[i - 1]), yS(s[i - 1]));
       ctx.lineTo(x(t[i]), yS(s[i]));
@@ -92,13 +94,14 @@
   $effect(() => {
     void info;
     void details;
+    void ui.colorScale;
     draw();
   });
 </script>
 
 {#if ui.followCollapsed}
   <button class="pill left" aria-label="Show the followed cell's panel" onclick={() => (ui.followCollapsed = false)}>
-    <span class="dot small" style:background={saturationCss(info.saturation)}></span>
+    <span class="dot small" style:background={saturationCss(info.saturation, ui.colorScale)}></span>
     <b class="num">{pct(info.saturation)}</b>
     <span class="pill-name">{name}</span>
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
@@ -106,7 +109,7 @@
 {:else}
 <section class="panel" aria-label="Followed red blood cell">
   <div class="top">
-    <span class="dot" style:background={saturationCss(info.saturation)}></span>
+    <span class="dot" style:background={saturationCss(info.saturation, ui.colorScale)}></span>
     <div class="sat">
       <b>{pct(info.saturation)}</b>
       <span>SO₂ · {info.po2.toFixed(0)} mmHg</span>
@@ -147,10 +150,10 @@
     <figure class="hb">
       <svg viewBox="-5 -5 94 94" role="img" aria-label={`Haemoglobin with ${info.bound} of 4 sites holding oxygen`}>
         <!-- The whole molecule, coloured by its overall saturation (bound/4). -->
-        <circle cx="42" cy="42" r="46" fill={HEMOGLOBIN_STEP_COLORS[info.bound]} stroke="rgba(231,236,243,0.25)" stroke-width="1" />
+        <circle cx="42" cy="42" r="46" fill={stepColors[info.bound]} stroke="rgba(231,236,243,0.25)" stroke-width="1" />
         {#each SITE_POS as [cx, cy], k (k)}
           <!-- Each site on its own: oxygenated or not. -->
-          <circle {cx} {cy} r="17" fill={HEMOGLOBIN_STEP_COLORS[info.sites[k] ? 4 : 0]} stroke="#0b1018" stroke-width="1.5" />
+          <circle {cx} {cy} r="17" fill={stepColors[info.sites[k] ? 4 : 0]} stroke="#0b1018" stroke-width="1.5" />
           <rect x={cx - 6} y={cy - 6} width="12" height="12" rx="2" fill="#0b1018" opacity="0.55" />
           {#if info.sites[k]}
             <circle cx={cx - 3} cy={cy} r="3.2" fill="#f4f7fb" />
@@ -162,14 +165,14 @@
       <figcaption><b>{info.bound}/4</b> O₂ on one of ~270 million Hb</figcaption>
     </figure>
     <p class="hb-note">
-      One molecule's four binding sites, each red with O₂ and blue without; the disc behind shows the whole molecule's
+      One molecule's four binding sites, each {siteWords}; the disc behind shows the whole molecule's
       saturation. They bind and release O₂ in milliseconds, so at normal speed they flicker; slow to
       0.01× to watch individual sites.
     </p>
   </div>
   <div class="dist" title="Share of this cell's haemoglobin molecules with 0–4 O₂ bound">
     {#each info.hbDistribution as f, n (n)}
-      <i style:flex-grow={Math.max(f, 0.0001)} style:background={HEMOGLOBIN_STEP_COLORS[n]}>{f > 0.09 ? `${n}: ${pct(f, 0)}` : ''}</i>
+      <i style:flex-grow={Math.max(f, 0.0001)} style:background={stepColors[n]}>{f > 0.09 ? `${n}: ${pct(f, 0)}` : ''}</i>
     {/each}
   </div>
   <div class="spark">
@@ -192,7 +195,7 @@
     <ol class="journey">
       {#each recent as r (r.enter)}
         <li>
-          <span class="sw" style:background={saturationCss(r.saturationOut ?? info.saturation)}></span>
+          <span class="sw" style:background={saturationCss(r.saturationOut ?? info.saturation, ui.colorScale)}></span>
           <span class="n">{ui.segmentNames[r.segment]}</span>
           <span class="d">{r.exit !== undefined ? fmtTime(r.exit - r.enter) : '…'}</span>
           <span class="s">{pct(r.saturationIn, 0)}{r.saturationOut !== undefined && Math.abs(r.saturationOut - r.saturationIn) > 0.005 ? ` → ${pct(r.saturationOut, 0)}` : ''}</span>

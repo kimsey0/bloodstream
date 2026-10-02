@@ -59,9 +59,9 @@
           <span class="name">{b.label}</span>
           {#if sat}
             <span class="sats">
-              <span class="sw" style:background={saturationCss(sat[0])}></span>{pct(sat[0])}
+              <span class="sw" style:background={saturationCss(sat[0], ui.colorScale)}></span>{pct(sat[0])}
               →
-              <span class="sw" style:background={saturationCss(sat[1])}></span>{pct(sat[1])}
+              <span class="sw" style:background={saturationCss(sat[1], ui.colorScale)}></span>{pct(sat[1])}
             </span>
           {/if}
         </button>

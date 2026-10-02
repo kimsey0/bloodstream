@@ -28,6 +28,9 @@ on desktop and on phones.
 - **Change the activity level.** Go from rest to maximal exercise. Heart rate,
   cardiac output, O₂ use, flow distribution, capillary recruitment and
   the Bohr shift in working muscle all change together.
+- **See blood's true colour.** The default blue → red code is easy to
+  read, but real blood is never blue. Switch to true colour to see
+  oxygen-poor blood as it is: dark red.
 - **See the heartbeat.** Blood leaves the heart in pulses. Cells surge in
   the aorta during ejection, and the pulse fades to near-steady flow in the
   capillaries.
@@ -87,9 +90,11 @@ render/ + ui/     three.js body, vessels and cells; Svelte HUD;
   strands branch like real vessel trees: along limb arteries, from an
   organ's hilum, over the brain and heart surfaces, or through intestinal
   arcades.
-- **Colour.** Saturation runs from deep blue to violet to red. Lightness
-  rises steadily, and the scale is tested to stay readable with
-  deuteranopia, protanopia and tritanopia.
+- **Colour.** By default saturation runs from deep blue to violet to red,
+  the textbook code. A switch under the colour bar shows true colours
+  instead: dark red to bright scarlet, because real blood is never blue.
+  In both scales lightness rises steadily, and both are tested to stay
+  readable with deuteranopia, protanopia and tritanopia.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, the
 parameters with their sources, and the known simplifications.
@@ -115,7 +120,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (61 tests)
+npm test            # physiology validation suite (70 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```

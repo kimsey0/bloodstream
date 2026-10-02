@@ -51,8 +51,8 @@
     <div>
       <dt>SO₂</dt>
       <dd>
-        <span class="sw" style:background={saturationCss(info.saturationIn)}></span>{pct(info.saturationIn)} in →
-        <span class="sw" style:background={saturationCss(info.saturationOut)}></span>{pct(info.saturationOut)} out
+        <span class="sw" style:background={saturationCss(info.saturationIn, ui.colorScale)}></span>{pct(info.saturationIn)} in →
+        <span class="sw" style:background={saturationCss(info.saturationOut, ui.colorScale)}></span>{pct(info.saturationOut)} out
       </dd>
     </div>
   </dl>

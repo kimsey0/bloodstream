@@ -2,7 +2,7 @@
  * Diagnostics page: shows the simulation core's emergent numbers
  * and lets you follow one red cell. No 3D yet.
  */
-import { HEMOGLOBIN_STEP_COLORS, saturationCss } from '../color/saturation';
+import { hemoglobinStepColors, saturationCss } from '../color/saturation';
 import { TISSUES, type Tissue } from '../physiology/params';
 import { Simulation } from '../sim/simulation';
 import { CellTracker, CirculationRecorder } from '../sim/tracking';
@@ -57,7 +57,7 @@ function init(): void {
         <div class="legend" style="background: linear-gradient(to right, ${gradient})"></div>
         <div class="ticks">${[0, 0.25, 0.5, 0.75, 1].map((s) => `<div style="left:${s * 100}%">${s * 100}%</div>`).join('')}</div>
         <div class="muted" style="font-size:12px">${markers.map(([s, n]) => `<span class="swatch" style="background:${saturationCss(s)}"></span>${n} ${pct(s, 0)}`).join(' &nbsp; ')}</div>
-        <div class="hb">${HEMOGLOBIN_STEP_COLORS.map((c, n) => `<div style="background:${c}">${n}/4 O₂</div>`).join('')}</div>
+        <div class="hb">${hemoglobinStepColors().map((c, n) => `<div style="background:${c}">${n}/4 O₂</div>`).join('')}</div>
       </section>
     </div>
     <div class="grid" style="margin-top:16px">
@@ -154,7 +154,7 @@ function init(): void {
       <div class="muted">Previous circuits: ${tracker.lapTimes.slice(-5).map((t) => `${t.toFixed(1)} s`).join(', ') || '—'}</div>
       <div class="muted">Of this cell's ~270 million Hb: ${tracker.hemoglobinDistribution.map((f, n) => `${n}: ${pct(f, 0)}`).join(' · ')}</div>`;
     moleculeEl.innerHTML = tracker.molecule.sites
-      .map((on, i) => `<div class="${on ? 'on' : ''}" style="background:${on ? HEMOGLOBIN_STEP_COLORS[4] : HEMOGLOBIN_STEP_COLORS[0]}">${SITE_NAMES[i]}</div>`)
+      .map((on, i) => `<div class="${on ? 'on' : ''}" style="background:${hemoglobinStepColors()[on ? 4 : 0]}">${SITE_NAMES[i]}</div>`)
       .join('');
     const items = tracker.route
       .slice(-12)

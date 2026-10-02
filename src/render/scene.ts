@@ -5,7 +5,7 @@ import type { VesselPaths } from '../anatomy/paths';
 import type { Circulation } from '../sim/circulation';
 import { createBody } from './body';
 import { FollowMarker } from './follow';
-import { cellMaterial, saturationTexture } from './materials';
+import { cellMaterial, fillSaturationTexture, saturationTexture } from './materials';
 import { colorVessels, createVessels, type Vessels } from './vessels';
 
 const TARGET = new Vector3(0, 88, 0);
@@ -26,6 +26,7 @@ export class BodyScene {
   private lastRender = performance.now();
   private maxPixelRatio = 2;
   private heart: Object3D | null = null;
+  private profiles: Float32Array | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -84,7 +85,16 @@ export class BodyScene {
   }
 
   setSaturationProfiles(profiles: Float32Array): void {
+    this.profiles = profiles;
     colorVessels(this.vessels, profiles);
+  }
+
+  /** Redraw everything coloured by saturation after the active colour scale changed. */
+  recolor(): void {
+    fillSaturationTexture(this.colormap);
+    if (this.profiles) colorVessels(this.vessels, this.profiles);
+    // The trail stores colours, not saturations; start it afresh.
+    this.follow.clearTrail();
   }
 
   /** Create or update the tracer cell point cloud. */

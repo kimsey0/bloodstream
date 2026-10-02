@@ -6,18 +6,23 @@
 import { AdditiveBlending, Color, DataTexture, LinearFilter, NormalBlending, RGBAFormat, ShaderMaterial, UnsignedByteType } from 'three';
 import { saturationColor } from '../color/saturation';
 
-/** 256×1 lookup texture of the saturation colour scale. */
+/** 256×1 lookup texture of the active saturation colour scale. */
 export function saturationTexture(): DataTexture {
-  const data = new Uint8Array(256 * 4);
+  const tex = new DataTexture(new Uint8Array(256 * 4), 256, 1, RGBAFormat, UnsignedByteType);
+  tex.magFilter = LinearFilter;
+  tex.minFilter = LinearFilter;
+  fillSaturationTexture(tex);
+  return tex;
+}
+
+/** Rewrite the lookup texture from the active colour scale. */
+export function fillSaturationTexture(tex: DataTexture): void {
+  const data = tex.image.data as Uint8Array;
   for (let i = 0; i < 256; i++) {
     const [r, g, b] = saturationColor(i / 255);
     data.set([r * 255, g * 255, b * 255, 255], i * 4);
   }
-  const tex = new DataTexture(data, 256, 1, RGBAFormat, UnsignedByteType);
-  tex.magFilter = LinearFilter;
-  tex.minFilter = LinearFilter;
   tex.needsUpdate = true;
-  return tex;
 }
 
 const glassVertex = /* glsl */ `

@@ -1,4 +1,5 @@
 /** Reactive UI state shared between the app controller and the Svelte HUD. */
+import type { ColorScale } from '../color/saturation';
 import type { FollowInfo } from '../sim/protocol';
 
 export const SPEEDS = [0.01, 0.1, 1, 10, 30] as const;
@@ -42,6 +43,8 @@ export const ui = $state({
   /** Heartbeat phase (0 = start of ejection) and systolic fraction, updated every frame. */
   beatPhase: 0,
   systole: 0.35,
+  /** Saturation colour scale: blue–red code, or natural reds as real blood looks. */
+  colorScale: 'blue-red' as ColorScale,
   /** First-visit hint card. */
   hintOpen: false,
 });

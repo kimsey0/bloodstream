@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { saturationCss } from '../color/saturation';
+  import { saturationCss, type ColorScale } from '../color/saturation';
   import ActivityPanel from './ActivityPanel.svelte';
   import BedPicker from './BedPicker.svelte';
   import FollowPanel from './FollowPanel.svelte';
@@ -19,6 +19,7 @@
     onFollowCell: (cell: number) => void;
     onActivity: (level: number) => void;
     onDismissHint: () => void;
+    onColorScale: (scale: ColorScale) => void;
     capillaryIndex: (id: string) => number;
     allBeds: () => number[];
   }
@@ -34,11 +35,12 @@
     onFollowCell,
     onActivity,
     onDismissHint,
+    onColorScale,
     capillaryIndex,
     allBeds,
   }: Props = $props();
 
-  const gradient = Array.from({ length: 21 }, (_, i) => `${saturationCss(i / 20)} ${i * 5}%`).join(', ');
+  let gradient = $derived(Array.from({ length: 21 }, (_, i) => `${saturationCss(i / 20, ui.colorScale)} ${i * 5}%`).join(', '));
 
   const clock = (t: number) => {
     const m = Math.floor(t / 60);
@@ -226,6 +228,23 @@
         <span class="mark art" style:left={pct(ui.arterialSaturation)}>arterial {pct(ui.arterialSaturation)}</span>
       {/if}
     </div>
+    <div class="scale">
+      <p>
+        {#if ui.colorScale === 'natural'}
+          True colours: blood is bright red with O₂ and dark red without.
+        {:else}
+          Blue is only a code: real blood is never blue. Blood low in O₂ is dark red.
+        {/if}
+      </p>
+      <div class="scales" role="radiogroup" aria-label="Colour scale">
+        <button role="radio" aria-checked={ui.colorScale === 'blue-red'} class:active={ui.colorScale === 'blue-red'} onclick={() => onColorScale('blue-red')}
+          >Code</button
+        >
+        <button role="radio" aria-checked={ui.colorScale === 'natural'} class:active={ui.colorScale === 'natural'} onclick={() => onColorScale('natural')}
+          >True colour</button
+        >
+      </div>
+    </div>
   </div>
 </div>
 
@@ -238,7 +257,9 @@
       {Math.round(ui.meanCirculationTime)} s on average to get round the body and back to the heart.
     </p>
     <p>
-      Vessels are coloured by the average saturation of the blood inside. Capillary beds (the short, thin loops in each organ)
+      Vessels are coloured by the average saturation of the blood inside. The default colours are a code, as in textbook
+      diagrams: real blood is never blue. Oxygen-rich blood is bright scarlet and oxygen-poor blood dark red (veins only
+      look blue through skin). Switch to <i>True colour</i> under the colour bar to see it that way. Capillary beds (the short, thin loops in each organ)
       are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long. Cells are drawn about 600× too big.
     </p>
     <p>
@@ -500,6 +521,42 @@
     margin-left: -1px;
     background: var(--text);
     border-radius: 1px;
+  }
+  .scale {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .scale p {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--muted);
+  }
+  .scales {
+    flex: none;
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .scales button {
+    border: 0;
+    border-radius: 0;
+    height: 26px;
+    padding: 0 9px;
+    font: 500 11px var(--font-ui);
+    color: var(--muted);
+  }
+  .scales button + button {
+    border-left: 1px solid var(--line);
+  }
+  .scales button.active {
+    background: var(--steel);
+    color: #0b1220;
   }
   .ticks {
     position: relative;

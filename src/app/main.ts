@@ -1,5 +1,6 @@
 /** App controller: wires the simulation worker, the 3D scene and the HUD together. */
 import { mount } from 'svelte';
+import { COLOR_SCALES, setColorScale, type ColorScale } from '../color/saturation';
 import { BED_CENTERS } from '../anatomy/layout';
 import { buildPaths } from '../anatomy/paths';
 import { activityState } from '../physiology/activity';
@@ -14,6 +15,17 @@ import SimWorker from '../sim/worker.ts?worker&inline';
 import { BodyScene } from '../render/scene';
 import Hud from '../ui/Hud.svelte';
 import { history, ui } from '../ui/state.svelte';
+
+// Restore the saved colour scale before anything is coloured.
+try {
+  const saved = localStorage.getItem('bloodstream.colorScale') as ColorScale | null;
+  if (saved && COLOR_SCALES.includes(saved)) {
+    setColorScale(saved);
+    ui.colorScale = saved;
+  }
+} catch {
+  // Storage blocked: keep the default.
+}
 
 const circ = new Circulation();
 const paths = buildPaths(circ);
@@ -154,6 +166,20 @@ function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolea
   wantFollow = true;
   send({ type: 'adopt', segment, elapsed, duration, po2: c.po2 });
   return true;
+}
+
+function chooseColorScale(scale: ColorScale): void {
+  if (scale === ui.colorScale) return;
+  setColorScale(scale);
+  ui.colorScale = scale;
+  try {
+    localStorage.setItem('bloodstream.colorScale', scale);
+  } catch {
+    // Storage blocked: the choice lasts for this visit only.
+  }
+  scene.recolor();
+  // The microscope colours its vessels when built; rebuild it in place.
+  if (ui.micro) openBed(ui.micro.capillary, { keepFollow: true });
 }
 
 function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
@@ -409,6 +435,7 @@ const hud = mount(Hud, {
       followCell(cell);
     },
     onDismissHint: dismissHint,
+    onColorScale: chooseColorScale,
     allBeds: () => bedCaps.slice(),
     onBackToBody: closeBed,
     onMicroReset: () => micro?.resetView(),
