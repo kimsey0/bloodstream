@@ -147,7 +147,7 @@ function init(): void {
     const speed = sim.speed(c);
     const lap = tracker.timeSinceLapStart;
     cellEl.innerHTML = `
-      <div><span class="swatch" style="background:${saturationCss(s)}"></span><b>${pct(s, 1)}</b> SO₂ · ${sim.po2[c].toFixed(0)} mmHg</div>
+      <div><span class="swatch" style="background:${saturationCss(s)}"></span><b>${pct(s, 1)}</b> SO₂ · ${sim.po2(c).toFixed(0)} mmHg</div>
       <div>${seg.name}</div>
       <div class="muted">${speed >= 10 ? `${(speed / 10).toFixed(1)} cm/s` : `${speed.toFixed(2)} mm/s`} · ${pct(sim.progress(c), 0)} through ·
         ${Number.isNaN(lap) ? 'waiting to reach the left ventricle' : `${lap.toFixed(1)} s into this circuit`}</div>

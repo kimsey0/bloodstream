@@ -38,7 +38,9 @@ describe('activity levels', () => {
   });
 
   it('keeps arterial blood saturated while venous saturation falls', () => {
-    for (const { ss } of levels) expect(ss.arterial.saturationIn).toBeGreaterThan(0.94);
+    // At maximal work arterial SO2 dips to ~94–96 %: a widening alveolar–arterial gap, plus
+    // warm, acidic blood (Dempsey & Wagner 1999).
+    for (const { ss } of levels) expect(ss.arterial.saturationIn).toBeGreaterThan(0.93);
     const mv = levels.map((l) => l.ss.mixedVenous.saturationIn);
     for (let i = 1; i < mv.length; i++) expect(mv[i]).toBeLessThan(mv[i - 1]);
     // Mixed venous ~20–30 % and femoral venous ~10–25 % at maximal exercise.
@@ -55,11 +57,22 @@ describe('activity levels', () => {
     expect(t).toBeLessThan(0.45);
   });
 
-  it('right-shifts the curve in working muscle (Bohr effect) but not elsewhere', () => {
-    const thigh = max.ss.exchange.get(max.circ.get('leg_L.thigh.muscle.cap').index)!;
-    expect(thigh.conditions.pH).toBeLessThan(7.25);
-    expect(thigh.conditions.temperature).toBeGreaterThan(39);
-    expect(max.ss.exchange.get(max.circ.get('brain_L.cap').index)!.conditions.pH).toBe(7.4);
+  it('makes working-muscle venous blood hot, acidic and high in CO2 at maximal exercise', () => {
+    const femoral = max.ss.segments[max.circ.get('femoral_vein_L').index].conditionsIn;
+    expect(femoral.pco2).toBeGreaterThan(50);
+    expect(femoral.pco2).toBeLessThan(70);
+    expect(femoral.pH).toBeGreaterThan(7.0);
+    expect(femoral.pH).toBeLessThan(7.2);
+    expect(femoral.temperature).toBeGreaterThan(39);
+    // Arterial blood: hyperventilation lowers PCO2, lactate lowers pH, and the body warms.
+    const art = max.ss.arterial.conditionsIn;
+    expect(art.pco2).toBeLessThan(36);
+    expect(art.pH).toBeGreaterThan(7.25);
+    expect(art.pH).toBeLessThan(7.35);
+    expect(art.temperature).toBeGreaterThan(38);
+    // The brain makes no lactate and little heat: only CO2 changes its blood.
+    const brain = max.ss.exchange.get(max.circ.get('brain_L.cap').index)!;
+    expect(brain.conditionsOut.temperature).toBeCloseTo(art.temperature, 6);
   });
 
   it('cuts mean circulation time to ~13 s at maximal exercise', () => {

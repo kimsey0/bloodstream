@@ -41,6 +41,41 @@ export interface BloodConditions {
 export const STANDARD_CONDITIONS: BloodConditions = { pH: 7.4, pco2: 40, temperature: 37 };
 
 /**
+ * Blood chemistry carried round the circulation, as excesses over arterial
+ * blood. Tissues add CO2, and working muscle also adds lactic acid and heat;
+ * these mix by flow in the veins. The lungs return CO2 to arterial levels.
+ */
+export interface Chemistry {
+  /** Extra CO2 content, mL CO2 per mL blood. */
+  co2: number;
+  /** Fall in pH from non-respiratory (lactic) acid. */
+  acid: number;
+  /** Temperature above 37 °C. */
+  heat: number;
+}
+
+export const ARTERIAL_CHEMISTRY: Chemistry = { co2: 0, acid: 0, heat: 0 };
+
+/**
+ * Whole-blood CO2 capacitance in vivo, mL CO2 per mL blood per mmHg, and the
+ * fall in pH per mmHg PCO2. Guyton & Hall ch. 41: blood gains 4 mL CO2/dL
+ * between arterial PCO2 40 and venous 45 mmHg, and pH falls from 7.41 to
+ * 7.37. Both slopes include the Haldane effect: deoxygenated haemoglobin
+ * takes up more CO2 and H+.
+ */
+export const CO2_CAPACITANCE = 0.008;
+export const PH_PER_MMHG_CO2 = 0.008;
+
+export function conditionsFromChemistry(c: Chemistry): BloodConditions {
+  const pco2 = STANDARD_CONDITIONS.pco2 + c.co2 / CO2_CAPACITANCE;
+  return {
+    pH: STANDARD_CONDITIONS.pH - PH_PER_MMHG_CO2 * (pco2 - STANDARD_CONDITIONS.pco2) - c.acid,
+    pco2,
+    temperature: STANDARD_CONDITIONS.temperature + c.heat,
+  };
+}
+
+/**
  * Factor converting actual PO2 to the equivalent PO2 under standard
  * conditions. Coefficients: Severinghaus 1979 (pH 0.40 per unit, CO2 0.06
  * per log10 unit, temperature 0.024 per °C).

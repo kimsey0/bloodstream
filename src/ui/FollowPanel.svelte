@@ -1,5 +1,6 @@
 <script lang="ts">
   import { hemoglobinStepColors, saturationCss } from '../color/saturation';
+  import { p50 } from '../physiology/dissociation';
   import type { FollowInfo } from '../sim/protocol';
   import { history, ui } from './state.svelte';
 
@@ -126,6 +127,15 @@
       <span>{fmtTime(info.segmentElapsed)} of {fmtTime(info.segmentDuration)}</span>
     </div>
     <div class="progress"><i style:width={pct(info.progress, 0)}></i></div>
+    <div
+      class="meta chem"
+      title="The blood around the cell. CO₂, acid and heat shift the O₂ curve right (the Bohr effect): P50, the PO₂ at which haemoglobin is half saturated, rises and O₂ is released more easily."
+    >
+      <span>pH {info.conditions.pH.toFixed(2)}</span>
+      <span>PCO₂ {info.conditions.pco2.toFixed(0)} mmHg</span>
+      <span>{info.conditions.temperature.toFixed(1)} °C</span>
+      <span class="p50">P50 {p50(info.conditions).toFixed(1)} mmHg</span>
+    </div>
   </div>
 
   <div class="grid">
@@ -336,6 +346,13 @@
     gap: 4px 12px;
     font-family: var(--font-data);
     font-variant-numeric: tabular-nums;
+  }
+  .chem {
+    margin-top: 6px;
+    cursor: help;
+  }
+  .chem .p50 {
+    color: var(--text);
   }
   .kind {
     font-family: var(--font-ui);

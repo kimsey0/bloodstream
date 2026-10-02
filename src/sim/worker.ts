@@ -5,8 +5,7 @@
  * alternate with frames, so the queue never backs up on slow devices.
  */
 import { samplePath } from '../anatomy/lut';
-import { saturation } from '../physiology/dissociation';
-import { integratePo2 } from './oxygen';
+import { exchangeSaturation, integrateContent } from './oxygen';
 import { PROFILE_SAMPLES, type AdoptMessage, type FromWorker, type InitMessage, type ToWorker } from './protocol';
 import { Rng } from './rng';
 import { activityState } from '../physiology/activity';
@@ -100,7 +99,7 @@ function postState(type: 'ready' | 'state'): void {
     const ex = sim.steady.exchange.get(s.index);
     for (let k = 0; k < PROFILE_SAMPLES; k++) {
       const f = k / (PROFILE_SAMPLES - 1);
-      profiles[s.index * PROFILE_SAMPLES + k] = ex ? saturation(integratePo2(o.po2InLocal, f * s.transit, ex), ex.conditions) : o.saturationIn;
+      profiles[s.index * PROFILE_SAMPLES + k] = ex ? exchangeSaturation(ex, integrateContent(o.contentIn, f * s.transit, ex)) : o.saturationIn;
     }
   }
   post({
@@ -113,10 +112,8 @@ function postState(type: 'ready' | 'state'): void {
     activity: { level: a.level, label: a.label, met: a.met, heartRate: a.heartRate, cardiacOutput: a.cardiacOutput, vo2: a.vo2 },
     exchange: [...sim.steady.exchange].map(([segment, ex]) => ({
       segment,
-      conductance: ex.conductance,
-      targetPo2: ex.targetPo2,
-      po2In: sim!.steady.segments[segment].po2InLocal,
-      conditions: ex.conditions,
+      model: ex,
+      contentIn: sim!.steady.segments[segment].contentIn,
       saturationIn: sim!.steady.segments[segment].saturationIn,
       saturationOut: sim!.steady.segments[segment].saturationOut,
     })),
@@ -206,7 +203,8 @@ function adopt(msg: AdoptMessage): void {
   prevPath[cell] = -1;
   sim.duration[cell] = msg.duration;
   sim.elapsed[cell] = Math.min(msg.elapsed, msg.duration * 0.999);
-  sim.po2[cell] = msg.po2;
+  sim.content[cell] = msg.content;
+  sim.refresh(cell);
   follow(cell);
 }
 
@@ -219,8 +217,9 @@ function followInfo() {
     progress: sim.progress(c),
     segmentElapsed: sim.elapsed[c],
     segmentDuration: sim.duration[c],
-    po2: sim.po2[c],
+    po2: sim.po2(c),
     saturation: sim.saturation(c),
+    conditions: sim.conditionsOf(c),
     speed: sim.speed(c),
     circuitElapsed: tracker.timeSinceLapStart,
     circuitVia: [...tracker.currentVia],

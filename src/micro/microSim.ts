@@ -9,9 +9,8 @@
  * up) produces one "O2 dot" event for the renderer.
  */
 import { Vector3 } from 'three';
-import { saturation } from '../physiology/dissociation';
 import { HB_PER_RBC } from '../physiology/hemoglobin';
-import { integratePo2, transitQuadrature, type ExchangeModel } from '../sim/oxygen';
+import { exchangeSaturation, integrateContent, transitQuadrature, type ExchangeModel } from '../sim/oxygen';
 import { Rng } from '../sim/rng';
 import { sampleLine, type MicroNetwork } from './network';
 
@@ -32,15 +31,16 @@ export interface MicroParams {
   /** Tube/discharge haematocrit ratio in the capillaries. */
   hctRatio: number;
   exchange: ExchangeModel;
-  /** Mean PO2 entering the capillaries, mmHg. */
-  po2In: number;
+  /** Mean O2 content entering the capillaries, mL O2 per mL blood. */
+  contentIn: number;
 }
 
 export interface MicroCell {
   route: number;
   /** Arc length along the route, µm. */
   s: number;
-  po2: number;
+  /** O2 content, mL O2 per mL blood. */
+  content: number;
   /** Fractional O2 molecules not yet turned into a dot. */
   carry: number;
   /** Fixed offset inside the arteriole/venule so cells don't stack on the axis. */
@@ -108,7 +108,7 @@ export class MicroSim {
         this.cells.push({
           route: i,
           s: Math.min(age * ARTERIOLE_SPEED, r.capStart),
-          po2: this.params.po2In,
+          content: this.params.contentIn,
           carry: this.rng.next(),
           offset: new Vector3(this.rng.next() - 0.5, this.rng.next() - 0.5, this.rng.next() - 0.5).multiplyScalar(2),
           tilt: this.rng.next(),
@@ -131,9 +131,9 @@ export class MicroSim {
         } else if (cell.s < r.capEnd) {
           const v = this.capSpeed[cell.route];
           const h = Math.min(remaining, (r.capEnd - cell.s) / v);
-          const before = saturation(cell.po2, this.params.exchange.conditions);
-          cell.po2 = integratePo2(cell.po2, h, this.params.exchange);
-          const delta = (before - saturation(cell.po2, this.params.exchange.conditions)) * 4 * HB_PER_RBC;
+          const before = exchangeSaturation(this.params.exchange, cell.content);
+          cell.content = integrateContent(cell.content, h, this.params.exchange);
+          const delta = (before - exchangeSaturation(this.params.exchange, cell.content)) * 4 * HB_PER_RBC;
           cell.s = Math.min(r.capEnd, cell.s + h * v);
           remaining -= h;
           cell.carry += Math.abs(delta) / MOLECULES_PER_DOT;
@@ -158,7 +158,7 @@ export class MicroSim {
     let n = 0;
     for (const c of this.cells) {
       if (c.s >= this.net.routes[c.route].capEnd) {
-        sum += saturation(c.po2, this.params.exchange.conditions);
+        sum += exchangeSaturation(this.params.exchange, c.content);
         n++;
       }
     }

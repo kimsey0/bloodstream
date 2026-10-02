@@ -164,7 +164,7 @@ function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolea
   }
   adoptedRoute = { route: c.route, afterTick: ticksSent };
   wantFollow = true;
-  send({ type: 'adopt', segment, elapsed, duration, po2: c.po2 });
+  send({ type: 'adopt', segment, elapsed, duration, content: c.content });
   return true;
 }
 
@@ -196,8 +196,8 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     transit: seg.transit,
     transitCv: seg.transitCv ?? 0,
     hctRatio: seg.hct,
-    exchange: { conductance: ex.conductance, targetPo2: ex.targetPo2, conditions: ex.conditions },
-    po2In: ex.po2In,
+    exchange: ex.model,
+    contentIn: ex.contentIn,
   });
   micro = new MicroScene(canvas, bed, net, sim, ex.saturationIn, ex.saturationOut);
   scene.controls.enabled = false;

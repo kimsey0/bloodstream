@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { saturation } from '../src/physiology/dissociation';
 import { MICRO_BEDS, microBedFor } from '../src/micro/beds';
 import { MicroSim, MOLECULES_PER_DOT } from '../src/micro/microSim';
 import { buildNetwork } from '../src/micro/network';
 import { Circulation } from '../src/sim/circulation';
-import { solveSteadyState } from '../src/sim/oxygen';
+import { exchangeSaturation, solveSteadyState } from '../src/sim/oxygen';
 
 const circ = new Circulation();
 const ss = solveSteadyState(circ);
@@ -18,7 +17,7 @@ function setup(capId: string) {
     transitCv: seg.transitCv ?? 0,
     hctRatio: seg.hct,
     exchange: ss.exchange.get(seg.index)!,
-    po2In: ss.segments[seg.index].po2In,
+    contentIn: ss.segments[seg.index].contentIn,
   });
   return { seg, net, sim };
 }
@@ -51,8 +50,9 @@ describe('local cells', () => {
     for (const id of ['lung_R.cap', 'heart_L.cap', 'kidney_L.cap']) {
       const { seg, sim } = setup(id);
       // Every capillary carries the same cell flux, so the plain mean over capillaries is the outlet mean.
-      const outs = sim.capTransit.map((_, i) => sim.cells.find((c) => c.route === i && c.s > sim.net.routes[i].capEnd)?.po2);
-      const sats = outs.filter((p): p is number => p !== undefined).map((p) => saturation(p));
+      const outs = sim.capTransit.map((_, i) => sim.cells.find((c) => c.route === i && c.s > sim.net.routes[i].capEnd)?.content);
+      const ex = ss.exchange.get(seg.index)!;
+      const sats = outs.filter((c): c is number => c !== undefined).map((c) => exchangeSaturation(ex, c));
       const mean = sats.reduce((a, b) => a + b, 0) / sats.length;
       expect(Math.abs(mean - ss.segments[seg.index].saturationOut), id).toBeLessThan(0.02);
     }

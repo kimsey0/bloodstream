@@ -2,7 +2,6 @@
  * Observers that turn a Simulation's transition events into measurements:
  * round-trip ("lap") times, capillary visits, and a follow-one-cell log.
  */
-import { o2Content, saturation } from '../physiology/dissociation';
 import { adairDistribution, adairPo2, HemoglobinMolecule } from '../physiology/hemoglobin';
 import { Rng } from './rng';
 import type { Simulation, TransitionEvent } from './simulation';
@@ -22,8 +21,9 @@ export interface CapillaryVisit {
   segment: number;
   enter: number;
   transit: number;
-  po2In: number;
-  po2Out: number;
+  /** O2 content entering and leaving, mL O2 per mL blood. */
+  contentIn: number;
+  contentOut: number;
 }
 
 /** Records every completed circuit and every capillary passage of all cells. */
@@ -33,14 +33,14 @@ export class CirculationRecorder {
   private readonly lapStart: Float64Array;
   private readonly lapBeds: string[][];
   private readonly enterTime: Float64Array;
-  private readonly enterPo2: Float64Array;
+  private readonly enterContent: Float64Array;
   private readonly detach: () => void;
 
   constructor(private readonly sim: Simulation) {
     this.lapStart = new Float64Array(sim.count).fill(-1);
     this.lapBeds = Array.from({ length: sim.count }, () => []);
     this.enterTime = new Float64Array(sim.count).fill(-1);
-    this.enterPo2 = new Float64Array(sim.count);
+    this.enterContent = new Float64Array(sim.count);
     this.detach = sim.addListener((e) => this.onTransition(e));
   }
 
@@ -57,13 +57,13 @@ export class CirculationRecorder {
         segment: e.from,
         enter: this.enterTime[e.cell],
         transit: e.time - this.enterTime[e.cell],
-        po2In: this.enterPo2[e.cell],
-        po2Out: e.po2,
+        contentIn: this.enterContent[e.cell],
+        contentOut: e.content,
       });
       this.lapBeds[e.cell].push(from.id);
     }
     this.enterTime[e.cell] = segs[e.to].exchange ? e.time : -1;
-    this.enterPo2[e.cell] = e.po2;
+    this.enterContent[e.cell] = e.content;
 
     if (e.to === this.sim.circulation.root.index) {
       const start = this.lapStart[e.cell];
@@ -77,7 +77,7 @@ export class CirculationRecorder {
 
   /** O2 removed (or, in lungs, added) per visit: mL O2 per mL blood. */
   static contentChange(v: CapillaryVisit): number {
-    return o2Content(v.po2Out) - o2Content(v.po2In);
+    return v.contentOut - v.contentIn;
   }
 }
 
@@ -130,8 +130,8 @@ export class CellTracker {
   private onTransition(e: TransitionEvent): void {
     const last = this.route[this.route.length - 1];
     last.exit = e.time;
-    last.saturationOut = saturation(e.po2);
-    this.route.push({ segment: e.to, enter: e.time, saturationIn: saturation(e.po2) });
+    last.saturationOut = e.saturation;
+    this.route.push({ segment: e.to, enter: e.time, saturationIn: e.saturation });
     if (this.route.length > this.maxRoute) this.route.shift();
     const from = this.sim.circulation.segments[e.from];
     if (from.exchange?.type === 'tissue') this.lapVia.push(from.name.replace(/: .*$/, ''));

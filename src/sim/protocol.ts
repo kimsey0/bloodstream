@@ -1,4 +1,5 @@
 import type { BloodConditions } from '../physiology/dissociation';
+import type { ExchangeModel } from './oxygen';
 
 /** Messages between the main thread and the simulation worker. */
 
@@ -49,7 +50,8 @@ export interface AdoptMessage {
   segment: number;
   elapsed: number;
   duration: number;
-  po2: number;
+  /** O2 content of the adopted cell, mL O2 per mL blood. */
+  content: number;
 }
 
 /** Change the activity level (0 = rest, 1 = maximal exercise). */
@@ -88,12 +90,9 @@ export interface ReadyMessage {
 
 export interface ExchangeInfo {
   segment: number;
-  conductance: number;
-  targetPo2: number;
-  /** Blood conditions in this bed (standard except in working muscle). */
-  conditions: BloodConditions;
-  /** Inlet PO2 under those conditions. */
-  po2In: number;
+  model: ExchangeModel;
+  /** Mean inlet O2 content, mL O2 per mL blood. */
+  contentIn: number;
   saturationIn: number;
   saturationOut: number;
 }
@@ -116,6 +115,8 @@ export interface FollowInfo {
   segmentDuration: number;
   po2: number;
   saturation: number;
+  /** Blood conditions around the cell: PCO2, pH and temperature shift the O2 curve. */
+  conditions: BloodConditions;
   /** Current speed, mm/s. */
   speed: number;
   /** Time since this cell last left the left ventricle, s (NaN until it gets there). */

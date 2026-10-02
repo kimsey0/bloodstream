@@ -32,11 +32,10 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { saturationColor, saturationColorLinear } from '../color/saturation';
-import { saturation } from '../physiology/dissociation';
 import type { MicroBed } from '../micro/beds';
 import { ARTERIOLE_SPEED, VENULE_SPEED, type DotEvent, type MicroCell, type MicroSim } from '../micro/microSim';
 import { sampleLine, type MicroNetwork } from '../micro/network';
-import { integratePo2 } from '../sim/oxygen';
+import { exchangeSaturation, integrateContent } from '../sim/oxygen';
 import { FollowMarker } from './follow';
 import { glassMaterial } from './materials';
 
@@ -135,7 +134,7 @@ export class MicroScene {
     net.capillaries.forEach((pts, i) => {
       const T = sim.capTransit[i];
       add(
-        colouredTube(pts, net.capRadius + 0.6, (u) => col(saturation(integratePo2(sim.params.po2In, u * T, sim.params.exchange), sim.params.exchange.conditions))),
+        colouredTube(pts, net.capRadius + 0.6, (u) => col(exchangeSaturation(sim.params.exchange, integrateContent(sim.params.contentIn, u * T, sim.params.exchange)))),
         tubeMat(),
         2,
       );
@@ -318,7 +317,7 @@ export class MicroScene {
       }
       m.compose(pos, q, scale);
       this.cells.setMatrixAt(k, m);
-      const [cr, cg, cb] = saturationColorLinear(saturation(c.po2, this.sim.params.exchange.conditions));
+      const [cr, cg, cb] = saturationColorLinear(exchangeSaturation(this.sim.params.exchange, c.content));
       this.cells.setColorAt(k, color.setRGB(cr, cg, cb));
       if (++k >= this.cells.instanceMatrix.count) break;
     }

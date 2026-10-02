@@ -11,14 +11,22 @@
  * Mechanics of the Circulation). Paired structures are listed per side so
  * that 3D geometry can map 1:1 onto segments later.
  */
-import type { BloodConditions } from './dissociation';
 import { HCT_RATIO, LUNG, TISSUES, TRANSIT_CV, type Tissue } from './params';
 
 export type SegmentKind = 'chamber' | 'artery' | 'arteriole' | 'capillary' | 'venule' | 'vein';
 
 export type Exchange =
   | { type: 'lung' }
-  | { type: 'tissue'; tissue: Tissue; vo2: number; tissuePo2: number; conditions?: BloodConditions };
+  | {
+      type: 'tissue';
+      tissue: Tissue;
+      vo2: number;
+      tissuePo2: number;
+      /** Lactic acid added to blood crossing this bed: fall in pH at the venous end (working muscle). */
+      acid?: number;
+      /** Heat added: venous temperature above inflow, °C (working muscle). */
+      heat?: number;
+    };
 
 export interface SegmentDef {
   id: string;

@@ -5,7 +5,6 @@
  */
 import { SEGMENT_DEFS, type SegmentDef } from '../physiology/anatomy';
 import { REST_STATE, type ActivityState } from '../physiology/activity';
-import { STANDARD_CONDITIONS, type BloodConditions } from '../physiology/dissociation';
 import { REST } from '../physiology/params';
 
 export interface Segment extends SegmentDef {
@@ -29,7 +28,7 @@ export interface Segment extends SegmentDef {
 export interface CirculationState {
   /** Cardiac output, mL/s (ignored when `activity` is given). */
   cardiacOutput?: number;
-  /** Activity level: sets cardiac output, flow distribution, VO2, recruitment and muscle blood conditions. */
+  /** Activity level: sets cardiac output, flow distribution, VO2, recruitment and working-muscle acid and heat. */
   activity?: ActivityState;
 }
 
@@ -136,7 +135,7 @@ export class Circulation {
     return 1;
   }
 
-  /** Redistribute flow, set tissue VO2 and working-muscle blood conditions for an activity level. */
+  /** Redistribute flow, set tissue VO2 and working-muscle acid and heat for an activity level. */
   private applyActivity(a: ActivityState): void {
     for (const s of this.segments) {
       if (!s.tissue) continue;
@@ -144,14 +143,14 @@ export class Circulation {
       if (s.supply !== undefined) s.supply = flow;
       if (s.exchange?.type === 'tissue') {
         const w = workingFraction(s);
-        const mix = (k: keyof BloodConditions) => STANDARD_CONDITIONS[k] + (a.muscleConditions[k] - STANDARD_CONDITIONS[k]) * w;
         // Exercising muscle uses O2 faster than it diffuses in: tissue PO2 falls towards a few mmHg.
         const tissuePo2 = s.tissue === 'muscle' ? s.exchange.tissuePo2 - (s.exchange.tissuePo2 - 4) * a.level : s.exchange.tissuePo2;
         s.exchange = {
           ...s.exchange,
           vo2,
           tissuePo2,
-          conditions: w > 0 && a.level > 0 ? { pH: mix('pH'), pco2: mix('pco2'), temperature: mix('temperature') } : undefined,
+          acid: a.muscleAcid * w,
+          heat: a.muscleHeat * w,
         };
       }
     }

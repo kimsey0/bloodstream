@@ -102,14 +102,47 @@ Ganong, West):
 its slope, and a "virtual PO2" correction for pH, PCO2 and temperature
 (the Bohr effect).
 
+### Blood chemistry
+
+Blood carries its chemistry round the loop as excesses over resting
+arterial blood (`Chemistry` in `dissociation.ts`): extra CO2 content, a
+non-respiratory (lactic) fall in pH, and temperature above 37 °C.
+
+- Every tissue adds CO2 in proportion to the O2 it uses (the respiratory
+  quotient, 0.8 at rest rising to 1.1 at maximal work). Working muscle also
+  adds lactic acid and heat.
+- Veins mix chemistry by flow, as they mix O2 content.
+- PCO2 follows from a whole-blood CO2 capacitance of 0.8 mL/dL/mmHg, and
+  pH falls 0.008 per mmHg PCO2. Both come from Guyton & Hall's arterial and
+  venous values (CO2 48 → 52 mL/dL, PCO2 40 → 45 mmHg, pH 7.41 → 7.37) and
+  include the Haldane effect.
+- The lungs return blood to the activity level's arterial chemistry. At
+  rest that is pH 7.40, PCO2 40 mmHg, 37 °C. At maximal work it is
+  pH ≈ 7.32 (lactate), PCO2 34 mmHg (hyperventilation) and 38.5 °C.
+
+The resulting P50 runs from 26.9 mmHg in arterial blood at rest to 28 in
+mixed venous blood, 30 in the coronary sinus, and 42 in working-muscle
+venous blood at maximal exercise.
+
 ### Capillary exchange
 
-In an exchanging capillary, a cell's PO2 follows
+In an exchanging capillary, a cell's O2 content follows
 
-    dC/dt = a · (P_target − P)   ⇒   dP/dt = a · (P_target − P) / β(P)
+    dC/dt = a · (P_target − P(C))
 
-where β = dC/dP comes from the dissociation curve (`src/sim/oxygen.ts`,
-integrated with RK4 and a step limited by the local time constant):
+where P(C) is the plasma PO2 on the local dissociation curve
+(`src/sim/oxygen.ts`, integrated with RK4 and a step limited by the local
+time constant β/a, β = dC/dP).
+
+The curve shifts as exchange proceeds: blood chemistry moves from the
+bed's inlet to its outlet values in step with O2 content, from the inlet
+content to the mean outlet content (in the lungs, to full equilibrium with
+alveolar gas). Tissues add CO2 in proportion to the O2 they remove, so
+this is how the Bohr effect builds along a capillary. It right-shifts the
+curve as blood unloads, which keeps capillary PO2, and with it the
+diffusion gradient, higher for the same extraction. In the lungs the shift
+reverses as CO2 leaves, which raises haemoglobin's affinity while it
+loads. A cell's PO2 is therefore continuous where it enters a capillary.
 
 - **Lungs:** a = DLO2 / capillary blood volume, target = alveolar PO2.
   Loading is diffusion-limited. At rest blood reaches equilibrium about
@@ -123,10 +156,10 @@ integrated with RK4 and a step limited by the local time constant):
 
 ### Steady state
 
-`solveSteadyState` iterates flow-weighted mean O2 content around the loop:
-lung outlet (integrated over the transit distribution), each tissue bed by
-Fick, mixing at confluences. Once arterial content converges, it calibrates
-every tissue bed. The result gives the vessel colours, the initial cell
+`solveSteadyState` iterates flow-weighted mean O2 content and blood
+chemistry around the loop: lung outlet (integrated over the transit
+distribution), each tissue bed by Fick, mixing at confluences. Once
+arterial content converges, it calibrates every tissue bed. The result gives the vessel colours, the initial cell
 states, and the exchange models used by the tracer cells and the microscope.
 
 ### One haemoglobin molecule
@@ -156,9 +189,11 @@ cell's ~270 million Hb molecules over 0–4 bound O2.
   to volume / flow.
 - **Pulsatility:** time in a segment advances at the flow rate set by the
   heartbeat (below).
-- **O2:** integrated in exchanging capillaries. When blood moves between
-  segments with different blood conditions, PO2 is re-expressed at constant
-  O2 content.
+- **O2:** each cell carries its O2 content, integrated in exchanging
+  capillaries and conserved between segments. Its PO2 and saturation follow
+  from the blood conditions where it is: the segment's mixed chemistry, or
+  inside a capillary the shifting chemistry described above. They are
+  cached per cell and recomputed only when content or surroundings change.
 - **State changes:** `setState` swaps in another activity level's
   circulation and steady state. Cells keep their place, time already spent
   in a segment is rescaled to its new transit, and the heartbeat phase stays
@@ -193,14 +228,18 @@ level:
 | VO2 (L/min) | 0.25 | 0.875 | 2.0 | 3.25 |
 | Muscle capillary recruitment | 1× | 2.2× | 3.2× | 4× |
 | Lung capillary recruitment / DLO2 | 1× / 25 | 1.3× / 35 | 1.8× / 55 | 2.2× / 75 |
-| Working-muscle pH / PCO2 / temperature | 7.40 / 40 / 37 | 7.37 / 46 / 37.5 | 7.30 / 52 / 38.5 | 7.20 / 60 / 39.5 |
+| Alveolar PO2 (mmHg) | 100 | 103 | 107 | 115 |
+| CO2 output / O2 use (RQ) | 0.8 | 0.85 | 0.95 | 1.1 |
+| Arterial PCO2 / pH / temperature | 40 / 7.40 / 37 | 40 / 7.40 / 37.2 | 38 / 7.39 / 37.8 | 34 / 7.32 / 38.5 |
+| Working-muscle venous lactic pH fall / temperature rise | 0 / 0 | 0 / 0.3 °C | 0.02 / 0.7 °C | 0.05 / 1.0 °C |
 
 Flow and VO2 are set per tissue. Muscle takes what the other tissues
 don't, and its extra flow and VO2 go mostly to the legs (thighs 25 % each,
 calves 15 % each). Kidney and splanchnic flow fall to about a quarter of
 resting, coronary flow rises ~4×, and skin rises at moderate work and falls
 again at maximal. Muscle tissue PO2 falls with activity. Sources: Åstrand &
-Rodahl; Rowell; Hsia (pulmonary recruitment).
+Rodahl; Rowell; Hsia (pulmonary recruitment); Dempsey & Wagner 1999
+(arterial blood gases at maximal exercise).
 
 `Circulation` takes an activity state. The worker solves each level once
 (~1.5–2 s) and caches it.
@@ -355,7 +394,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 70 headless tests. The main emergent results:
+`npm test` runs 77 headless tests. The main emergent results:
 
 | Quantity | Model | Reference |
 |---|---|---|
@@ -363,12 +402,16 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 | Splanchnic share of blood volume | 35 % | ~⅓ |
 | Mean circulation time, red cells / plasma | 54 s / 58 s | ~60 s; F-cell ratio ~0.9 |
 | Arterial SO2 / PO2 | 97.5 % / 96 mmHg | 97–98 % / 95–100 |
-| Mixed venous SO2 / PO2 | 73 % / 39 mmHg | ~75 % / ~40 |
+| Mixed venous SO2 / PO2 | 73 % / 41 mmHg | ~75 % / ~40 |
+| Mixed venous PCO2 / pH | 45 mmHg / 7.36 | 45–46 / ~7.37 |
+| Coronary sinus PCO2 | 53 mmHg | ~50–55 |
 | Lung capillary: time to 95 % PO2 equilibrium | ≈ 0.25 s of 0.75 s | ~0.25 s of 0.75 s |
 | Coronary sinus / jugular / renal vein SO2 | 32 / 66 / 89 % | 25–40 / 55–75 / ~90 % |
 | Median circuit via heart wall / brain / kidney / thigh muscle / foot / gut → liver | ~17 / 21 / 23 / 62 / 94 / 98 s | |
 | Peak / mean aortic flow at rest | ~4.5× | ~4–6× |
-| Maximal exercise: arterial / mixed venous / femoral venous SO2 | 95.7 / 23 / 16 % | > 94 / 20–30 / 10–25 % |
+| Maximal exercise: arterial / mixed venous / femoral venous SO2 | 94.0 / 21 / 16 % | 94–96 / 20–30 / 10–25 % |
+| Maximal exercise: femoral venous pH / PCO2 / temperature | 7.09 / 56 / 39.5 °C | ~7.0–7.2 / 55–75 / ~39.5 |
+| Maximal exercise: P50 rise along a working-muscle capillary | 31 → 42 mmHg | |
 | Maximal exercise: lung transit / mean circulation | 0.37 s / 13 s | 0.3–0.45 s / ~13 s |
 
 Other checks:
@@ -398,6 +441,14 @@ Other checks:
   arteries drawn as one vessel behind the abdominal aorta, which branches
   off the thoracic aorta (the graph has no lumbar segment).
 - Atria and veins carry no pulse.
+- Blood chemistry shifts in step with O2 exchange. In reality CO2 diffuses
+  faster than O2, so the shift may run slightly ahead.
+- The lungs return blood to arterial chemistry. That is mostly unloading
+  CO2, but they also stand in for clearing the extra lactate and heat that
+  working muscle adds (in reality the liver, heart and skin do that).
+- Arterial PO2 at maximal exercise (82 mmHg, with alveolar PO2 115) is at
+  the low end for a moderately fit adult: short pulmonary transits leave
+  some cells partly loaded.
 - Activity changes take effect immediately rather than over 1–2 minutes.
   Exercise is modelled as running, so the arms do little.
 - O2 dot motion is illustrative. The count is quantitative; the drift

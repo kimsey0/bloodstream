@@ -16,11 +16,19 @@
  *   (Saltin & Gollnick); pulmonary capillary volume ~2× and DLO2 ~2.5× at
  *   maximal exercise (DLO2 25 → ~75 mL/min/mmHg; Hsia, Respir Physiol 1999), which keeps pulmonary
  *   transit near 0.4 s.
- * - Working-muscle venous blood at maximal exercise: ~39 °C, pH ~7.2, PCO2
- *   ~60 mmHg, which right-shifts the dissociation curve (Bohr effect) and
- *   helps unloading.
+ * - CO2 output per O2 used (the respiratory exchange ratio) rises from ~0.8
+ *   at rest to ~1.1 at maximal work, as carbohydrate takes over from fat and
+ *   lactate is buffered by bicarbonate (Åstrand & Rodahl). Tissues add CO2 to
+ *   blood in that ratio.
+ * - Arterial blood at maximal work: hyperventilation lowers PCO2 to ~34 mmHg
+ *   and raises alveolar PO2 to ~115 mmHg; lactate lowers pH to ~7.3; blood
+ *   warms to ~38.5 °C (Dempsey & Wagner, J Appl Physiol 1999; West).
+ * - Working-muscle venous blood at maximal work: ~39.5 °C, pH ~7.1, PCO2
+ *   ~55–60 mmHg. The CO2 follows from the exchange ratio; the muscle adds
+ *   lactic acid and heat on top. Together they right-shift the dissociation
+ *   curve (Bohr effect) and help unloading.
  */
-import type { BloodConditions } from './dissociation';
+import { CO2_CAPACITANCE, STANDARD_CONDITIONS, type Chemistry } from './dissociation';
 import type { Tissue } from './params';
 
 export interface ActivityState {
@@ -47,18 +55,27 @@ export interface ActivityState {
   /** Pulmonary diffusing capacity for O2, mL/min/mmHg. */
   dlo2: number;
   alveolarPo2: number;
-  /** Blood conditions in fully working muscle capillaries. */
-  muscleConditions: BloodConditions;
+  /** Respiratory quotient: CO2 produced per O2 consumed. */
+  rq: number;
+  /** Arterial PCO2, mmHg (falls with hyperventilation). */
+  arterialPco2: number;
+  /** Fall in arterial pH from lactic acid. */
+  arterialAcid: number;
+  /** Arterial blood temperature above 37 °C. */
+  bodyHeat: number;
+  /** Further fall in pH from arterial to venous blood in fully working muscle (lactic acid). */
+  muscleAcid: number;
+  /** Venous temperature above arterial in fully working muscle, °C. */
+  muscleHeat: number;
 }
 
-type Numeric = Omit<ActivityState, 'level' | 'label' | 'tissueFlow' | 'tissueVo2' | 'muscleConditions'>;
+type Numeric = Omit<ActivityState, 'level' | 'label' | 'tissueFlow' | 'tissueVo2'>;
 
 interface Anchor extends Numeric {
   level: number;
   label: string;
   tissueFlow: Omit<Record<Tissue, number>, 'muscle'>;
   tissueVo2: Omit<Record<Tissue, number>, 'muscle'>;
-  muscleConditions: BloodConditions;
 }
 
 const ANCHORS: Anchor[] = [
@@ -67,28 +84,28 @@ const ANCHORS: Anchor[] = [
     tissueFlow: { brain: 700, heart: 225, kidney: 1000, gut: 950, liver: 325, skin: 400, bronchial: 75, other: 475 },
     tissueVo2: { brain: 48, heart: 30, kidney: 18, gut: 28, liver: 32, skin: 10, bronchial: 3, other: 26 },
     muscleCapillaryRecruitment: 1, muscleArterioleDilation: 1, lungCapillaryRecruitment: 1, dlo2: 25, alveolarPo2: 100,
-    muscleConditions: { pH: 7.4, pco2: 40, temperature: 37 },
+    rq: 0.8, arterialPco2: 40, arterialAcid: 0, bodyHeat: 0, muscleAcid: 0, muscleHeat: 0,
   },
   {
     level: 0.25, label: 'Walking', met: 3.5, heartRate: 100, cardiacOutput: 9000 / 60, vo2: 875,
     tissueFlow: { brain: 720, heart: 400, kidney: 900, gut: 850, liver: 290, skin: 700, bronchial: 80, other: 450 },
     tissueVo2: { brain: 48, heart: 50, kidney: 18, gut: 28, liver: 32, skin: 12, bronchial: 3, other: 26 },
-    muscleCapillaryRecruitment: 2.2, muscleArterioleDilation: 1.3, lungCapillaryRecruitment: 1.3, dlo2: 35, alveolarPo2: 102,
-    muscleConditions: { pH: 7.37, pco2: 46, temperature: 37.5 },
+    muscleCapillaryRecruitment: 2.2, muscleArterioleDilation: 1.3, lungCapillaryRecruitment: 1.3, dlo2: 35, alveolarPo2: 103,
+    rq: 0.85, arterialPco2: 40, arterialAcid: 0, bodyHeat: 0.2, muscleAcid: 0, muscleHeat: 0.3,
   },
   {
     level: 0.6, label: 'Jogging', met: 8, heartRate: 145, cardiacOutput: 16000 / 60, vo2: 2000,
     tissueFlow: { brain: 750, heart: 700, kidney: 600, gut: 550, liver: 190, skin: 1200, bronchial: 90, other: 350 },
     tissueVo2: { brain: 48, heart: 90, kidney: 18, gut: 28, liver: 32, skin: 14, bronchial: 3, other: 26 },
-    muscleCapillaryRecruitment: 3.2, muscleArterioleDilation: 1.7, lungCapillaryRecruitment: 1.8, dlo2: 55, alveolarPo2: 105,
-    muscleConditions: { pH: 7.3, pco2: 52, temperature: 38.5 },
+    muscleCapillaryRecruitment: 3.2, muscleArterioleDilation: 1.7, lungCapillaryRecruitment: 1.8, dlo2: 55, alveolarPo2: 107,
+    rq: 0.95, arterialPco2: 38, arterialAcid: 0.03, bodyHeat: 0.8, muscleAcid: 0.02, muscleHeat: 0.7,
   },
   {
     level: 1, label: 'Maximal', met: 13, heartRate: 185, cardiacOutput: 22000 / 60, vo2: 3250,
     tissueFlow: { brain: 800, heart: 1000, kidney: 275, gut: 300, liver: 100, skin: 600, bronchial: 100, other: 250 },
     tissueVo2: { brain: 48, heart: 120, kidney: 18, gut: 28, liver: 32, skin: 15, bronchial: 3, other: 26 },
-    muscleCapillaryRecruitment: 4, muscleArterioleDilation: 2, lungCapillaryRecruitment: 2.2, dlo2: 75, alveolarPo2: 110,
-    muscleConditions: { pH: 7.2, pco2: 60, temperature: 39.5 },
+    muscleCapillaryRecruitment: 4, muscleArterioleDilation: 2, lungCapillaryRecruitment: 2.2, dlo2: 75, alveolarPo2: 115,
+    rq: 1.1, arterialPco2: 34, arterialAcid: 0.13, bodyHeat: 1.5, muscleAcid: 0.05, muscleHeat: 1,
   },
 ];
 
@@ -128,12 +145,18 @@ export function activityState(level: number): ActivityState {
     lungCapillaryRecruitment: num('lungCapillaryRecruitment'),
     dlo2: num('dlo2'),
     alveolarPo2: num('alveolarPo2'),
-    muscleConditions: {
-      pH: lerp(a.muscleConditions.pH, b.muscleConditions.pH, t),
-      pco2: lerp(a.muscleConditions.pco2, b.muscleConditions.pco2, t),
-      temperature: lerp(a.muscleConditions.temperature, b.muscleConditions.temperature, t),
-    },
+    rq: num('rq'),
+    arterialPco2: num('arterialPco2'),
+    arterialAcid: num('arterialAcid'),
+    bodyHeat: num('bodyHeat'),
+    muscleAcid: num('muscleAcid'),
+    muscleHeat: num('muscleHeat'),
   };
 }
 
 export const REST_STATE = activityState(0);
+
+/** Arterial blood chemistry at an activity level, as excesses over resting arterial blood. */
+export function arterialChemistry(a: Pick<ActivityState, 'arterialPco2' | 'arterialAcid' | 'bodyHeat'>): Chemistry {
+  return { co2: (a.arterialPco2 - STANDARD_CONDITIONS.pco2) * CO2_CAPACITANCE, acid: a.arterialAcid, heat: a.bodyHeat };
+}
