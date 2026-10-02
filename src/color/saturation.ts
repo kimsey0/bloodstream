@@ -1,5 +1,5 @@
 /**
- * Colour scale for haemoglobin O2 saturation.
+ * Colour scales for haemoglobin O2 saturation.
  *
  * There is no formal standard. Two conventions overlap:
  * - Anatomical illustration: arteries red, veins blue.
@@ -16,9 +16,20 @@
  * The stops are deliberately denser above 50 %, where physiology happens
  * (arterial ≈ 97 %, mixed venous ≈ 73 %, coronary sinus ≈ 30 %).
  * Interpolation is in OKLab for perceptual smoothness.
+ *
+ * The blue → red code reinforces a common misconception: that venous blood
+ * is blue. It never is. Deoxygenated blood is dark, slightly purplish red;
+ * oxygenated blood is bright scarlet. The 'natural' scale shows that. It
+ * stays within reds and carries the information mainly in lightness, which
+ * every colour-vision type perceives, so it passes the same
+ * distinguishability tests.
  */
 
 export type Rgb = [number, number, number];
+
+export type ColorScale = 'blue-red' | 'natural';
+
+export const COLOR_SCALES: readonly ColorScale[] = ['blue-red', 'natural'];
 
 interface Oklch {
   l: number;
@@ -26,13 +37,23 @@ interface Oklch {
   h: number;
 }
 
-/** Saturation → OKLCH stops. */
-const STOPS: [number, Oklch][] = [
-  [0.0, { l: 0.22, c: 0.1, h: 262 }],
-  [0.5, { l: 0.4, c: 0.17, h: 275 }],
-  [0.75, { l: 0.54, c: 0.19, h: 335 }],
-  [1.0, { l: 0.64, c: 0.22, h: 27 }],
-];
+/** Saturation → OKLCH stops for each scale. */
+const STOPS: Record<ColorScale, [number, Oklch][]> = {
+  'blue-red': [
+    [0.0, { l: 0.22, c: 0.1, h: 262 }],
+    [0.5, { l: 0.4, c: 0.17, h: 275 }],
+    [0.75, { l: 0.54, c: 0.19, h: 335 }],
+    [1.0, { l: 0.64, c: 0.22, h: 27 }],
+  ],
+  // Dark maroon → crimson → scarlet. Real blood darkens and turns slightly purplish as it loses O2.
+  natural: [
+    [0.0, { l: 0.23, c: 0.08, h: 8 }],
+    [0.25, { l: 0.32, c: 0.12, h: 13 }],
+    [0.5, { l: 0.41, c: 0.15, h: 18 }],
+    [0.75, { l: 0.5, c: 0.18, h: 24 }],
+    [1.0, { l: 0.64, c: 0.22, h: 30 }],
+  ],
+};
 
 function oklchToOklab({ l, c, h }: Oklch): [number, number, number] {
   const r = (h * Math.PI) / 180;
@@ -81,12 +102,13 @@ function oklabToLinearInGamut(lab: [number, number, number]): Rgb {
 }
 
 /** Colour as OKLab for saturation s (0–1). */
-export function saturationOklab(s: number): [number, number, number] {
+export function saturationOklab(s: number, scale: ColorScale = 'blue-red'): [number, number, number] {
+  const stops = STOPS[scale];
   const x = Math.min(1, Math.max(0, s));
   let i = 0;
-  while (i < STOPS.length - 2 && x > STOPS[i + 1][0]) i++;
-  const [s0, c0] = STOPS[i];
-  const [s1, c1] = STOPS[i + 1];
+  while (i < stops.length - 2 && x > stops[i + 1][0]) i++;
+  const [s0, c0] = stops[i];
+  const [s1, c1] = stops[i + 1];
   const t = (x - s0) / (s1 - s0);
   const a = oklchToOklab(c0);
   const b = oklchToOklab(c1);
@@ -94,22 +116,26 @@ export function saturationOklab(s: number): [number, number, number] {
 }
 
 /** Linear-light sRGB (what three.js expects for vertex/instance colours). */
-export function saturationColorLinear(s: number): Rgb {
-  return oklabToLinearInGamut(saturationOklab(s));
+export function saturationColorLinear(s: number, scale: ColorScale = 'blue-red'): Rgb {
+  return oklabToLinearInGamut(saturationOklab(s, scale));
 }
 
 /** Gamma-encoded sRGB, 0–1. */
-export function saturationColor(s: number): Rgb {
-  return saturationColorLinear(s).map(toGamma) as Rgb;
+export function saturationColor(s: number, scale: ColorScale = 'blue-red'): Rgb {
+  return saturationColorLinear(s, scale).map(toGamma) as Rgb;
 }
 
-export function saturationCss(s: number): string {
-  const [r, g, b] = saturationColor(s).map((x) => Math.round(x * 255));
+export function saturationCss(s: number, scale: ColorScale = 'blue-red'): string {
+  const [r, g, b] = saturationColor(s, scale).map((x) => Math.round(x * 255));
   return `rgb(${r} ${g} ${b})`;
 }
 
 /** Colours for a haemoglobin tetramer with 0, 1, 2, 3, 4 O2 bound. */
-export const HEMOGLOBIN_STEP_COLORS: string[] = [0, 1, 2, 3, 4].map((n) => saturationCss(n / 4));
+export function hemoglobinStepColors(scale: ColorScale = 'blue-red'): string[] {
+  return [0, 1, 2, 3, 4].map((n) => saturationCss(n / 4, scale));
+}
+
+export const HEMOGLOBIN_STEP_COLORS: string[] = hemoglobinStepColors();
 
 /**
  * Colour-vision-deficiency simulation, Machado, Oliveira & Fernandes 2009,
