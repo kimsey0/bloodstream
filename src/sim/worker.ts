@@ -26,8 +26,12 @@ let radius: Float32Array;
 let pathBase: Int32Array;
 let pathCount: Int32Array;
 let bedOfSegment: Int32Array;
-/** Which strand of its current organ bed each cell uses; kept from arterioles to venules. */
+let pathStart: Float32Array;
+let pathEnd: Float32Array;
+/** Which strand of its current (or next) organ bed each cell uses; kept from arterioles to venules. */
 let strand: Int32Array;
+/** Path each cell was on in its previous segment (-1 if unknown). */
+let prevPath: Int32Array;
 let speed = 1;
 let paused = false;
 /** Fixed per-cell radial offset inside large vessels, so cells don't run single file down the centre line. */
@@ -47,16 +51,42 @@ function init(msg: InitMessage): void {
   pathBase = msg.pathBase;
   pathCount = msg.pathCount;
   bedOfSegment = msg.bedOfSegment;
+  pathStart = msg.pathStart;
+  pathEnd = msg.pathEnd;
   const rng = new Rng(msg.seed + 1);
   strand = new Int32Array(sim.count).map(() => Math.floor(rng.next() * 1e6));
+  prevPath = new Int32Array(sim.count).fill(-1);
   sim.addListener((e) => {
-    // Entering a new organ bed: pick one of its strands at random.
-    if (bedOfSegment[e.to] !== bedOfSegment[e.from]) strand[e.cell] = Math.floor(rng.next() * 1e6);
+    prevPath[e.cell] = pathOf(e.cell, e.from);
+    // About to enter a new organ bed: pick one of its strands now, so the cell can branch off
+    // the feeding artery where that strand does.
+    const next = sim!.next[e.cell];
+    if (bedOfSegment[next] >= 0 && bedOfSegment[next] !== bedOfSegment[e.to]) strand[e.cell] = Math.floor(rng.next() * 1e6);
   });
   offsetR = new Float32Array(sim.count).map(() => 0.75 * Math.sqrt(rng.next()));
   offsetTheta = new Float32Array(sim.count).map(() => rng.next() * 2 * Math.PI);
 
   postState('ready');
+}
+
+function pathOf(cell: number, seg: number): number {
+  return pathBase[seg] + (strand[cell] % pathCount[seg]);
+}
+
+/**
+ * Where along its current path a cell is. In a named vessel, a cell that came from an organ
+ * bed starts where that strand joined it, and one bound for a bed stops where its strand
+ * branches off.
+ */
+function pathFraction(cell: number, seg: number): number {
+  const f = sim!.positionFraction(cell);
+  if (bedOfSegment[seg] >= 0) return f;
+  const prev = prevPath[cell];
+  const lo = prev >= 0 && pathEnd[prev] >= 0 ? pathEnd[prev] : 0;
+  const next = sim!.next[cell];
+  const start = bedOfSegment[next] >= 0 ? pathStart[pathOf(cell, next)] : -1;
+  const hi = start >= 0 ? Math.max(start, lo) : 1;
+  return lo + f * (hi - lo);
 }
 
 /** Send the current physiological state: vessel colours, headline numbers and exchange models. */
@@ -121,8 +151,7 @@ function tick(wallDt: number, positions?: Float32Array, saturations?: Float32Arr
   const sat = saturations?.length === n ? saturations : new Float32Array(n);
   for (let i = 0; i < n && !skipPositions; i++) {
     const seg = sim.segment[i];
-    const path = pathBase[seg] + (strand[i] % pathCount[seg]);
-    samplePath(lut, radius, path, sim.positionFraction(i), offsetR[i], offsetTheta[i], pos, i * 3);
+    samplePath(lut, radius, pathOf(i, seg), pathFraction(i, seg), offsetR[i], offsetTheta[i], pos, i * 3);
     sat[i] = sim.saturation(i);
   }
   post(
@@ -173,6 +202,8 @@ function adopt(msg: AdoptMessage): void {
   }
   if (cell < 0) cell = Math.floor(pickRng.next() * sim.count);
   sim.segment[cell] = msg.segment;
+  sim.next[cell] = sim.chooseNext(msg.segment);
+  prevPath[cell] = -1;
   sim.duration[cell] = msg.duration;
   sim.elapsed[cell] = Math.min(msg.elapsed, msg.duration * 0.999);
   sim.po2[cell] = msg.po2;

@@ -16,7 +16,10 @@ describe('3D vessel paths', () => {
           // Within a bed a cell keeps its strand; across beds any strand may follow any other.
           const targets = sameBed ? [paths.pathBase[j] + (a - paths.pathBase[s.index])] : strandsOf(j);
           for (const b of targets) {
-            const gap = paths.curves[a].getPoint(1).distanceTo(paths.curves[b].getPoint(0));
+            // A strand may branch off its feeding vessel, or join its draining vein, part-way along.
+            const leave = paths.pathStart[b] >= 0 ? paths.curves[a].getPointAt(paths.pathStart[b]) : paths.curves[a].getPoint(1);
+            const enter = paths.pathEnd[a] >= 0 ? paths.curves[b].getPointAt(paths.pathEnd[a]) : paths.curves[b].getPoint(0);
+            const gap = leave.distanceTo(enter);
             expect(gap, `${s.id} → ${circ.segments[j].id}`).toBeLessThan(0.1);
           }
         }
@@ -24,13 +27,33 @@ describe('3D vessel paths', () => {
     }
   });
 
-  it('give every segment of a bed the same number of strands', () => {
-    for (const s of circ.segments) {
-      for (const j of s.nextIndex) {
-        if (paths.bedOfSegment[s.index] >= 0 && paths.bedOfSegment[s.index] === paths.bedOfSegment[j]) {
-          expect(paths.pathCount[j]).toBe(paths.pathCount[s.index]);
-        }
-      }
+  it('branch off along the feeding artery in limbs, and from the hilum in organs', () => {
+    const starts = (id: string) => strandsOf(circ.get(id).index).map((p) => paths.pathStart[p]);
+    const thigh = starts('leg_L.thigh.muscle.art');
+    expect(Math.max(...thigh) - Math.min(...thigh)).toBeGreaterThan(0.3);
+    expect(new Set(starts('kidney_L.art'))).toEqual(new Set([1]));
+    const ends = strandsOf(circ.get('kidney_L.ven').index).map((p) => paths.pathEnd[p]);
+    expect(new Set(ends)).toEqual(new Set([0]));
+  });
+
+  it('share branches between strands, so each bed forms a tree', () => {
+    const strands = strandsOf(circ.get('lung_L.art').index).map((p) => paths.curves[p].points);
+    // Strands of one bed share their first branch points.
+    const shared = strands.filter((pts) => strands.some((o) => o !== pts && o[1].distanceTo(pts[1]) < 1e-6 && o.at(-1)!.distanceTo(pts.at(-1)!) > 0.1));
+    expect(shared.length).toBe(strands.length);
+  });
+
+  it('attach layout-only branches to the vessel they leave or join', () => {
+    expect(paths.branches.length).toBeGreaterThan(20);
+    const vessels = [
+      ...circ.segments.filter((s) => paths.bedOfSegment[s.index] < 0).map((s) => paths.curves[paths.pathBase[s.index]]),
+      ...paths.branches.map((b) => b.curve),
+    ].map((c) => c.getSpacedPoints(400));
+    for (const b of paths.branches) {
+      const ends = [b.curve.getPoint(0), b.curve.getPoint(1)];
+      const others = vessels.filter((_, i) => i !== vessels.length - paths.branches.length + paths.branches.indexOf(b));
+      const gap = Math.min(...ends.flatMap((e) => others.map((pts) => Math.min(...pts.map((q) => q.distanceTo(e))))));
+      expect(gap).toBeLessThan(0.3);
     }
   });
 

@@ -211,25 +211,47 @@ Rodahl; Rowell; Hsia (pulmonary recruitment).
   limb capsules, head, hands, feet, organ ellipsoids). It is shared by the
   translucent body mesh and the placement of capillaries.
 - `src/anatomy/layout.ts`: 3D control points (cm) for every named vessel,
-  and a hub point for each organ bed.
-- `src/anatomy/territories.ts`: where each bed's capillaries are. Skin is
-  just under the skin surface, muscle fills the limb or body-wall volume,
-  "other" tissue sits near the bone, and organs are inside their organ
-  shells. Each bed has 4–28 strands.
+  a centre (tap target) for each organ bed, and layout-only branches: real
+  side vessels that are not simulation segments, such as the deep femoral,
+  tibial and cerebral arteries, the coronary branches, the saphenous and
+  cephalic veins and the dural sinuses.
+- `src/anatomy/territories.ts`: where each bed's capillaries are, and how
+  its vessels branch to them. Skin is just under the skin surface, muscle
+  fills the limb or body-wall volume, "other" tissue sits near the bone,
+  and organs are inside their organ shells. Each bed has 4–28 strands.
 - `src/anatomy/paths.ts`: one Catmull–Rom curve per named vessel and per
-  strand of each bed segment (1,776 paths), joined end to start so cells
-  never jump. Arteriole strands fan out from the feeding artery and venule
-  strands converge on the draining vein. A cell picks a strand when it
-  enters a bed and keeps it until it leaves. Each path is baked into an
-  arc-length lookup table of positions and frames that the worker samples
-  without three.js (`src/anatomy/lut.ts`).
+  strand of each bed segment (2,282 paths), joined so that cells never jump.
+  A bed's arteriole strands form a tree: strands are grouped by where they
+  lie along the feeding artery and the side branches listed for the bed.
+  Each group leaves the vessel at its own point and then divides in two
+  repeatedly towards its capillaries. Branch points sit part-way towards
+  the leaves they serve, so branches leave at acute angles. Venule strands
+  form a second tree that joins the draining vein along its length. The
+  styles per bed are:
+  - limbs, trunk wall and face branch along the vessel;
+  - lungs, kidneys, liver and spleen grow one tree from the hilum;
+  - brain and heart keep branch points on the organ surface and dive in;
+  - the intestines join neighbouring branches in arcades and then run
+    straight vessels outwards.
+
+  Each path is baked into an arc-length lookup table of positions and frames
+  that the worker samples without three.js (`src/anatomy/lut.ts`).
+- Branching part-way along a vessel: the simulation picks each cell's next
+  segment when the cell enters its current one, and the worker picks the
+  strand of a bed the cell is about to enter at the same time. A cell bound
+  for a strand travels only as far as that strand's branch point in its
+  artery's transit time. A cell leaving a bed starts in the vein where its
+  strand joined. A strand that runs along a layout-only branch carries its
+  cells along that branch.
 
 ## Rendering
 
 `src/render/scene.ts` and friends:
 
 - **Vessels:** named vessels are merged glass tubes (a Fresnel shader:
-  clear face-on, solid at the silhouette). Bed strands are merged thin lines.
+  clear face-on, solid at the silhouette); layout-only branches are thinner
+  tubes coloured like the vessel they leave or join. Bed strands are merged
+  thin lines, so shared branches read brighter.
   Both are coloured along their length by steady-state saturation.
 - **Cells:** a point cloud with a custom shader. Each cell is a disc
   coloured by saturation with a light rim, drawn ~0.5 cm wide (about 600×
@@ -343,7 +365,8 @@ Other checks:
 - single-molecule occupancy averages to the cell's saturation;
 - microscope outlet saturations within 2 % of the body model;
 - O2 dot counts within 15 % of theory;
-- 3D paths join without gaps, and skin capillaries lie under the skin.
+- 3D paths join without gaps (including strands that branch part-way along
+  a vessel), bed strands form trees, and skin capillaries lie under the skin.
 
 ## Simplifications
 
@@ -356,6 +379,10 @@ Other checks:
 - Systemic O2 exchange happens only in capillaries, not in arterioles.
 - Vertebral arteries are folded into the carotids; anterior cardiac and
   Thebesian veins into the coronary sinus.
+- Layout-only branches are drawn but not simulated: their blood counts as
+  the bed's arterioles or venules. The lower trunk wall is fed by lumbar
+  arteries drawn as one vessel behind the abdominal aorta, which branches
+  off the thoracic aorta (the graph has no lumbar segment).
 - Atria and veins carry no pulse.
 - Activity changes take effect immediately rather than over 1–2 minutes.
   Exercise is modelled as running, so the arms do little.

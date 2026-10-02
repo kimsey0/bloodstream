@@ -12,6 +12,9 @@ export interface InitMessage {
   pathBase: Int32Array;
   pathCount: Int32Array;
   bedOfSegment: Int32Array;
+  /** Path → fraction along the feeding / draining named vessel where it branches off / joins, or -1. */
+  pathStart: Float32Array;
+  pathEnd: Float32Array;
 }
 
 export interface TickMessage {

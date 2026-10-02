@@ -141,3 +141,19 @@ describe('speed along lumped arterioles and venules', () => {
     expect(meanVen * 1.75).toBeGreaterThan(5);
   });
 });
+
+describe('route choice', () => {
+  it('decides each cell’s next segment as it enters the current one', () => {
+    const s = new Simulation({ cellCount: 500, seed: 5 });
+    const planned = Int32Array.from(s.next);
+    let checked = 0;
+    s.addListener((e) => {
+      expect(e.to).toBe(planned[e.cell]);
+      expect(s.circulation.segments[e.to].nextIndex).toContain(s.next[e.cell]);
+      planned[e.cell] = s.next[e.cell];
+      checked++;
+    });
+    for (let i = 0; i < 100; i++) s.step(0.05);
+    expect(checked).toBeGreaterThan(500);
+  });
+});

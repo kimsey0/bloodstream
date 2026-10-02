@@ -4,10 +4,12 @@
  * Units are centimetres. y is up (0 = floor), +x is the body's LEFT side (so
  * it appears on the right when viewed from the front), +z is anterior.
  *
- * Named vessels list their own control points. Organ microcirculations get
- * a bed centre, and their arteriole/capillary/venule paths are generated
- * around it (see paths.ts). Segments are joined end to start automatically,
- * so the points here only need to be roughly in the right place.
+ * Named vessels list their own control points. Layout-only branches add
+ * anatomical side vessels for organ beds to branch from. Organ
+ * microcirculations get a bed centre (a tap target); their arteriole,
+ * capillary and venule trees are generated in their tissue (see paths.ts).
+ * Segments are joined end to start automatically, so the points here only
+ * need to be roughly in the right place.
  */
 
 type P = [number, number, number];
@@ -64,10 +66,11 @@ export const VESSEL_POINTS: Record<string, P[]> = {
   hepatic_artery: [[-3, 111.5, 1], [-7, 112, 1]],
   splenic_artery: [[5, 111.5, 0], [9, 112.5, -1]],
   sma: [[1, 105, 2], [0.5, 99, 4]],
-  renal_L: [[4, 107, -4], [6, 104, -5]],
-  renal_R: [[-3, 107, -4], [-6, 104, -5]],
-  renal_vein_L: [[6, 103, -4], [2, 106.5, -1]],
-  renal_vein_R: [[-6, 103, -4], [-2.5, 106.5, -2]],
+  // Renal vessels end/start at the hilum, on the kidney's medial side.
+  renal_L: [[4, 107, -4], [4.8, 104, -5.5]],
+  renal_R: [[-3, 107, -4], [-4.6, 103.5, -5.5]],
+  renal_vein_L: [[4.6, 102.5, -5], [2, 106.5, -1]],
+  renal_vein_R: [[-4.5, 102, -5], [-2.5, 106.5, -2]],
   splenic_vein: [[9, 110, 0.5], [3, 109, 1.5]],
   smv: [[0, 98, 5], [-0.5, 106, 2.5]],
   portal_vein: [[-2, 108.5, 1.5], [-5, 112, 2]],
@@ -89,6 +92,66 @@ export const VESSEL_POINTS: Record<string, P[]> = {
       [`femoral_vein_${s}`, side(s, [[9, 53, -1.5], [8.5, 70, 2], [7, 88, 2]])],
       [`int_iliac_vein_${s}`, side(s, [[6, 89, -4.5], [5, 92, -2.5]])],
       [`common_iliac_vein_${s}`, side(s, [[5, 93.5, -1], [2.5, 97, -1]])],
+    ]),
+  ),
+};
+
+/**
+ * Layout-only branches: real vessels that are not simulation segments but give an organ bed's
+ * strands somewhere anatomical to branch from or drain into (see territories.ts). An artery
+ * branch leaves `from` (a named vessel or another branch) at the point nearest its first
+ * point; a vein branch joins `into` at the point nearest its last point. Cells travel along
+ * them as the first (or last) stretch of their arteriole (or venule) strand.
+ */
+export interface Branch {
+  from?: string;
+  into?: string;
+  points: P[];
+  /** Tube radius, cm (default 0.16). */
+  radius?: number;
+}
+
+export const BRANCHES: Record<string, Branch> = {
+  // Lumbar arteries and ascending lumbar veins: the lower trunk wall's supply, just behind the
+  // abdominal aorta and IVC (the thoracic aorta's intercostals cover only the chest).
+  lumbar_arteries: { from: 'aorta_thoracic', points: [[1, 116, -5.2], [1, 106, -5.3], [1, 96, -4.6]] },
+  ascending_lumbar_vein: { into: 'azygos', points: [[-1.5, 95, -5.6], [-1.5, 103, -6]] },
+
+  // Intestines: the mesenteric arteries and veins running down the mesentery.
+  mesenteric_arteries: { from: 'sma', points: [[-0.5, 96, 4.5], [-2, 92.5, 4.5], [-4, 90, 4]] },
+  mesenteric_veins: { into: 'smv', points: [[-4, 90.5, 5], [-2, 93, 5.3], [-0.5, 96.5, 5.3]] },
+
+  // Heart: coronary branches in the grooves between chambers, and the cardiac veins.
+  lad: { from: 'coronary_L', points: [[5.5, 126, 7.6], [4.5, 123.5, 7.3], [3.5, 121.5, 6]] },
+  circumflex: { from: 'coronary_L', points: [[7, 127.5, 4.5], [6.2, 128, 2.2], [4.3, 128.5, 0.8]] },
+  posterior_descending: { from: 'coronary_R', points: [[-2.9, 125.5, 4.5], [-2.2, 125.5, 2.5], [0.8, 123.5, 1.3], [2, 122, 2]] },
+  great_cardiac_vein: { into: 'coronary_sinus', points: [[3.8, 122, 6.3], [5.2, 125, 7.3], [6.6, 127.8, 5.5], [6.3, 128.2, 2.5], [3.5, 127, 1]] },
+  middle_cardiac_vein: { into: 'coronary_sinus', points: [[2.3, 121.8, 2.6], [1.5, 123.5, 1.3]] },
+
+  ...Object.fromEntries(
+    (['L', 'R'] as const).flatMap((s): [string, Branch][] => [
+      // Brain: cerebral arteries over the hemisphere's surface; dural sinuses to the jugular.
+      [`mca_${s}`, { from: `carotid_${s}`, points: side(s, [[3.5, 158, 1], [5.5, 160, 1.5], [6.8, 163, 0.5], [6.5, 166, -2], [4.5, 168, -4.5]]) }],
+      [`aca_${s}`, { from: `carotid_${s}`, points: side(s, [[2, 158, 2.5], [0.8, 161, 6.5], [0.8, 166, 6], [0.8, 169.5, 1], [0.8, 168.5, -4]]) }],
+      [`pca_${s}`, { from: `carotid_${s}`, points: side(s, [[2.5, 157, -1.5], [3.5, 159.5, -4.5], [3, 162, -7.5]]) }],
+      // The superior sagittal sinus is one midline vessel; each side's copy drains to its own jugular.
+      [`sagittal_sinus_${s}`, { into: `transverse_sinus_${s}`, radius: 0.22, points: side(s, [[0.3, 168.5, 6.5], [0.3, 170.8, 2], [0.3, 170.5, -3], [0.3, 167.5, -7.5], [0.3, 163, -9]]) }],
+      [`transverse_sinus_${s}`, { into: `jugular_${s}`, radius: 0.25, points: side(s, [[0.3, 163, -9], [4, 162, -8.5], [5.5, 160, -5], [5, 157.5, -2]]) }],
+      // Face and scalp: external carotid and its facial branch; facial vein.
+      [`external_carotid_${s}`, { from: `carotid_${s}`, points: side(s, [[4.5, 152, 2.5], [5.5, 156, 3], [6.8, 160, 1.5], [7.2, 165, 0]]) }],
+      [`facial_artery_${s}`, { from: `external_carotid_${s}`, points: side(s, [[4.5, 152, 2.5], [4.8, 154, 4.5], [4, 156.5, 5.5], [3.5, 159, 6.5]]) }],
+      [`facial_vein_${s}`, { into: `jugular_${s}`, points: side(s, [[3.2, 159, 6.8], [4.2, 156, 5], [5, 153, 2.5]]) }],
+      // Arm: deep brachial artery; cephalic vein (skin).
+      [`profunda_brachii_${s}`, { from: `brachial_${s}`, points: side(s, [[22, 134, -0.5], [23.5, 129, -2.5], [25.5, 121, -3], [27, 115, -2.5]]) }],
+      [`cephalic_vein_${s}`, { into: `arm_vein_${s}`, radius: 0.2, points: side(s, [[34, 89, 1.5], [31.5, 100, 2.5], [29.5, 111, 3], [25.5, 124, 3], [22.5, 136.5, 2.5]]) }],
+      // Pelvis: gluteal arteries.
+      [`gluteal_artery_${s}`, { from: `int_iliac_${s}`, points: side(s, [[7.5, 89.5, -4.5], [9.5, 88.5, -6.5], [11, 89, -8]]) }],
+      // Leg: deep femoral, anterior tibial and fibular arteries; great and small saphenous veins (skin).
+      [`profunda_femoris_${s}`, { from: `femoral_${s}`, points: side(s, [[8.6, 84, 1.5], [11, 78, -1], [11.5, 68, -2], [11, 57, -2.5]]) }],
+      [`anterior_tibial_${s}`, { from: `lower_leg_artery_${s}`, points: side(s, [[10.3, 42, -2], [10.8, 38, 1.5], [10.3, 25, 2], [9.5, 11, 2.5]]) }],
+      [`fibular_${s}`, { from: `lower_leg_artery_${s}`, points: side(s, [[10, 38, -3], [11, 28, -2], [10.5, 14, -1.5]]) }],
+      [`great_saphenous_${s}`, { into: `femoral_vein_${s}`, radius: 0.2, points: side(s, [[6, 50, 1.5], [4.5, 62, 3.5], [4.8, 75, 4.8], [6, 85, 3.8]]) }],
+      [`small_saphenous_${s}`, { into: `lower_leg_vein_${s}`, radius: 0.18, points: side(s, [[10.5, 9, -2.8], [10, 20, -4.5], [9.8, 32, -5], [9.6, 44, -4]]) }],
     ]),
   ),
 };

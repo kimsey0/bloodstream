@@ -65,6 +65,12 @@ export class Simulation {
   readonly duration: Float64Array;
   /** Cell (plasma-equilibrated) PO2, mmHg. */
   readonly po2: Float64Array;
+  /**
+   * Segment each cell moves into when its current transit ends, chosen (by flow) as it enters
+   * the current one. Knowing it early lets the body view branch cells off a feeding artery
+   * at the right place.
+   */
+  readonly next: Int32Array;
 
   private readonly rng: Rng;
   private exchange: (ExchangeModel | undefined)[];
@@ -92,6 +98,7 @@ export class Simulation {
     this.elapsed = new Float64Array(this.count);
     this.duration = new Float64Array(this.count);
     this.po2 = new Float64Array(this.count);
+    this.next = new Int32Array(this.count);
     this.seed();
   }
 
@@ -110,6 +117,7 @@ export class Simulation {
       if (k < 0) k = segs.length - 1;
       const s = segs[k];
       this.segment[i] = k;
+      this.next[i] = this.chooseNext(k);
       this.duration[i] = this.drawTransit(s);
       this.elapsed[i] = this.rng.next() * this.duration[i];
       const ex = this.exchange[k];
@@ -128,6 +136,15 @@ export class Simulation {
       const g = 1 - Math.pow(x, PROFILE_K);
       if (this.rng.next() < g) return (s.transit * PROFILE_MEAN) / g;
     }
+  }
+
+  /** Downstream segment for a cell leaving segment `k`, with probability proportional to flow. */
+  chooseNext(k: number): number {
+    const s = this.circulation.segments[k];
+    const u = this.rng.next();
+    let c = 0;
+    while (c < s.nextCumulative.length - 1 && u >= s.nextCumulative[c]) c++;
+    return s.nextIndex[c];
   }
 
   addListener(l: TransitionListener): () => void {
@@ -159,16 +176,13 @@ export class Simulation {
           this.elapsed[i] += h * rate;
           break;
         }
-        const s = segs[k];
-        const u = this.rng.next();
-        let c = 0;
-        while (c < s.nextCumulative.length - 1 && u >= s.nextCumulative[c]) c++;
-        const next = s.nextIndex[c];
+        const next = this.next[i];
         if (this.conditions[next] !== this.conditions[k]) {
           // Same O2 content, different curve: re-express PO2 under the new segment's conditions.
           this.po2[i] = po2FromContent(o2Content(this.po2[i], this.conditions[k]), this.conditions[next]);
         }
         this.segment[i] = next;
+        this.next[i] = this.chooseNext(next);
         this.elapsed[i] = 0;
         this.duration[i] = this.drawTransit(segs[next]);
         if (this.listeners.size) {
@@ -189,8 +203,9 @@ export class Simulation {
 
   /**
    * Switch to a new physiological state (another activity level) on the same graph. Cells stay
-   * where they are: time already spent in a segment is rescaled to its new transit time, and PO2
-   * is re-expressed where blood conditions change. The heartbeat keeps its phase.
+   * where they are and keep their chosen next segment: time already spent in a segment is
+   * rescaled to its new transit time, and PO2 is re-expressed where blood conditions change.
+   * The heartbeat keeps its phase.
    */
   setState(circulation: Circulation, steady: SteadyState, heartRate: number): void {
     const old = this.circulation.segments;

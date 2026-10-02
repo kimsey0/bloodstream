@@ -31,7 +31,7 @@ const send = (msg: ToWorker, transfer: Transferable[] = []) => worker.postMessag
 
 // Fewer tracers on small screens / few cores.
 const small = Math.min(window.innerWidth, window.innerHeight) < 700 || (navigator.hardwareConcurrency ?? 4) <= 4;
-send({ type: 'init', cellCount: small ? 3000 : 8000, seed: 1, lut: paths.lut, radius: paths.radius, pathBase: paths.pathBase, pathCount: paths.pathCount, bedOfSegment: paths.bedOfSegment });
+send({ type: 'init', cellCount: small ? 3000 : 8000, seed: 1, lut: paths.lut, radius: paths.radius, pathBase: paths.pathBase, pathCount: paths.pathCount, bedOfSegment: paths.bedOfSegment, pathStart: paths.pathStart, pathEnd: paths.pathEnd });
 
 let awaitingFrame = false;
 let lastTick = performance.now();

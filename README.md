@@ -83,7 +83,10 @@ render/ + ui/     three.js body, vessels and cells; Svelte HUD;
   17 s through the heart wall, about 95 s through a foot.
 - **Geometry follows the graph.** Named vessels have stylised 3D paths.
   Each organ's microcirculation is drawn as several strands placed in the
-  tissue it supplies: under the skin, through muscle, inside organs.
+  tissue it supplies: under the skin, through muscle, inside organs. The
+  strands branch like real vessel trees: along limb arteries, from an
+  organ's hilum, over the brain and heart surfaces, or through intestinal
+  arcades.
 - **Colour.** Saturation runs from deep blue to violet to red. Lightness
   rises steadily, and the scale is tested to stay readable with
   deuteranopia, protanopia and tritanopia.
