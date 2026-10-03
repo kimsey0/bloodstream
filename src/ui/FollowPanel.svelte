@@ -2,6 +2,7 @@
   import { hemoglobinStepColors, saturationCss } from '../color/saturation';
   import { p50 } from '../physiology/dissociation';
   import type { FollowInfo } from '../sim/protocol';
+  import CurveChart from './CurveChart.svelte';
   import { history, ui } from './state.svelte';
 
   interface Props {
@@ -156,6 +157,7 @@
   </div>
 
   {#if details}
+  <CurveChart {info} />
   <div class="hb-row">
     <figure class="hb">
       <svg viewBox="-5 -5 94 94" role="img" aria-label={`Haemoglobin with ${info.bound} of 4 sites holding oxygen`}>

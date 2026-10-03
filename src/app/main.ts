@@ -1,6 +1,7 @@
 /** App controller: wires the simulation worker, the 3D scene and the HUD together. */
 import { mount } from 'svelte';
 import { COLOR_SCALES, setColorScale, type ColorScale } from '../color/saturation';
+import { virtualPo2Factor } from '../physiology/dissociation';
 import { BED_CENTERS } from '../anatomy/layout';
 import { buildPaths } from '../anatomy/paths';
 import { activityState } from '../physiology/activity';
@@ -56,6 +57,10 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
     ui.cellCount = msg.cellCount;
     ui.arterialSaturation = msg.arterialSaturation;
     ui.mixedVenousSaturation = msg.mixedVenousSaturation;
+    ui.arterialPo2 = msg.arterialPo2;
+    ui.mixedVenousPo2 = msg.mixedVenousPo2;
+    ui.arterialConditions = msg.arterialConditions;
+    ui.mixedVenousConditions = msg.mixedVenousConditions;
     ui.meanCirculationTime = msg.meanCirculationTime;
     ui.activity = msg.activity;
     ui.cardiacOutput = msg.activity.cardiacOutput;
@@ -92,7 +97,7 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
       scene.setFollow(msg.follow.cell);
       ui.follow = msg.follow;
       ui.followBed = bedOf(msg.follow.segment);
-      recordHistory(msg.time, msg.follow.saturation, msg.follow.speed);
+      recordHistory(msg.time, msg.follow);
     }
   }
 };
@@ -310,19 +315,28 @@ function clearHistory(): void {
   history.t.length = 0;
   history.s.length = 0;
   history.v.length = 0;
+  history.p.length = 0;
+  history.c.length = 0;
+  history.f.length = 0;
 }
 
-function recordHistory(t: number, s: number, v: number): void {
+function recordHistory(t: number, f: FollowInfo): void {
   const last = history.t.at(-1);
   if (last !== undefined && t <= last) return;
   history.t.push(t);
-  history.s.push(s);
-  history.v.push(v);
+  history.s.push(f.saturation);
+  history.v.push(f.speed);
+  history.p.push(f.po2);
+  history.c.push(f.content);
+  history.f.push(virtualPo2Factor(f.conditions));
   // Keep ~2 minutes of body time, but never more than a few thousand samples.
   while (history.t.length > 4000 || (history.t.length && history.t[0] < t - 130)) {
     history.t.shift();
     history.s.shift();
     history.v.shift();
+    history.p.shift();
+    history.c.shift();
+    history.f.shift();
   }
 }
 

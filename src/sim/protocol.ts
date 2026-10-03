@@ -83,6 +83,11 @@ export interface ReadyMessage {
   profiles: Float32Array;
   arterialSaturation: number;
   mixedVenousSaturation: number;
+  /** Mean arterial and mixed venous PO2 (mmHg), and blood conditions, for the dissociation-curve chart. */
+  arterialPo2: number;
+  mixedVenousPo2: number;
+  arterialConditions: BloodConditions;
+  mixedVenousConditions: BloodConditions;
   meanCirculationTime: number;
   /** Exchange models of every capillary bed, for the microscope view. */
   exchange: ExchangeInfo[];
@@ -115,6 +120,8 @@ export interface FollowInfo {
   segmentDuration: number;
   po2: number;
   saturation: number;
+  /** O2 content, mL O2 per mL blood. */
+  content: number;
   /** Blood conditions around the cell: PCO2, pH and temperature shift the O2 curve. */
   conditions: BloodConditions;
   /** Current speed, mm/s. */

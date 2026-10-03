@@ -356,9 +356,24 @@ Rodahl; Rowell; Hsia (pulmonary recruitment); Dempsey & Wagner 1999
 
 - **Dock:** speed, pause, follow, activity, magnifier, reset view and info.
 - **Follow panel:** collapsible to a pill. It shows saturation and PO2,
-  location and speed, a circuit timer and previous circuits, an SO2/speed
-  sparkline, the haemoglobin molecule and the Hb distribution, and a journey
-  log.
+  location and speed, the blood's pH, PCO2, temperature and P50, a circuit
+  timer and previous circuits, an SO2/speed sparkline, the haemoglobin
+  molecule and the Hb distribution, and a journey log.
+- **Dissociation curve** (`CurveChart.svelte`, in the follow panel's
+  details):
+  - Two curves: one for arterial blood at the current activity level, and
+    one for the blood around the cell, which separates from it as CO2, acid
+    and heat shift it right.
+  - P50 dots on each curve, and arterial and mixed venous mean points.
+  - The cell itself, and its last 60 s of path, coloured by saturation and
+    fading with age.
+  - Samples arrive once per frame, which can span all of lung loading.
+    Gaps are filled by interpolating O2 content and the curve's shift, so
+    the path follows the curve during exchange and runs level where
+    chemistry changes between vessels.
+  - A hover crosshair reads both curves at any PO2.
+  - Below the chart, O2 content in mL/dL, split into haemoglobin-bound and
+    dissolved.
 - **Microscope panel:** collapsible to a pill.
 - **Sheets:** bed picker (all beds, grouped by region) and activity slider.
 - **Tap menu** for organs, and a first-visit hint.

@@ -108,6 +108,10 @@ function postState(type: 'ready' | 'state'): void {
     profiles,
     arterialSaturation: sim.steady.arterial.saturationIn,
     mixedVenousSaturation: sim.steady.mixedVenous.saturationIn,
+    arterialPo2: sim.steady.arterial.po2In,
+    mixedVenousPo2: sim.steady.mixedVenous.po2In,
+    arterialConditions: sim.steady.arterial.conditionsIn,
+    mixedVenousConditions: sim.steady.mixedVenous.conditionsIn,
     meanCirculationTime: sim.circulation.meanRbcCirculationTime,
     activity: { level: a.level, label: a.label, met: a.met, heartRate: a.heartRate, cardiacOutput: a.cardiacOutput, vo2: a.vo2 },
     exchange: [...sim.steady.exchange].map(([segment, ex]) => ({
@@ -219,6 +223,7 @@ function followInfo() {
     segmentDuration: sim.duration[c],
     po2: sim.po2(c),
     saturation: sim.saturation(c),
+    content: sim.content[c],
     conditions: sim.conditionsOf(c),
     speed: sim.speed(c),
     circuitElapsed: tracker.timeSinceLapStart,

@@ -1,5 +1,6 @@
 /** Reactive UI state shared between the app controller and the Svelte HUD. */
 import type { ColorScale } from '../color/saturation';
+import { STANDARD_CONDITIONS } from '../physiology/dissociation';
 import type { FollowInfo } from '../sim/protocol';
 
 export const SPEEDS = [0.01, 0.1, 1, 10, 30] as const;
@@ -12,6 +13,10 @@ export const ui = $state({
   cellCount: 0,
   arterialSaturation: 0,
   mixedVenousSaturation: 0,
+  arterialPo2: 0,
+  mixedVenousPo2: 0,
+  arterialConditions: STANDARD_CONDITIONS,
+  mixedVenousConditions: STANDARD_CONDITIONS,
   meanCirculationTime: 0,
   cardiacOutput: 0,
   bloodVolume: 0,
@@ -65,5 +70,5 @@ export interface MicroInfo {
   lung: boolean;
 }
 
-/** Recent (time, saturation, speed) samples of the followed cell, for the sparkline. Not reactive on purpose. */
-export const history = { t: [] as number[], s: [] as number[], v: [] as number[] };
+/** Recent (time, saturation, speed, PO2, O2 content, virtual-PO2 factor of the blood around it) samples of the followed cell, for the sparkline. Not reactive on purpose. */
+export const history = { t: [] as number[], s: [] as number[], v: [] as number[], p: [] as number[], c: [] as number[], f: [] as number[] };

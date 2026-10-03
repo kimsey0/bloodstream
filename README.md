@@ -21,6 +21,11 @@ on desktop and on phones.
   its current trip round the body has taken. Previous trips are listed with
   the organs they went through, and you can open one of its haemoglobin
   molecules with the four O₂ binding sites.
+- **See the cell on the dissociation curve.** The follow panel plots the
+  cell on the O₂ dissociation curve, with its recent path: up the curve in
+  the lungs, down it in tissues. A second curve shows how the blood around
+  it is shifted, and a readout gives its O₂ content in mL per dL, split
+  into haemoglobin-bound and dissolved.
 - **Zoom into capillary beds.** Tap near an organ, or use the magnifier, to
   open its capillaries at true micrometre scale. You see biconcave red
   cells in single file, and white dots for O₂ crossing the capillary wall
