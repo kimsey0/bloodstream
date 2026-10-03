@@ -6,7 +6,7 @@
  */
 import { samplePath } from '../anatomy/lut';
 import { exchangeSaturation, integrateContent } from './oxygen';
-import { PROFILE_SAMPLES, type AdoptMessage, type FromWorker, type InitMessage, type ToWorker } from './protocol';
+import { PROFILE_SAMPLES, type AdoptMessage, type FollowInfo, type FromWorker, type InitMessage, type ToWorker } from './protocol';
 import { Rng } from './rng';
 import { activityState } from '../physiology/activity';
 import { Circulation } from './circulation';
@@ -212,6 +212,12 @@ function adopt(msg: AdoptMessage): void {
   follow(cell);
 }
 
+function exchangeTarget(segment: number): FollowInfo['exchangeTarget'] {
+  const ex = sim?.steady.exchange.get(segment);
+  if (!ex) return null;
+  return { po2: ex.targetPo2, kind: sim!.circulation.segments[segment].exchange?.type === 'lung' ? 'alveolar' : 'tissue' };
+}
+
 function followInfo() {
   if (!sim || !tracker) return undefined;
   const c = tracker.cell;
@@ -224,6 +230,7 @@ function followInfo() {
     po2: sim.po2(c),
     saturation: sim.saturation(c),
     content: sim.content[c],
+    exchangeTarget: exchangeTarget(sim.segment[c]),
     conditions: sim.conditionsOf(c),
     speed: sim.speed(c),
     circuitElapsed: tracker.timeSinceLapStart,

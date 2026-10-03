@@ -127,6 +127,13 @@
     <text class="axis" x={W - M.r} y={H - 2} text-anchor="end">PO₂, mmHg</text>
     <text class="axis" x="1" y={M.t - 7}>SO₂ %</text>
 
+    {#if info.exchangeTarget}
+      {@const tx = x(info.exchangeTarget.po2)}
+      <line class="target" x1={tx} x2={tx} y1={M.t} y2={M.t + PH} />
+      <text class="target" x={info.exchangeTarget.po2 > 80 ? tx - 4 : tx + 4} y={M.t + PH - 6} text-anchor={info.exchangeTarget.po2 > 80 ? 'end' : 'start'}
+        >{info.exchangeTarget.kind === 'alveolar' ? 'alveolar gas' : 'tissue'} {info.exchangeTarget.po2.toFixed(0)}</text
+      >
+    {/if}
     <path class="art" d={arterialPath} />
     {#if shifted}<path class="here" d={herePath} />{/if}
     <circle class="p50 art" cx={x(p50Art)} cy={y(0.5)} r="2.5" />
@@ -240,6 +247,16 @@
   .cell {
     stroke: #0b1018;
     stroke-width: 2;
+  }
+  line.target {
+    stroke: var(--steel);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+  }
+  text.target {
+    fill: var(--steel);
+    font-size: 9px;
+    font-family: var(--font-ui);
   }
   .cross {
     stroke: var(--steel);

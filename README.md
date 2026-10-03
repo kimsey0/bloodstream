@@ -29,7 +29,9 @@ on desktop and on phones.
 - **Zoom into capillary beds.** Tap near an organ, or use the magnifier, to
   open its capillaries at true micrometre scale. You see biconcave red
   cells in single file, and white dots for O₂ crossing the capillary wall
-  (one dot per 10⁹ molecules).
+  (one dot per 10⁹ molecules). The panel gives the tissue's PO₂, its
+  myoglobin saturation in muscle and heart, and how its diffusing capacity
+  compares with rest: working muscle's rises ~30-fold.
 - **Change the activity level.** Go from rest to maximal exercise. Heart rate,
   cardiac output, O₂ use, flow distribution, capillary recruitment and
   blood chemistry all change together.
@@ -66,13 +68,18 @@ the test suite checks them against published values.
 | Alveolar–arterial PO₂ difference at max | 20 mmHg | 15–25 mmHg |
 | Arterial / mixed venous / femoral venous saturation at max | 96 % / 24 % / 18 % | ≥ 95 / 20–30 / ~15 % |
 | Femoral venous pH / P50 at max | 7.21 / 36 mmHg | 7.19–7.21 / 37.5 ± 3.1 mmHg |
+| Working-muscle cell PO₂ / myoglobin saturation at max | 2.6 mmHg / 44 % | 3.1 mmHg / 49 % |
 | Capillary RBC speed / venule speed | 0.25–0.8 mm/s / ~2 mm/s | 0.2–1.5 / 0.2–4 mm/s |
 
 The dissociation curve is Severinghaus's (P50 26.8 mmHg). The single
 haemoglobin molecule uses Imai's Adair constants with binding rates in
 Gibson's measured ranges. Lung loading is diffusion-limited, from DLO₂ and
-capillary blood volume. Each organ's O₂ extraction follows the Fick
-principle, with each cell's extraction depending on how long it lingers.
+capillary blood volume. Each organ unloads O₂ by diffusion towards its
+cells' PO₂. Its diffusing capacity is set at rest from measured tissue
+PO₂, and in muscle and heart rises with blood flow. At every activity
+level, tissue PO₂ then settles where diffusion delivers exactly what the
+tissue uses (the Fick principle). Each cell's extraction depends on how
+long it lingers.
 Tissues add CO₂ in proportion to the O₂ they use, so the curve shifts
 right along each capillary (the Bohr effect) and back in the lungs.
 
@@ -83,7 +90,7 @@ physiology/  parameters, O2 curve, haemoglobin, activity, heartbeat
      │
 sim/circulation   220-segment vascular graph → flows, volumes, transit times
      │
-sim/oxygen        steady state + per-organ calibration (Bohr integration)
+sim/oxygen        steady state, O₂ diffusion and blood chemistry (Bohr integration)
      │
 sim/simulation    Monte Carlo tracer cells (Web Worker): routing by flow,
      │            transit heterogeneity, pulsatile flow, O2 exchange
@@ -134,7 +141,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (78 tests)
+npm test            # physiology validation suite (85 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```

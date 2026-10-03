@@ -122,6 +122,8 @@ export interface FollowInfo {
   saturation: number;
   /** O2 content, mL O2 per mL blood. */
   content: number;
+  /** In an exchanging capillary: the PO2 it exchanges with (alveolar gas or the tissue's cells). */
+  exchangeTarget: { po2: number; kind: 'alveolar' | 'tissue' } | null;
   /** Blood conditions around the cell: PCO2, pH and temperature shift the O2 curve. */
   conditions: BloodConditions;
   /** Current speed, mm/s. */

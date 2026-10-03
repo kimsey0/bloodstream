@@ -152,19 +152,37 @@ loads. A cell's PO2 is therefore continuous where it enters a capillary.
 - **Lungs:** a = DLO2 / capillary blood volume, target = alveolar PO2.
   Loading is diffusion-limited. At rest blood reaches equilibrium about
   0.25 s into a 0.75 s transit.
-- **Tissues:** target = tissue PO2. The conductance `a` is calibrated for
-  each bed so that the average cell, over the bed's log-normal transit
-  distribution, gives up exactly VO2 / flow (the Fick principle). Cells that
-  linger longer extract more. Where a bed must extract more than its tissue
-  PO2 allows (gut and kidney at maximal exercise, when their flow is cut),
-  the tissue PO2 is capped at half the required venous PO2.
+- **Tissues:** a = DmO2 / capillary blood volume, target = tissue PO2.
+  DmO2 is the bed's O2 diffusing capacity (mL O2/min/mmHg).
+  - At rest, each tissue has a measured PO2: muscle 34 mmHg inside the
+    cells (Richardson 2006), brain 25, heart 10, kidney, gut and skin 30,
+    liver 25. DmO2 is calibrated so the average cell, over the bed's
+    log-normal transit distribution, gives up exactly VO2 / flow (Fick).
+  - At other activity levels DmO2 is fixed, except in muscle and heart,
+    where it rises with flow as DmO2 ∝ flow^0.9: dilated vessels carry more
+    red cells through more capillary surface. Tissue PO2 is then solved for:
+    the value at which diffusion delivers exactly the tissue's VO2. A tissue
+    that works harder, or gets less blood, draws its PO2 down until
+    diffusion keeps up.
+  - The single exponent is set so thigh muscle reaches the ~3 mmHg
+    intracellular PO2 measured at maximal exercise (Richardson 1995).
+    Everything else follows: intracellular PO2 of 5–7 mmHg already at
+    walking and jogging, myoglobin 91 % saturated at rest and 44 % at max
+    (measured: 91 % and 49 %), DmO2 ~30× resting and 13 mL/min/mmHg per kg
+    at max (measured: 14 per kg in quadriceps), mean capillary PO2 ~30
+    mmHg (measured: 34–38), and kidney and liver PO2 falling as exercise
+    cuts their flow.
+  - Cells that linger longer extract more.
+  - Myoglobin saturation, shown for muscle and heart, is PO2 / (PO2 + 3.2).
 
 ### Steady state
 
 `solveSteadyState` iterates flow-weighted mean O2 content and blood
 chemistry around the loop: lung outlet (integrated over the transit
 distribution), each tissue bed by Fick, mixing at confluences. Once
-arterial content converges, it calibrates every tissue bed. The result gives the vessel colours, the initial cell
+arterial content converges, it sets up every tissue bed: at rest it
+calibrates the diffusing capacities (cached for other levels), otherwise it
+solves each tissue's PO2. The result gives the vessel colours, the initial cell
 states, and the exchange models used by the tracer cells and the microscope.
 
 ### One haemoglobin molecule
@@ -237,13 +255,13 @@ level:
 | CO2 output / O2 use (RQ) | 0.8 | 0.85 | 0.95 | 1.1 |
 | Arterial PCO2 / pH / temperature | 40 / 7.40 / 37 | 40 / 7.40 / 37.2 | 38 / 7.39 / 37.8 | 34 / 7.33 / 38.5 |
 | Working-muscle venous temperature rise | 0 | 0.1 °C | 0.15 °C | 0.2 °C |
-| Muscle intracellular (tissue) PO2 | resting value | → | → | 3 mmHg |
+| Thigh muscle DmO2 (× rest) / intracellular PO2 (emergent) | 1× / 34 mmHg | 8× / 6.8 | 20× / 4.7 | 30× / 2.6 |
 
 Flow and VO2 are set per tissue. Muscle takes what the other tissues
 don't, and its extra flow and VO2 go mostly to the legs (thighs 25 % each,
 calves 15 % each). Kidney and splanchnic flow fall to about a quarter of
 resting, coronary flow rises ~4×, and skin rises at moderate work and falls
-again at maximal. Muscle tissue PO2 falls with activity. Sources: Åstrand &
+again at maximal. Sources: Åstrand &
 Rodahl; Rowell; Hsia (pulmonary recruitment); Dempsey & Wagner 1999
 (arterial blood gases at maximal exercise).
 
@@ -415,7 +433,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 78 headless tests. The main emergent results:
+`npm test` runs 85 headless tests. The main emergent results:
 
 | Quantity | Model | Reference |
 |---|---|---|
@@ -433,6 +451,10 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 | Maximal exercise: arterial / mixed venous / femoral venous SO2 | 96 / 24 / 18 % | ≥ 95 / 20–30 / ~15 % (average subjects) |
 | Maximal exercise: femoral venous PO2 / pH / PCO2 | 20 mmHg / 7.21 / 66 | ~20 (average) / 7.19–7.21 / 72 (elite) |
 | Maximal exercise: femoral venous P50 | 36 mmHg | 37.5 ± 3.1 |
+| Thigh muscle intracellular PO2 at rest / jogging / max | 34 (set) / 4.7 / 2.6 mmHg | 34 ± 6 / ~3 from 50 % of max / 3.1 ± 0.3 |
+| Thigh myoglobin saturation at rest / max | 91 / 44 % | 91 ± 1 / 49 ± 3 % |
+| Thigh DmO2 at max | 30× rest, 13 mL/min/mmHg per kg | ~14× (Richardson 2006); 14 per kg in quadriceps |
+| Thigh mean capillary PO2 at max | 30 mmHg | 37.5 (knee extensors); 34 (legs, elite skiers) |
 | Maximal exercise: lung transit / mean circulation | 0.37 s / 13 s | 0.3–0.45 s / ~13 s |
 
 Other checks:

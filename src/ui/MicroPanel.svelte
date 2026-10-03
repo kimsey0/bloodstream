@@ -55,6 +55,18 @@
         <span class="sw" style:background={saturationCss(info.saturationOut, ui.colorScale)}></span>{pct(info.saturationOut)} out
       </dd>
     </div>
+    <div>
+      <dt>{info.lung ? 'Air sacs' : 'Tissue'}</dt>
+      <dd>
+        PO₂ {info.targetPo2.toFixed(0)} mmHg{info.lung ? '' : info.myoglobin !== null ? ' in the cells' : ''}{#if info.myoglobin !== null}{' '}· myoglobin {pct(info.myoglobin)} saturated{/if}
+      </dd>
+    </div>
+    <div title="O₂ crosses by diffusion, driven by the PO₂ difference between blood and {info.lung ? 'air' : 'cells'}. The diffusing capacity is how much crosses per mmHg of difference.">
+      <dt>Diffusion</dt>
+      <dd>
+        blood averages {info.meanCapillaryPo2.toFixed(0)} mmHg · {info.diffusingCapacity < 10 ? info.diffusingCapacity.toFixed(1) : Math.round(info.diffusingCapacity)} mL O₂/min per mmHg{#if info.diffusingCapacity > 1.15 * info.restDiffusingCapacity}{' '}({(info.diffusingCapacity / info.restDiffusingCapacity).toFixed(0)}× rest){/if}
+      </dd>
+    </div>
   </dl>
   <div class="foot">
     <span class="dot"></span>

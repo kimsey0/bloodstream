@@ -2,6 +2,8 @@
 import { mount } from 'svelte';
 import { COLOR_SCALES, setColorScale, type ColorScale } from '../color/saturation';
 import { virtualPo2Factor } from '../physiology/dissociation';
+import { myoglobinSaturation } from '../physiology/params';
+import { meanCapillaryPo2, transitQuadrature } from '../sim/oxygen';
 import { BED_CENTERS } from '../anatomy/layout';
 import { buildPaths } from '../anatomy/paths';
 import { activityState } from '../physiology/activity';
@@ -228,6 +230,11 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     dotsPerPass: (Math.abs(ex.saturationIn - ex.saturationOut) * 4 * HB_PER_RBC) / 1e9,
     fiberLabel: bed.fiberLabel,
     lung: seg.exchange?.type === 'lung',
+    targetPo2: ex.model.targetPo2,
+    meanCapillaryPo2: meanCapillaryPo2(ex.model, ex.contentIn, transitQuadrature(seg.transit, seg.transitCv ?? 0)),
+    diffusingCapacity: ex.model.diffusingCapacity,
+    restDiffusingCapacity: ex.model.restDiffusingCapacity,
+    myoglobin: seg.tissue === 'muscle' || seg.tissue === 'heart' ? myoglobinSaturation(ex.model.targetPo2) : null,
   };
 }
 

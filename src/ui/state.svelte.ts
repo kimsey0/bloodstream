@@ -68,6 +68,15 @@ export interface MicroInfo {
   dotsPerPass: number;
   fiberLabel?: string;
   lung: boolean;
+  /** PO2 the capillaries exchange with: alveolar gas, or the tissue's cells (mmHg). */
+  targetPo2: number;
+  /** Time-averaged PO2 of blood in the capillaries, mmHg. */
+  meanCapillaryPo2: number;
+  /** O2 diffusing capacity of this bed now and at rest, mL O2/min/mmHg. */
+  diffusingCapacity: number;
+  restDiffusingCapacity: number;
+  /** Myoglobin saturation in muscle and heart cells, else null. */
+  myoglobin: number | null;
 }
 
 /** Recent (time, saturation, speed, PO2, O2 content, virtual-PO2 factor of the blood around it) samples of the followed cell, for the sparkline. Not reactive on purpose. */
