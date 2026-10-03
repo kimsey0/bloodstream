@@ -33,9 +33,9 @@ on desktop and on phones.
 - **Change the activity level.** Go from rest to maximal exercise. Heart rate,
   cardiac output, O₂ use, flow distribution, capillary recruitment and
   blood chemistry all change together.
-- **Watch the Bohr effect.** Blood picks up CO₂ as it gives up O₂, and in
-  working muscle also acid and heat. The followed cell's panel shows pH,
-  PCO₂, temperature and P50 rising along a capillary, which helps unload
+- **Watch the Bohr effect.** Blood picks up CO₂ as it gives up O₂, which
+  makes it more acidic. The followed cell's panel shows PCO₂ and P50
+  rising and pH falling along a capillary, which helps unload
   O₂, then falling again in the lungs as CO₂ leaves.
 - **See blood's true colour.** The default blue → red code is easy to
   read, but real blood is never blue. Switch to true colour to see
@@ -58,13 +58,14 @@ the test suite checks them against published values.
 |---|---|---|
 | Blood volume / share in systemic veins | 4.8 L / 64 % | ~5 L / ~64 % |
 | Arterial / mixed venous O₂ saturation at rest | 97.5 % / 73 % | 97–98 % / ~75 % |
-| Mixed venous PCO₂ / pH at rest | 45 mmHg / 7.36 | 45–46 / ~7.37 |
+| Mixed venous PCO₂ / pH at rest | 47 mmHg / 7.37 | 45–46 / ~7.37 |
 | Time for blood to load O₂ in a lung capillary | ≈ 0.25 s of a 0.75 s transit | ~0.25 s of ~0.75 s |
 | Coronary sinus / jugular / renal vein saturation | 32 / 66 / 89 % | 25–40 / 55–75 / ~90 % |
 | Mean red-cell circulation time at rest / max exercise | 54 s / 13 s | ~60 s (blood) / ~13 s |
 | Cardiac output and O₂ use at maximal exercise | 22 L/min, 3.25 L/min | 20–25, ~3.2 L/min |
-| Arterial / mixed venous / femoral venous saturation at max | 94 % / 21 % / 16 % | 94–96 / 20–30 / 10–25 % |
-| Femoral venous pH / temperature at max | 7.09 / 39.5 °C | ~7.0–7.2 / ~39.5 °C |
+| Alveolar–arterial PO₂ difference at max | 20 mmHg | 15–25 mmHg |
+| Arterial / mixed venous / femoral venous saturation at max | 96 % / 24 % / 18 % | ≥ 95 / 20–30 / ~15 % |
+| Femoral venous pH / P50 at max | 7.21 / 36 mmHg | 7.19–7.21 / 37.5 ± 3.1 mmHg |
 | Capillary RBC speed / venule speed | 0.25–0.8 mm/s / ~2 mm/s | 0.2–1.5 / 0.2–4 mm/s |
 
 The dissociation curve is Severinghaus's (P50 26.8 mmHg). The single
@@ -133,7 +134,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (77 tests)
+npm test            # physiology validation suite (78 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```
@@ -159,8 +160,9 @@ whether the emergent numbers still match the references.
 - Activity changes take effect almost immediately rather than over 1–2
   minutes. Exercise means running, so the arms barely work.
 - Atria and veins carry no pulse.
-- The lungs reset blood chemistry to arterial values, standing in for the
-  liver and skin that really clear working muscle's lactate and heat.
+- The lungs have no ventilation–perfusion mismatch. Their diffusing
+  capacity during exercise is set so the alveolar–arterial PO₂ difference
+  matches measurements.
 
 ## Sources
 
@@ -171,7 +173,10 @@ Physiol 1979 (O₂ dissociation); Imai, *Allosteric Effects in Haemoglobin*
 Fung 1972 (red-cell shape); Pries et al. 1990 (capillary haematocrit);
 Åstrand & Rodahl, *Textbook of Work Physiology* and Rowell, *Human
 Circulation* (exercise); Dempsey & Wagner, J Appl Physiol 1999 (blood gases
-at maximal exercise); Machado et al. 2009 (colour-vision simulation).
+at maximal exercise); Calbet et al., Am J Physiol 2005 and González-Alonso &
+Calbet, Circulation 2003 (limb venous blood at maximal exercise); Hopkins
+et al., Respir Physiol 1996 (pulmonary transit); Richardson et al., J Clin
+Invest 1995 (muscle intracellular PO₂); Machado et al. 2009 (colour-vision simulation).
 Details and specific values are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 and in the doc comments of `src/physiology/`.
 

@@ -110,19 +110,24 @@ non-respiratory (lactic) fall in pH, and temperature above 37 °C.
 
 - Every tissue adds CO2 in proportion to the O2 it uses (the respiratory
   quotient, 0.8 at rest rising to 1.1 at maximal work). Working muscle also
-  adds lactic acid and heat.
+  warms its venous blood by up to 0.2 °C: femoral venous blood runs only
+  ~0.1 °C above core temperature (González-Alonso & Calbet 2003).
 - Veins mix chemistry by flow, as they mix O2 content.
-- PCO2 follows from a whole-blood CO2 capacitance of 0.8 mL/dL/mmHg, and
-  pH falls 0.008 per mmHg PCO2. Both come from Guyton & Hall's arterial and
-  venous values (CO2 48 → 52 mL/dL, PCO2 40 → 45 mmHg, pH 7.41 → 7.37) and
-  include the Haldane effect.
+- PCO2 follows from a whole-blood CO2 capacitance of 0.55 mL/dL/mmHg, and
+  pH falls 0.004 per mmHg PCO2. Both come from one study's arterial,
+  femoral venous and right atrial blood at rest and at maximal exercise
+  (Calbet et al. 2005), and include the Haldane effect. With these slopes
+  CO2 alone accounts for the leg's arterial–venous pH difference at
+  maximal exercise, so muscle adds no further acid.
 - The lungs return blood to the activity level's arterial chemistry. At
   rest that is pH 7.40, PCO2 40 mmHg, 37 °C. At maximal work it is
-  pH ≈ 7.32 (lactate), PCO2 34 mmHg (hyperventilation) and 38.5 °C.
+  pH ≈ 7.33 (lactate), PCO2 34 mmHg (hyperventilation) and 38.5 °C (blood
+  warms ~1.5 °C over a progressive test; Dempsey & Wagner 1999).
 
 The resulting P50 runs from 26.9 mmHg in arterial blood at rest to 28 in
-mixed venous blood, 30 in the coronary sinus, and 42 in working-muscle
-venous blood at maximal exercise.
+mixed venous blood and 30 in the coronary sinus. At maximal exercise it is
+31 in arterial and 36 in femoral venous blood (Calbet 2005 measured
+37.5 ± 3.1).
 
 ### Capillary exchange
 
@@ -227,11 +232,12 @@ level:
 | Cardiac output (L/min) | 5 | 9 | 16 | 22 |
 | VO2 (L/min) | 0.25 | 0.875 | 2.0 | 3.25 |
 | Muscle capillary recruitment | 1× | 2.2× | 3.2× | 4× |
-| Lung capillary recruitment / DLO2 | 1× / 25 | 1.3× / 35 | 1.8× / 55 | 2.2× / 75 |
+| Lung capillary recruitment / DLO2 | 1× / 25 | 1.3× / 35 | 1.8× / 62 | 2.2× / 85 |
 | Alveolar PO2 (mmHg) | 100 | 103 | 107 | 115 |
 | CO2 output / O2 use (RQ) | 0.8 | 0.85 | 0.95 | 1.1 |
-| Arterial PCO2 / pH / temperature | 40 / 7.40 / 37 | 40 / 7.40 / 37.2 | 38 / 7.39 / 37.8 | 34 / 7.32 / 38.5 |
-| Working-muscle venous lactic pH fall / temperature rise | 0 / 0 | 0 / 0.3 °C | 0.02 / 0.7 °C | 0.05 / 1.0 °C |
+| Arterial PCO2 / pH / temperature | 40 / 7.40 / 37 | 40 / 7.40 / 37.2 | 38 / 7.39 / 37.8 | 34 / 7.33 / 38.5 |
+| Working-muscle venous temperature rise | 0 | 0.1 °C | 0.15 °C | 0.2 °C |
+| Muscle intracellular (tissue) PO2 | resting value | → | → | 3 mmHg |
 
 Flow and VO2 are set per tissue. Muscle takes what the other tissues
 don't, and its extra flow and VO2 go mostly to the legs (thighs 25 % each,
@@ -409,7 +415,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 77 headless tests. The main emergent results:
+`npm test` runs 78 headless tests. The main emergent results:
 
 | Quantity | Model | Reference |
 |---|---|---|
@@ -418,15 +424,15 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 | Mean circulation time, red cells / plasma | 54 s / 58 s | ~60 s; F-cell ratio ~0.9 |
 | Arterial SO2 / PO2 | 97.5 % / 96 mmHg | 97–98 % / 95–100 |
 | Mixed venous SO2 / PO2 | 73 % / 41 mmHg | ~75 % / ~40 |
-| Mixed venous PCO2 / pH | 45 mmHg / 7.36 | 45–46 / ~7.37 |
-| Coronary sinus PCO2 | 53 mmHg | ~50–55 |
+| Mixed venous PCO2 / pH | 47 mmHg / 7.37 | 45–46 / ~7.37 |
 | Lung capillary: time to 95 % PO2 equilibrium | ≈ 0.25 s of 0.75 s | ~0.25 s of 0.75 s |
 | Coronary sinus / jugular / renal vein SO2 | 32 / 66 / 89 % | 25–40 / 55–75 / ~90 % |
 | Median circuit via heart wall / brain / kidney / thigh muscle / foot / gut → liver | ~17 / 21 / 23 / 62 / 94 / 98 s | |
 | Peak / mean aortic flow at rest | ~4.5× | ~4–6× |
-| Maximal exercise: arterial / mixed venous / femoral venous SO2 | 94.0 / 21 / 16 % | 94–96 / 20–30 / 10–25 % |
-| Maximal exercise: femoral venous pH / PCO2 / temperature | 7.09 / 56 / 39.5 °C | ~7.0–7.2 / 55–75 / ~39.5 |
-| Maximal exercise: P50 rise along a working-muscle capillary | 31 → 42 mmHg | |
+| Maximal exercise: arterial PO2 / alveolar–arterial difference | 95 / 20 mmHg | 15–25 mmHg difference at VO2max 35–55 mL/kg/min |
+| Maximal exercise: arterial / mixed venous / femoral venous SO2 | 96 / 24 / 18 % | ≥ 95 / 20–30 / ~15 % (average subjects) |
+| Maximal exercise: femoral venous PO2 / pH / PCO2 | 20 mmHg / 7.21 / 66 | ~20 (average) / 7.19–7.21 / 72 (elite) |
+| Maximal exercise: femoral venous P50 | 36 mmHg | 37.5 ± 3.1 |
 | Maximal exercise: lung transit / mean circulation | 0.37 s / 13 s | 0.3–0.45 s / ~13 s |
 
 Other checks:
@@ -459,11 +465,16 @@ Other checks:
 - Blood chemistry shifts in step with O2 exchange. In reality CO2 diffuses
   faster than O2, so the shift may run slightly ahead.
 - The lungs return blood to arterial chemistry. That is mostly unloading
-  CO2, but they also stand in for clearing the extra lactate and heat that
-  working muscle adds (in reality the liver, heart and skin do that).
-- Arterial PO2 at maximal exercise (82 mmHg, with alveolar PO2 115) is at
-  the low end for a moderately fit adult: short pulmonary transits leave
-  some cells partly loaded.
+  CO2, but they also stand in for losing the little heat that working
+  muscle adds (in reality the skin does that).
+- There is no ventilation–perfusion mismatch. In real lungs it causes the
+  whole 5–10 mmHg alveolar–arterial PO2 difference at rest and about half
+  of it at maximal exercise. Here the gap at rest is only 3.5 mmHg (the
+  bronchial shunt). During exercise the diffusing capacity is set so the
+  total gap matches measurements, which makes diffusion carry the part
+  mismatch should.
+- The CO2 slopes are straight lines, fitted at rest and at maximal
+  exercise. The Haldane effect really grows as blood desaturates.
 - Activity changes take effect immediately rather than over 1–2 minutes.
   Exercise is modelled as running, so the arms do little.
 - O2 dot motion is illustrative. The count is quantitative; the drift

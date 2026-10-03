@@ -11,12 +11,12 @@ const maxSs = solveSteadyState(max);
 const seg = (c: Circulation, ss: typeof restSs, id: string) => ss.segments[c.get(id).index];
 
 describe('CO2 and blood chemistry at rest', () => {
-  it('gives mixed venous blood PCO2 ≈ 45 mmHg and pH ≈ 7.37 (Guyton & Hall)', () => {
+  it('gives mixed venous blood PCO2 ≈ 45–48 mmHg and pH ≈ 7.37 (Guyton & Hall; Calbet 2005)', () => {
     const mv = restSs.mixedVenous.conditionsIn;
     expect(mv.pco2).toBeGreaterThan(44);
-    expect(mv.pco2).toBeLessThan(47);
-    expect(mv.pH).toBeGreaterThan(7.34);
-    expect(mv.pH).toBeLessThan(7.38);
+    expect(mv.pco2).toBeLessThan(49);
+    expect(mv.pH).toBeGreaterThan(7.35);
+    expect(mv.pH).toBeLessThan(7.39);
   });
 
   it('returns blood to arterial chemistry in the lungs', () => {
@@ -40,7 +40,10 @@ describe('Bohr effect along capillaries', () => {
   it('builds up as working muscle unloads O2, instead of jumping at the inlet', () => {
     const cap = max.get('leg_L.thigh.muscle.cap');
     const o = maxSs.segments[cap.index];
-    expect(p50(o.conditionsOut) - p50(o.conditionsIn)).toBeGreaterThan(8);
+    expect(p50(o.conditionsOut) - p50(o.conditionsIn)).toBeGreaterThan(4);
+    // Femoral venous in vivo P50 at maximal exercise: 37.5 ± 3.1 mmHg (Calbet 2005, Table 3).
+    expect(p50(o.conditionsOut)).toBeGreaterThan(34);
+    expect(p50(o.conditionsOut)).toBeLessThan(41);
     // A cell's PO2 is continuous from the feeding arterioles into the capillary.
     const upstream = maxSs.segments[cap.prevIndex[0]];
     expect(Math.abs(o.po2In - upstream.po2Out)).toBeLessThan(0.5);
@@ -49,7 +52,7 @@ describe('Bohr effect along capillaries', () => {
   it('keeps capillary PO2 higher for the same O2 extraction, which sustains diffusion', () => {
     const o = seg(max, maxSs, 'leg_L.thigh.muscle.cap');
     const unshifted = po2FromContent(o.contentOut, maxSs.arterial.conditionsIn);
-    expect(o.po2Out - unshifted).toBeGreaterThan(3);
+    expect(o.po2Out - unshifted).toBeGreaterThan(2);
   });
 
   it('reverses in the lungs as CO2 leaves, raising haemoglobin affinity for loading', () => {

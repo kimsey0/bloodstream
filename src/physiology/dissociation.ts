@@ -58,13 +58,18 @@ export const ARTERIAL_CHEMISTRY: Chemistry = { co2: 0, acid: 0, heat: 0 };
 
 /**
  * Whole-blood CO2 capacitance in vivo, mL CO2 per mL blood per mmHg, and the
- * fall in pH per mmHg PCO2. Guyton & Hall ch. 41: blood gains 4 mL CO2/dL
- * between arterial PCO2 40 and venous 45 mmHg, and pH falls from 7.41 to
- * 7.37. Both slopes include the Haldane effect: deoxygenated haemoglobin
- * takes up more CO2 and H+.
+ * fall in pH per mmHg PCO2, from arterial, femoral venous and right atrial
+ * blood in one study (Calbet et al., Am J Physiol 2005, Table 2):
+ * - pH falls 0.0039 per mmHg across the resting leg (7.41 → 7.38 for
+ *   PCO2 38.9 → 46.6) and 0.0038 at maximal exercise (7.33 → 7.19 for
+ *   34.9 → 72.2).
+ * - The leg's CO2 output (O2 extraction × exchange ratio) over its PCO2 rise
+ *   gives ≈ 0.0055 mL/mL/mmHg, at rest and at maximal exercise alike.
+ * Both slopes include the Haldane effect: deoxygenated haemoglobin takes up
+ * more CO2 and H+.
  */
-export const CO2_CAPACITANCE = 0.008;
-export const PH_PER_MMHG_CO2 = 0.008;
+export const CO2_CAPACITANCE = 0.0055;
+export const PH_PER_MMHG_CO2 = 0.004;
 
 export function conditionsFromChemistry(c: Chemistry): BloodConditions {
   const pco2 = STANDARD_CONDITIONS.pco2 + c.co2 / CO2_CAPACITANCE;

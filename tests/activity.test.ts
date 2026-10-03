@@ -38,9 +38,9 @@ describe('activity levels', () => {
   });
 
   it('keeps arterial blood saturated while venous saturation falls', () => {
-    // At maximal work arterial SO2 dips to ~94–96 %: a widening alveolar–arterial gap, plus
-    // warm, acidic blood (Dempsey & Wagner 1999).
-    for (const { ss } of levels) expect(ss.arterial.saturationIn).toBeGreaterThan(0.93);
+    // At maximal work arterial SO2 dips a little: a widening alveolar–arterial gap, plus warm,
+    // acidic blood (Dempsey & Wagner 1999).
+    for (const { ss } of levels) expect(ss.arterial.saturationIn).toBeGreaterThan(0.95);
     const mv = levels.map((l) => l.ss.mixedVenous.saturationIn);
     for (let i = 1; i < mv.length; i++) expect(mv[i]).toBeLessThan(mv[i - 1]);
     // Mixed venous ~20–30 % and femoral venous ~10–25 % at maximal exercise.
@@ -51,25 +51,36 @@ describe('activity levels', () => {
     expect(thigh).toBeLessThan(0.25);
   });
 
+  it('widens the alveolar–arterial PO2 difference with work, to 15–25 mmHg at maximal (Dempsey & Wagner 1999)', () => {
+    const gaps = levels.map(({ a, ss }) => a.alveolarPo2 - ss.arterial.po2In);
+    for (let i = 1; i < gaps.length; i++) expect(gaps[i]).toBeGreaterThan(gaps[i - 1]);
+    expect(gaps[3]).toBeGreaterThan(15);
+    expect(gaps[3]).toBeLessThan(25);
+    expect(max.ss.arterial.saturationIn).toBeGreaterThan(0.95);
+  });
+
   it('shortens pulmonary capillary transit to ~0.35–0.45 s at maximal exercise despite recruitment', () => {
     const t = max.circ.get('lung_L.cap').transit;
     expect(t).toBeGreaterThan(0.3);
     expect(t).toBeLessThan(0.45);
   });
 
-  it('makes working-muscle venous blood hot, acidic and high in CO2 at maximal exercise', () => {
+  it('makes working-muscle venous blood acidic and high in CO2 at maximal exercise', () => {
     const femoral = max.ss.segments[max.circ.get('femoral_vein_L').index].conditionsIn;
-    expect(femoral.pco2).toBeGreaterThan(50);
-    expect(femoral.pco2).toBeLessThan(70);
-    expect(femoral.pH).toBeGreaterThan(7.0);
-    expect(femoral.pH).toBeLessThan(7.2);
-    expect(femoral.temperature).toBeGreaterThan(39);
+    // Calbet 2005: femoral venous PCO2 72, pH 7.19 ± 0.05; Richardson 1995: pH 7.21.
+    expect(femoral.pco2).toBeGreaterThan(55);
+    expect(femoral.pco2).toBeLessThan(75);
+    expect(femoral.pH).toBeGreaterThan(7.12);
+    expect(femoral.pH).toBeLessThan(7.28);
     // Arterial blood: hyperventilation lowers PCO2, lactate lowers pH, and the body warms.
     const art = max.ss.arterial.conditionsIn;
     expect(art.pco2).toBeLessThan(36);
-    expect(art.pH).toBeGreaterThan(7.25);
-    expect(art.pH).toBeLessThan(7.35);
+    expect(art.pH).toBeGreaterThan(7.28);
+    expect(art.pH).toBeLessThan(7.36);
     expect(art.temperature).toBeGreaterThan(38);
+    // Femoral venous blood is only ~0.1–0.2 °C warmer than core (González-Alonso & Calbet 2003).
+    expect(femoral.temperature - art.temperature).toBeGreaterThan(0.05);
+    expect(femoral.temperature - art.temperature).toBeLessThan(0.3);
     // The brain makes no lactate and little heat: only CO2 changes its blood.
     const brain = max.ss.exchange.get(max.circ.get('brain_L.cap').index)!;
     expect(brain.conditionsOut.temperature).toBeCloseTo(art.temperature, 6);

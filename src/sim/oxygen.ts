@@ -16,8 +16,8 @@
  *   average cell gives up exactly VO2 / flow (the Fick principle). Each
  *   cell's extraction then depends on its own transit time.
  *
- * The dissociation curve shifts along the way. Blood picks up CO2 (and, in
- * working muscle, acid and heat) as it unloads O2, so the curve moves right
+ * The dissociation curve shifts along the way. Blood picks up CO2, and with
+ * it acid (and, in working muscle, a little heat), as it unloads O2, so the curve moves right
  * and helps unloading: the Bohr effect. In the lungs CO2 leaves and the
  * curve moves back left, which helps loading. The shift is tied to the
  * exchange: conditions move from the inlet's to the outlet's as O2 content
@@ -273,11 +273,10 @@ const addChemistry = (a: Chemistry, b: Chemistry, w = 1): Chemistry => ({
  * capillary bed.
  *
  * Tissues add CO2 in proportion to the O2 they use (the respiratory
- * quotient); working muscle also adds lactic acid and heat. Everything mixes
- * by flow in the veins. The lungs return blood to arterial chemistry. That
- * is mostly unloading CO2; for the small excess of lactate and heat that
- * working muscle adds, the lungs also stand in for its clearance elsewhere
- * (liver, skin), so arterial blood keeps the activity level's chemistry.
+ * quotient); working muscle also adds a little heat. Everything mixes by
+ * flow in the veins. The lungs return blood to arterial chemistry: they
+ * unload the CO2, and stand in for the skin in shedding the heat, so
+ * arterial blood keeps the activity level's chemistry.
  */
 export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.activity): SteadyState {
   const n = circ.segments.length;

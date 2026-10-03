@@ -143,8 +143,9 @@ export class Circulation {
       if (s.supply !== undefined) s.supply = flow;
       if (s.exchange?.type === 'tissue') {
         const w = workingFraction(s);
-        // Exercising muscle uses O2 faster than it diffuses in: tissue PO2 falls towards a few mmHg.
-        const tissuePo2 = s.tissue === 'muscle' ? s.exchange.tissuePo2 - (s.exchange.tissuePo2 - 4) * a.level : s.exchange.tissuePo2;
+        // Exercising muscle uses O2 faster than it diffuses in: intracellular PO2 falls to ~3 mmHg
+        // (myoglobin spectroscopy, Richardson et al., J Clin Invest 1995).
+        const tissuePo2 = s.tissue === 'muscle' ? s.exchange.tissuePo2 - (s.exchange.tissuePo2 - 3) * a.level : s.exchange.tissuePo2;
         s.exchange = {
           ...s.exchange,
           vo2,
