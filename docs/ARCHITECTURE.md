@@ -294,17 +294,20 @@ low-affinity haemoglobin.
   - Alveolar PO2 shifts by what the alveolar gas equation predicts.
   - Lung diffusing capacity scales with Hb, as for DLCO (Cotes; ATS/ERS
     2017).
-- **Compensation** (`src/sim/compensation.ts`):
-  - Heart, brain and muscle raise their flow, bed by bed, until their cells
-    have the tissue PO2 they would have with normal blood at the same
-    activity. Each is limited by its maximal dilation: coronary 4×,
-    cerebral 2×, muscle 1.5×. Leg flow during submaximal exercise at
-    altitude is barely raised; extraction rises instead.
-  - Other tissues dilate only to keep their cells above 2 mmHg, opening
-    capillaries as they do.
-  - The beds are solved one by one against the arterial blood of a lenient
-    steady state (one in which a tissue short of O2 doesn't stop the
-    solve), twice.
+- **Compensation** (`src/sim/compensation.ts`): tissues respond to their
+  O2 delivery (flow × arterial O2 content).
+  - The heart holds its delivery: it already extracts ~70 % of its O2.
+    Varat et al. 1972 report coronary flow rising with cardiac output and
+    coronary sinus PO2 unchanged in anaemia.
+  - Other tissues extract more, up to twice their normal extraction, and
+    only then raise flow. The factor of 2 is fitted so resting cardiac
+    output starts to rise near Hb 7 g/dL, as Varat et al. describe.
+  - Any tissue whose cells would fall below 2 mmHg dilates further, opening
+    capillaries as it does. Low arterial PO2 can limit diffusion even when
+    delivery suffices.
+  - Maximal dilation: coronary 4×, cerebral 2×, others 3×.
+  - Arterial content comes from a lenient steady state (one in which a
+    tissue short of O2 doesn't stop the solve), run twice.
   - Cardiac output is the sum of all bed flows, capped at 22 L/min by
     trimming muscle. Heart rate scales with it.
 - **Limits:** when some tissue still cannot get its VO2 (`O2SupplyError`),
@@ -315,11 +318,16 @@ Results:
 
 | Scenario | Rest | Highest sustained level |
 |---|---|---|
-| Anaemia, Hb 8 | SaO2 97 %, CaO2 10.7 mL/dL, cardiac output +25 % | walking |
-| 30 % COHb | PaO2 95 mmHg but SaO2 69 % | jogging |
-| 4,500 m | PaO2 50 mmHg, SaO2 88 % | walking (SaO2 falls to ~70 %) |
-| Everest summit, Hb 18.5 | PaO2 25 mmHg, SaO2 59 % | rest |
+| Anaemia, Hb 8 | SaO2 97 %, CaO2 10.7 mL/dL, cardiac output +4 % | walking |
+| Anaemia, Hb 7 / 6 / 5 / 4 | cardiac output +10 / +27 / +50 / +84 % | |
+| 30 % COHb | PaO2 93 mmHg but SaO2 69 % | jogging |
+| 3,700 m, Hb 17.6 | SaO2 92 % (measured 92.0 %) | jogging (SaO2 70 %; measured 87 %) |
+| 4,500 m | PaO2 50 mmHg, SaO2 88 % | walking |
+| Everest summit, Hb 18.5 | PaO2 25 mmHg, SaO2 59 %, cardiac output 6.8 L/min | rest |
 | Polycythaemia; low-affinity Hb | normal | maximal |
+
+Exercise at altitude desaturates too much (see docs/SOURCES.md, Known
+disagreements).
 
 ## Geometry
 
@@ -492,7 +500,9 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 94 headless tests. The main emergent results:
+`npm test` runs 96 headless tests. The main emergent results are below;
+[SOURCES.md](SOURCES.md) lists every parameter's source and status, and
+where the model and measurements still disagree.
 
 | Quantity | Model | Reference |
 |---|---|---|

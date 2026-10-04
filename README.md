@@ -79,6 +79,8 @@ the test suite checks them against published values.
 | Capillary RBC speed / venule speed | 0.25–0.8 mm/s / ~2 mm/s | 0.2–1.5 / 0.2–4 mm/s |
 | Barometric / alveolar PO₂ on the Everest summit at rest | 253 / 35 mmHg | 253 / 35 mmHg (West et al. 1983) |
 | P50 of the remaining Hb at 30 % / 50 % COHb | 18 / 13 mmHg | falls with COHb (Roughton & Darling 1944) |
+| Resting SaO₂ at 3,700 m, acclimatized (Hb 17.6) | 92 % | 92.0 % (Brutsaert et al. 2000) |
+| Resting cardiac output in anaemia, Hb 8 / 6 / 4 | +4 / +27 / +84 % | rises below Hb ~7 (Varat et al. 1972) |
 
 The dissociation curve is Severinghaus's (P50 26.8 mmHg). The single
 haemoglobin molecule uses Imai's Adair constants with binding rates in
@@ -126,8 +128,10 @@ render/ + ui/     three.js body, vessels and cells; Svelte HUD;
   In both scales lightness rises steadily, and both are tested to stay
   readable with deuteranopia, protanopia and tritanopia.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, the
-parameters with their sources, and the known simplifications.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design and
+the known simplifications, and [docs/SOURCES.md](docs/SOURCES.md) for every
+physiological number: its source (with table or page), and whether it is
+measured, derived, fitted to a measurement, or assumed.
 
 ## Project layout
 
@@ -150,7 +154,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (94 tests)
+npm test            # physiology validation suite (96 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```
@@ -161,9 +165,10 @@ to GitHub Pages ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
 need the whole app in one file.
 
 Contributions are welcome. Please keep physiological changes backed by a
-source, and run `npm run typecheck && npm test` before opening a pull
-request. If you change a parameter, the validation tests will tell you
-whether the emergent numbers still match the references.
+source, record each number in [docs/SOURCES.md](docs/SOURCES.md), and run
+`npm run typecheck && npm test` before opening a pull request. If you
+change a parameter, the validation tests will tell you whether the
+emergent numbers still match the references.
 
 ## Known simplifications
 
@@ -176,9 +181,11 @@ whether the emergent numbers still match the references.
 - Activity changes take effect almost immediately rather than over 1–2
   minutes. Exercise means running, so the arms barely work.
 - Atria and veins carry no pulse.
-- "What if" compensation is by blood flow only, and partly assumed: how far
-  each organ dilates, and that tissues other than heart, brain and muscle
-  dilate only as a rescue. Arterial PCO₂ at altitude is interpolated
+- "What if" compensation is by blood flow only, partly assumed: how far
+  each organ dilates, and one extraction reserve for all organs but the
+  heart (fitted to cardiac output in anaemia, Varat et al. 1972).
+  Exercise at altitude desaturates more than measured (Brutsaert et al.
+  2000), because the lungs have no ventilation–perfusion mismatch. Arterial PCO₂ at altitude is interpolated
   between sea level and West's measurements above 7,800 m. Acclimatization
   beyond breathing (more Hb, more 2,3-DPG) is left to the sliders.
 - The lungs have no ventilation–perfusion mismatch. Their diffusing
@@ -193,7 +200,8 @@ Physiol 1979 (O₂ dissociation); Imai, *Allosteric Effects in Haemoglobin*
 (Adair constants); Roughton & Darling 1944 (CO and the O₂ curve); West et
 al., J Appl Physiol 1983 and West 1996 (Everest gas exchange, model
 atmosphere); Cotes et al. / ATS–ERS 2017 (Hb correction of diffusing
-capacity); Gibson and colleagues (O₂ binding kinetics); Evans &
+capacity); Varat et al., Am Heart J 1972 (anaemia); Brutsaert et al., Am J
+Phys Anthropol 2000 (SaO₂ at altitude); Gibson and colleagues (O₂ binding kinetics); Evans &
 Fung 1972 (red-cell shape); Pries et al. 1990 (capillary haematocrit);
 Åstrand & Rodahl, *Textbook of Work Physiology* and Rowell, *Human
 Circulation* (exercise); Dempsey & Wagner, J Appl Physiol 1999 (blood gases

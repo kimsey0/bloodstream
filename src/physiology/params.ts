@@ -1,5 +1,7 @@
 /**
- * Whole-body parameters for a resting adult (70 kg, Hb 15 g/dL).
+ * Whole-body parameters for a resting adult (70 kg, Hb 15 g/dL). Every
+ * physiological number in the model is listed, with its source and status,
+ * in docs/SOURCES.md.
  *
  * Sources (textbook reference values):
  * - Cardiac output, VO2, blood volume: Guyton & Hall, Textbook of Medical
