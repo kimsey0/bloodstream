@@ -219,8 +219,10 @@ export class Simulation {
    * Switch to a new physiological state (another activity level) on the same graph. Cells stay
    * where they are and keep their chosen next segment: time already spent in a segment is
    * rescaled to its new transit time, and O2 content is kept. The heartbeat keeps its phase.
+   * When the blood itself changed (`reseedO2`, e.g. another Hb or CO level), contents are reset to
+   * the new steady state instead: blood with other haemoglobin cannot keep its old content.
    */
-  setState(circulation: Circulation, steady: SteadyState, heartRate: number): void {
+  setState(circulation: Circulation, steady: SteadyState, heartRate: number, reseedO2 = false): void {
     const old = this.circulation.segments;
     this.circulation = circulation;
     this.steady = steady;
@@ -232,6 +234,12 @@ export class Simulation {
       const ratio = circulation.segments[k].transit / old[k].transit;
       this.elapsed[i] *= ratio;
       this.duration[i] *= ratio;
+      if (reseedO2) {
+        const ex = this.exchange[k];
+        const c0 = steady.segments[k].contentIn;
+        this.content[i] = ex ? integrateContent(c0, this.elapsed[i], ex) : c0;
+        this.po2Now[i] = -1;
+      }
       this.refresh(i);
     }
     this.waveform = heartRate > 0 ? new CardiacWaveform(heartRate) : null;

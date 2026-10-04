@@ -16,7 +16,7 @@
 
 /** O2 content constants for whole blood. */
 export const BLOOD = {
-  /** Haemoglobin concentration, g/mL (15 g/dL, adult male reference). */
+  /** Normal haemoglobin concentration, g/mL (15 g/dL, adult male reference). */
   hb: 0.15,
   /** Hüfner's constant as measured in vivo, mL O2 per g Hb. */
   hufner: 1.34,
@@ -26,8 +26,106 @@ export const BLOOD = {
   solubilityMicromolar: 1.38,
 } as const;
 
-/** Maximum Hb-bound O2, mL O2 per mL blood (≈ 0.201). */
-export const O2_CAPACITY = BLOOD.hb * BLOOD.hufner;
+/**
+ * The blood's haemoglobin, which "what if" scenarios change:
+ * - concentration, g/dL (anaemia, polycythaemia);
+ * - the fraction bound to carbon monoxide (COHb), which carries no O2;
+ * - the standard P50 (pH 7.4, PCO2 40, 37 °C), which 2,3-DPG and fetal
+ *   haemoglobin shift. Normal adult blood: 26.8 mmHg.
+ */
+export interface Haemoglobin {
+  hb: number;
+  coFraction: number;
+  p50: number;
+}
+
+/** P50 of Severinghaus's standard curve, mmHg. */
+export const STANDARD_P50 = 26.86;
+
+export const NORMAL_HAEMOGLOBIN: Haemoglobin = { hb: BLOOD.hb * 100, coFraction: 0, p50: STANDARD_P50 };
+
+let haemoglobin: Haemoglobin = NORMAL_HAEMOGLOBIN;
+/** PO2 multiplier that moves the standard P50 to haemoglobin.p50. */
+let p50Factor = 1;
+/** O2 saturation against virtual PO2 with carbon monoxide present, on a fixed grid (null without CO). */
+let coCurve: Float64Array | null = null;
+
+/** Total haemoglobin O2 capacity, mL O2 per mL blood (≈ 0.201 at 15 g/dL). Includes Hb bound to CO. */
+export let O2_CAPACITY = BLOOD.hb * BLOOD.hufner;
+
+export function currentHaemoglobin(): Haemoglobin {
+  return haemoglobin;
+}
+
+export function isNormalHaemoglobin(h: Haemoglobin = haemoglobin): boolean {
+  return h.coFraction === 0 && Math.abs(h.hb - NORMAL_HAEMOGLOBIN.hb) < 1e-9 && Math.abs(h.p50 - STANDARD_P50) < 1e-9;
+}
+
+/**
+ * Set the blood's haemoglobin. Every curve function in this module, and so the whole simulation,
+ * uses it. Saturation is then the fraction of all haemoglobin carrying O2 (as a co-oximeter
+ * reports it), so with CO it can never reach 100 %.
+ */
+export function setHaemoglobin(h: Haemoglobin): void {
+  haemoglobin = h;
+  O2_CAPACITY = (h.hb / 100) * BLOOD.hufner;
+  p50Factor = STANDARD_P50 / h.p50;
+  coCurve = h.coFraction > 0 ? buildCoCurve(h.coFraction) : null;
+}
+
+/** Severinghaus's curve at standard conditions. */
+function severinghaus(po2: number): number {
+  if (po2 <= 0) return 0;
+  const x = po2 * po2 * po2 + 150 * po2;
+  return x / (x + 23400);
+}
+
+function severinghausSlope(po2: number): number {
+  if (po2 <= 0) return 150 / 23400;
+  const x = po2 * po2 * po2 + 150 * po2;
+  const dx = 3 * po2 * po2 + 150;
+  return (23400 * dx) / ((x + 23400) * (x + 23400));
+}
+
+/** Inverse of Severinghaus's curve (Cardano: P³ + 150 P − q = 0, q = 23400 S/(1−S)). */
+function severinghausInverse(saturation: number): number {
+  if (saturation <= 0) return 0;
+  const s = Math.min(saturation, 1 - 1e-12);
+  const q = (23400 * s) / (1 - s);
+  const d = Math.sqrt((q * q) / 4 + 125000); // (150/3)³ = 125 000
+  return Math.cbrt(q / 2 + d) + Math.cbrt(q / 2 - d);
+}
+
+/** Grid of the CO curve: virtual PO2 from 0 to CO_MAX mmHg. */
+const CO_STEP = 0.1;
+const CO_MAX = 1000;
+
+/**
+ * O2 saturation (fraction of all Hb) with a fixed CO fraction f, by Haldane's rule that CO and O2
+ * compete for the same sites (Roughton & Darling 1944): CO acts like extra O2 pressure X, so
+ * Hb holds ligand on a fraction Y = S(P + X) of its sites, of which CO has X / (P + X). X is
+ * whatever keeps the CO share at f, since COHb hardly changes during one circulation. The
+ * remaining haemoglobin holds O2 more tightly: the curve shifts left as well as down.
+ */
+function buildCoCurve(f: number): Float64Array {
+  const n = Math.round(CO_MAX / CO_STEP) + 1;
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = i * CO_STEP;
+    // CO share Y·X/(P+X) rises with X: bisect for X.
+    let lo = 0;
+    let hi = 1e6;
+    for (let k = 0; k < 80; k++) {
+      const x = (lo + hi) / 2;
+      const y = severinghaus(p + x);
+      if ((y * x) / (p + x) < f) lo = x;
+      else hi = x;
+    }
+    const x = (lo + hi) / 2;
+    out[i] = Math.max(0, severinghaus(p + x) - f);
+  }
+  return out;
+}
 
 export interface BloodConditions {
   /** Plasma pH. */
@@ -81,43 +179,53 @@ export function conditionsFromChemistry(c: Chemistry): BloodConditions {
 }
 
 /**
- * Factor converting actual PO2 to the equivalent PO2 under standard
- * conditions. Coefficients: Severinghaus 1979 (pH 0.40 per unit, CO2 0.06
- * per log10 unit, temperature 0.024 per °C).
+ * Factor converting actual PO2 to the equivalent PO2 on the standard curve.
+ * Coefficients: Severinghaus 1979 (pH 0.40 per unit, CO2 0.06 per log10
+ * unit, temperature 0.024 per °C). It also carries any shift of the
+ * haemoglobin's own standard P50 (2,3-DPG, fetal Hb).
  */
 export function virtualPo2Factor(c: BloodConditions): number {
-  return Math.pow(
-    10,
-    0.024 * (37 - c.temperature) + 0.4 * (c.pH - 7.4) + 0.06 * Math.log10(40 / c.pco2),
+  return (
+    p50Factor *
+    Math.pow(10, 0.024 * (37 - c.temperature) + 0.4 * (c.pH - 7.4) + 0.06 * Math.log10(40 / c.pco2))
   );
 }
 
-/** Fractional saturation (0–1) at standard conditions for a given PO2 (mmHg). */
+/** Fractional saturation (0–1 of all Hb) against virtual PO2 (mmHg). */
 export function saturationStandard(po2: number): number {
+  if (!coCurve) return severinghaus(po2);
   if (po2 <= 0) return 0;
-  const x = po2 * po2 * po2 + 150 * po2;
-  return x / (x + 23400);
+  const x = po2 / CO_STEP;
+  const i = Math.floor(x);
+  if (i >= coCurve.length - 1) return coCurve[coCurve.length - 1];
+  return coCurve[i] + (coCurve[i + 1] - coCurve[i]) * (x - i);
 }
 
-/** d(S)/d(PO2) at standard conditions, per mmHg. */
+/** d(S)/d(PO2) against virtual PO2, per mmHg. */
 export function saturationSlopeStandard(po2: number): number {
-  if (po2 <= 0) return 150 / 23400;
-  const x = po2 * po2 * po2 + 150 * po2;
-  const dx = 3 * po2 * po2 + 150;
-  return (23400 * dx) / ((x + 23400) * (x + 23400));
+  if (!coCurve) return severinghausSlope(po2);
+  const i = Math.min(coCurve.length - 2, Math.max(0, Math.floor(po2 / CO_STEP)));
+  return (coCurve[i + 1] - coCurve[i]) / CO_STEP;
 }
 
-/**
- * Inverse of the Severinghaus equation at standard conditions. Solves the
- * depressed cubic P³ + 150 P − q = 0, q = 23400 S/(1−S), with Cardano's
- * formula (one real root because the linear coefficient is positive).
- */
+/** Inverse of saturationStandard. */
 export function po2Standard(saturation: number): number {
+  if (!coCurve) return severinghausInverse(saturation);
   if (saturation <= 0) return 0;
-  const s = Math.min(saturation, 1 - 1e-12);
-  const q = (23400 * s) / (1 - s);
-  const d = Math.sqrt((q * q) / 4 + 125000); // (150/3)³ = 125 000
-  return Math.cbrt(q / 2 + d) + Math.cbrt(q / 2 - d);
+  let lo = 0;
+  let hi = coCurve.length - 1;
+  if (saturation >= coCurve[hi]) return CO_MAX;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (coCurve[mid] < saturation) lo = mid;
+    else hi = mid;
+  }
+  return (lo + (saturation - coCurve[lo]) / (coCurve[hi] - coCurve[lo])) * CO_STEP;
+}
+
+/** Saturation of normal adult blood (no CO, standard P50) under these conditions, whatever the current haemoglobin. */
+export function normalSaturation(po2: number, c: BloodConditions = STANDARD_CONDITIONS): number {
+  return severinghaus((po2 * virtualPo2Factor(c)) / p50Factor);
 }
 
 export function saturation(po2: number, c: BloodConditions = STANDARD_CONDITIONS): number {
@@ -128,9 +236,9 @@ export function po2FromSaturation(s: number, c: BloodConditions = STANDARD_CONDI
   return po2Standard(s) / virtualPo2Factor(c);
 }
 
-/** PO2 at 50 % saturation under the given conditions. */
+/** PO2 at which half the haemoglobin free of CO carries O2, under the given conditions. */
 export function p50(c: BloodConditions = STANDARD_CONDITIONS): number {
-  return po2FromSaturation(0.5, c);
+  return po2FromSaturation(0.5 * (1 - haemoglobin.coFraction), c);
 }
 
 /** Total O2 content (bound + dissolved), mL O2 per mL blood. */

@@ -266,7 +266,60 @@ Rodahl; Rowell; Hsia (pulmonary recruitment); Dempsey & Wagner 1999
 (arterial blood gases at maximal exercise).
 
 `Circulation` takes an activity state. The worker solves each level once
-(~1.5–2 s) and caches it.
+(~1.5–2 s; ~3–4 s in a "what if" scenario) and caches it.
+
+## "What if" scenarios
+
+`src/physiology/scenario.ts` defines a scenario: haemoglobin concentration,
+the fraction bound to CO, the standard P50, altitude, and whether the body
+compensates. Presets cover anaemia (Hb 8), polycythaemia (Hb 19), 4,500 m,
+the Everest summit (with acclimatized Hb 18.5), 30 % COHb, and high- and
+low-affinity haemoglobin.
+
+- **The blood** (`setHaemoglobin` in `dissociation.ts`) is module state
+  that every curve function reads, in the worker and on the main thread.
+  - O2 capacity follows Hb.
+  - A P50 shift multiplies the virtual-PO2 factor.
+  - CO follows Haldane's rule, as in Roughton & Darling 1944: CO acts like
+    extra O2 pressure, and with COHb held fixed through a circulation, the
+    remaining haemoglobin's curve shifts left (P50 18 mmHg at 30 % COHb).
+    The curve is tabulated once per CO level.
+  - Saturation is the fraction of all haemoglobin carrying O2, as a
+    co-oximeter reports it.
+- **Altitude** (`scenarioActivity`):
+  - Barometric pressure follows West's model atmosphere.
+  - Arterial PCO2 falls with barometric pressure as in acclimatized
+    climbers. The values are West et al. 1983's measurements, 14.3 mmHg at
+    7,830 m and 7.5 on the summit, interpolated linearly to 40 at sea level.
+  - Alveolar PO2 shifts by what the alveolar gas equation predicts.
+  - Lung diffusing capacity scales with Hb, as for DLCO (Cotes; ATS/ERS
+    2017).
+- **Compensation** (`src/sim/compensation.ts`):
+  - Heart, brain and muscle raise their flow, bed by bed, until their cells
+    have the tissue PO2 they would have with normal blood at the same
+    activity. Each is limited by its maximal dilation: coronary 4×,
+    cerebral 2×, muscle 1.5×. Leg flow during submaximal exercise at
+    altitude is barely raised; extraction rises instead.
+  - Other tissues dilate only to keep their cells above 2 mmHg, opening
+    capillaries as they do.
+  - The beds are solved one by one against the arterial blood of a lenient
+    steady state (one in which a tissue short of O2 doesn't stop the
+    solve), twice.
+  - Cardiac output is the sum of all bed flows, capped at 22 L/min by
+    trimming muscle. Heart rate scales with it.
+- **Limits:** when some tissue still cannot get its VO2 (`O2SupplyError`),
+  the worker keeps the previous state and reports the organ. The UI says
+  the activity is beyond this body's VO2max in these conditions.
+
+Results:
+
+| Scenario | Rest | Highest sustained level |
+|---|---|---|
+| Anaemia, Hb 8 | SaO2 97 %, CaO2 10.7 mL/dL, cardiac output +25 % | walking |
+| 30 % COHb | PaO2 95 mmHg but SaO2 69 % | jogging |
+| 4,500 m | PaO2 50 mmHg, SaO2 88 % | walking (SaO2 falls to ~70 %) |
+| Everest summit, Hb 18.5 | PaO2 25 mmHg, SaO2 59 % | rest |
+| Polycythaemia; low-affinity Hb | normal | maximal |
 
 ## Geometry
 
@@ -378,7 +431,7 @@ Rodahl; Rowell; Hsia (pulmonary recruitment); Dempsey & Wagner 1999
 `src/app/main.ts` connects the worker, both scenes and the Svelte HUD
 (`src/ui/`):
 
-- **Dock:** speed, pause, follow, activity, magnifier, reset view and info.
+- **Dock:** speed, pause, follow, activity, "what if", magnifier, reset view and info.
 - **Follow panel:** collapsible to a pill. It shows saturation and PO2,
   location and speed, the blood's pH, PCO2, temperature and P50, a circuit
   timer and previous circuits, an SO2/speed sparkline, the haemoglobin
@@ -396,10 +449,16 @@ Rodahl; Rowell; Hsia (pulmonary recruitment); Dempsey & Wagner 1999
     the path follows the curve during exchange and runs level where
     chemistry changes between vessels.
   - A hover crosshair reads both curves at any PO2.
+  - The y axis switches between saturation and O2 content. When a scenario
+    changes the plotted curve, a dashed curve shows normal blood.
   - Below the chart, O2 content in mL/dL, split into haemoglobin-bound and
     dissolved.
 - **Microscope panel:** collapsible to a pill.
-- **Sheets:** bed picker (all beds, grouped by region) and activity slider.
+- **Sheets:** bed picker (all beds, grouped by region), activity slider,
+  and "What if?" (presets, sliders for Hb, altitude, CO and P50, and the
+  compensation switch). Sheets sit above the dock at its measured height
+  (`--dock-space`). A rejected activity or scenario is explained in the
+  sheet that asked for it.
 - **Tap menu** for organs, and a first-visit hint.
 
 ## Colour scale
@@ -433,7 +492,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 85 headless tests. The main emergent results:
+`npm test` runs 94 headless tests. The main emergent results:
 
 | Quantity | Model | Reference |
 |---|---|---|
@@ -495,6 +554,9 @@ Other checks:
   bronchial shunt). During exercise the diffusing capacity is set so the
   total gap matches measurements, which makes diffusion carry the part
   mismatch should.
+- "What if" compensation is by blood flow only, with partly assumed
+  limits (above). Hb, 2,3-DPG and ventilation changes from acclimatization
+  are not automatic; Hb and P50 can be set by hand.
 - The CO2 slopes are straight lines, fitted at rest and at maximal
   exercise. The Haldane effect really grows as blood desaturates.
 - Activity changes take effect immediately rather than over 1–2 minutes.

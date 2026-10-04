@@ -34,6 +34,10 @@ import {
   ARTERIAL_CHEMISTRY,
   BLOOD,
   conditionsFromChemistry,
+  currentHaemoglobin,
+  isNormalHaemoglobin,
+  NORMAL_HAEMOGLOBIN,
+  setHaemoglobin,
   o2Content,
   O2_CAPACITY,
   po2FromContent,
@@ -44,7 +48,7 @@ import {
   type BloodConditions,
   type Chemistry,
 } from '../physiology/dissociation';
-import { arterialChemistry } from '../physiology/activity';
+import { arterialChemistry, REST_STATE } from '../physiology/activity';
 import { SEGMENT_DEFS } from '../physiology/anatomy';
 import { DIFFUSION, REST } from '../physiology/params';
 import { Circulation } from './circulation';
@@ -253,7 +257,7 @@ export function meanCapillaryPo2(ex: ExchangeModel, contentIn: number, nodes: nu
 }
 
 /** Expected outlet content over a transit-time distribution. */
-function expectedOutletContent(contentIn: number, nodes: number[], ex: ExchangeModel): number {
+export function expectedOutletContent(contentIn: number, nodes: number[], ex: ExchangeModel): number {
   let c = 0;
   for (const t of nodes) c += integrateContent(contentIn, t, ex);
   return c / nodes.length;
@@ -292,7 +296,7 @@ export interface SteadyState {
   mixedVenous: SegmentO2;
 }
 
-const addChemistry = (a: Chemistry, b: Chemistry, w = 1): Chemistry => ({
+export const addChemistry = (a: Chemistry, b: Chemistry, w = 1): Chemistry => ({
   co2: a.co2 + w * b.co2,
   acid: a.acid + w * b.acid,
   heat: a.heat + w * b.heat,
@@ -309,7 +313,19 @@ const addChemistry = (a: Chemistry, b: Chemistry, w = 1): Chemistry => ({
  * unload the CO2, and stand in for the skin in shedding the heat, so
  * arterial blood keeps the activity level's chemistry.
  */
-export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.activity): SteadyState {
+/** Thrown when a tissue cannot get the O2 it uses: the scenario or activity is beyond the body's limits. */
+export class O2SupplyError extends Error {
+  constructor(readonly segment: string) {
+    super(`${segment}: O2 diffusion cannot meet the tissue's VO2`);
+  }
+}
+
+export interface SolveOptions {
+  /** Don't throw when a tissue cannot get its VO2; hold its cells at PO2 0 instead (for estimates). */
+  lenient?: boolean;
+}
+
+export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.activity, opts: SolveOptions = {}): SteadyState {
   const n = circ.segments.length;
   const lungCaps = circ.segments.filter((s) => s.exchange?.type === 'lung');
   const vc = lungCaps.reduce((a, s) => a + s.volume, 0);
@@ -377,8 +393,9 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
   }
   sweep();
 
-  // Diffusing capacities: calibrated from tissue PO2 at rest, scaled from the resting values otherwise.
-  const resting = circ.activity.level === 0;
+  // Diffusing capacities: calibrated from tissue PO2 for normal blood at rest at sea level, and
+  // scaled from those resting values otherwise.
+  const resting = circ.activity.level === 0 && params.alveolarPo2 === REST_STATE.alveolarPo2 && isNormalHaemoglobin();
   const rest = resting ? null : restingBeds();
   const exchange = new Map<number, ExchangeModel>();
   for (const s of circ.segments) {
@@ -392,9 +409,8 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
       if (!rest) {
         model = calibrateTissue(contentIn[i], contentOut[i], condIn, condOut, s.exchange.tissuePo2, nodes, s.id);
       } else {
-        const recruits = s.tissue === 'muscle' || s.tissue === 'heart';
-        const dm = rest.capacity[i] * (recruits ? Math.pow(s.flow / rest.flow[i], DIFFUSION.recruitmentExponent) : 1);
-        model = tissueAtCapacity(contentIn[i], contentOut[i], condIn, condOut, dm / 60 / s.volume, nodes, s.id);
+        const dm = rest.capacity[i] * diffusionScale(s.tissue, s.flow / rest.flow[i], circ.activity.bedFlowScale?.[s.id] ?? 1);
+        model = tissueAtCapacity(contentIn[i], contentOut[i], condIn, condOut, dm / 60 / s.volume, nodes, s.id, opts.lenient ?? false);
       }
     } else continue;
     model.diffusingCapacity = model.conductance * s.volume * 60;
@@ -436,16 +452,33 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
   };
 }
 
+/**
+ * Diffusing capacity relative to rest, as the steady state computes it: muscle and heart recruit
+ * with flow (`flowRatio` = flow / resting flow); other tissues recruit only with compensating
+ * dilation (`factor`); the brain does not recruit.
+ */
+export function diffusionScale(tissue: string | undefined, flowRatio: number, factor: number): number {
+  if (tissue === 'muscle' || tissue === 'heart') return Math.pow(flowRatio, DIFFUSION.recruitmentExponent);
+  if (tissue === 'brain') return 1;
+  return Math.pow(factor, DIFFUSION.recruitmentExponent);
+}
+
 /** Resting O2 diffusing capacity (mL/min/mmHg) and flow (mL/s) of every bed, solved once. */
 let restCache: { capacity: Float64Array; flow: Float64Array } | null = null;
-function restingBeds(): { capacity: Float64Array; flow: Float64Array } {
+export function restingBeds(): { capacity: Float64Array; flow: Float64Array } {
   if (!restCache) {
-    const circ = new Circulation();
-    const ss = solveSteadyState(circ);
-    restCache = {
-      capacity: Float64Array.from(circ.segments, (s) => ss.exchange.get(s.index)?.diffusingCapacity ?? 0),
-      flow: Float64Array.from(circ.segments, (s) => s.flow),
-    };
+    const blood = currentHaemoglobin();
+    setHaemoglobin(NORMAL_HAEMOGLOBIN);
+    try {
+      const circ = new Circulation();
+      const ss = solveSteadyState(circ);
+      restCache = {
+        capacity: Float64Array.from(circ.segments, (s) => ss.exchange.get(s.index)?.diffusingCapacity ?? 0),
+        flow: Float64Array.from(circ.segments, (s) => s.flow),
+      };
+    } finally {
+      setHaemoglobin(blood);
+    }
   }
   return restCache;
 }
@@ -487,9 +520,13 @@ function tissueAtCapacity(
   conductance: number,
   nodes: number[],
   id: string,
+  lenient: boolean,
 ): ExchangeModel {
   const at = (tissuePo2: number) => exchangeModel(conductance, tissuePo2, conditionsIn, conditionsOut, cin, ctarget);
-  if (expectedOutletContent(cin, nodes, at(0)) > ctarget) throw new Error(`${id}: O2 diffusion cannot meet the tissue's VO2`);
+  if (expectedOutletContent(cin, nodes, at(0)) > ctarget) {
+    if (lenient) return at(0);
+    throw new O2SupplyError(id);
+  }
   let lo = 0;
   let hi = po2FromContent(ctarget, conditionsOut);
   for (let i = 0; i < 40; i++) {

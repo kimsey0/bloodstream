@@ -5,6 +5,8 @@
   import FollowPanel from './FollowPanel.svelte';
   import MicroPanel from './MicroPanel.svelte';
   import TapMenu from './TapMenu.svelte';
+  import WhatIfPanel from './WhatIfPanel.svelte';
+  import { isNormalScenario, type Scenario } from '../physiology/scenario';
   import { SPEEDS, ui } from './state.svelte';
 
   interface Props {
@@ -18,6 +20,7 @@
     onMicroReset: () => void;
     onFollowCell: (cell: number) => void;
     onActivity: (level: number) => void;
+    onScenario: (scenario: Scenario) => void;
     onDismissHint: () => void;
     onColorScale: (scale: ColorScale) => void;
     capillaryIndex: (id: string) => number;
@@ -34,6 +37,7 @@
     onMicroReset,
     onFollowCell,
     onActivity,
+    onScenario,
     onDismissHint,
     onColorScale,
     capillaryIndex,
@@ -49,6 +53,18 @@
   };
   const speedLabel = (s: number) => (s < 1 ? `${s}×` : `${s}×`);
   const pct = (x: number) => `${Math.round(x * 100)}%`;
+  /** Short description of the "what if" scenario, or '' when normal. */
+  let scenarioText = $derived.by(() => {
+    const s = ui.scenario;
+    if (isNormalScenario(s)) return s.compensate ? '' : 'no compensation';
+    const parts: string[] = [];
+    if (Math.abs(s.hb - 15) > 1e-9) parts.push(`Hb ${s.hb.toFixed(1)}`);
+    if (s.altitude > 0) parts.push(`${Math.round(s.altitude).toLocaleString('en-GB')} m`);
+    if (s.coFraction > 0) parts.push(`CO ${Math.round(s.coFraction * 100)} %`);
+    if (Math.abs(s.p50 - 26.86) > 1e-9) parts.push(`P50 ${s.p50.toFixed(0)}`);
+    if (!s.compensate) parts.push('no compensation');
+    return parts.join(' · ');
+  });
   // The heart icon swells with each ejection.
   let heartScale = $derived(ui.beatPhase < ui.systole ? 1 + 0.25 * Math.sin((Math.PI * ui.beatPhase) / ui.systole) : 1);
 </script>
@@ -65,6 +81,10 @@
 
 {#if ui.activityOpen}
   <ActivityPanel onApply={onActivity} />
+{/if}
+
+{#if ui.whatIfOpen}
+  <WhatIfPanel onApply={onScenario} />
 {/if}
 
 {#if ui.pickerOpen}
@@ -90,6 +110,7 @@
 <header class="brand" class:following={!!ui.follow || ui.view === 'micro'}>
   <h1>Bloodstream</h1>
   <p>{ui.activity.label} · {(ui.cardiacOutput * 0.06).toFixed(1)} L/min · {(ui.bloodVolume / 1000).toFixed(1)} L blood</p>
+  {#if scenarioText}<p class="whatif">What if: {scenarioText}</p>{/if}
 </header>
 
 <div class="clock" class:following={!!ui.follow || ui.view === 'micro'} aria-live="off">
@@ -157,7 +178,7 @@
       aria-label="Activity level"
       title="Activity level"
       aria-expanded={ui.activityOpen}
-      onclick={() => ((ui.activityOpen = !ui.activityOpen), (ui.pickerOpen = false))}
+      onclick={() => ((ui.activityOpen = !ui.activityOpen), (ui.pickerOpen = false), (ui.whatIfOpen = false))}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><circle cx="10" cy="2.6" r="1.6" fill="currentColor" /><path
@@ -172,11 +193,29 @@
     </button>
     <button
       class="icon"
+      class:on={ui.whatIfOpen || !isNormalScenario(ui.scenario) || !ui.scenario.compensate}
+      aria-label="What if: change the blood or the altitude"
+      title="What if: change the blood or the altitude"
+      aria-expanded={ui.whatIfOpen}
+      onclick={() => ((ui.whatIfOpen = !ui.whatIfOpen), (ui.activityOpen = false), (ui.pickerOpen = false))}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true"
+        ><path
+          d="M6 1.8h4M6.8 1.8v4.4L2.6 13a1.2 1.2 0 0 0 1 1.8h8.8a1.2 1.2 0 0 0 1-1.8L9.2 6.2V1.8"
+          stroke="currentColor"
+          stroke-width="1.5"
+          fill="none"
+          stroke-linejoin="round"
+        /><path d="M4.3 10.4h7.4" stroke="currentColor" stroke-width="1.3" /></svg
+      >
+    </button>
+    <button
+      class="icon"
       class:on={ui.pickerOpen || ui.view === 'micro'}
       aria-label="Zoom into a capillary bed"
       title="Zoom into a capillary bed"
       aria-expanded={ui.pickerOpen}
-      onclick={() => ((ui.pickerOpen = !ui.pickerOpen), (ui.activityOpen = false))}
+      onclick={() => ((ui.pickerOpen = !ui.pickerOpen), (ui.activityOpen = false), (ui.whatIfOpen = false))}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path
@@ -318,6 +357,9 @@
     margin: 2px 0 0;
     color: var(--muted);
     font-size: 12px;
+  }
+  .brand p.whatif {
+    color: var(--steel);
   }
   .clock {
     position: absolute;

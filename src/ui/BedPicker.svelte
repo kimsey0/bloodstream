@@ -95,9 +95,9 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 140px);
+    bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(420px, calc(100% - 32px));
-    max-height: calc(100% - 140px - 90px - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100% - var(--dock-space, 150px) - 90px);
     overflow-y: auto;
     padding: 12px 14px;
     background: var(--panel);
@@ -151,8 +151,8 @@
   }
   @media (max-width: 480px) {
     .sheet {
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 168px);
-      max-height: calc(100% - 168px - 90px - env(safe-area-inset-bottom, 0px));
+      bottom: calc(var(--dock-space, 150px) + 10px);
+      max-height: calc(100% - var(--dock-space, 150px) - 90px);
     }
   }
   .item.small {

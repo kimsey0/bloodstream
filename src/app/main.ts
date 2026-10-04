@@ -1,7 +1,8 @@
 /** App controller: wires the simulation worker, the 3D scene and the HUD together. */
 import { mount } from 'svelte';
 import { COLOR_SCALES, setColorScale, type ColorScale } from '../color/saturation';
-import { virtualPo2Factor } from '../physiology/dissociation';
+import { setHaemoglobin, virtualPo2Factor } from '../physiology/dissociation';
+import type { Scenario } from '../physiology/scenario';
 import { myoglobinSaturation } from '../physiology/params';
 import { meanCapillaryPo2, transitQuadrature } from '../sim/oxygen';
 import { BED_CENTERS } from '../anatomy/layout';
@@ -66,7 +67,11 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
     ui.meanCirculationTime = msg.meanCirculationTime;
     ui.activity = msg.activity;
     ui.cardiacOutput = msg.activity.cardiacOutput;
-    circNow = msg.activity.level === 0 ? circ : new Circulation({ activity: activityState(msg.activity.level) });
+    transitNow = msg.transits;
+    setHaemoglobin(msg.scenario);
+    ui.scenario = msg.scenario;
+    ui.scenarioPending = null;
+    ui.demandedCardiacOutput = msg.demandedCardiacOutput;
     for (const ex of msg.exchange) {
       exchange.set(ex.segment, ex);
       ui.bedSaturation[ex.segment] = [ex.saturationIn, ex.saturationOut];
@@ -85,6 +90,16 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
     }
     lastTick = performance.now();
     requestTick();
+  } else if (msg.type === 'rejected') {
+    // Beyond this body's limits: the previous state stays.
+    ui.activityPending = null;
+    ui.scenarioPending = null;
+    const seg = circ.byId.get(msg.segment);
+    ui.limit = {
+      level: msg.level,
+      organ: (seg?.name ?? msg.segment).replace(/: .*$/, ''),
+      label: activityState(msg.level).label,
+    };
   } else if (msg.type === 'frame') {
     awaitingFrame = false;
     framesReceived++;
@@ -105,12 +120,19 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
 };
 
 const exchange = new Map<number, ExchangeInfo>();
-/** The circulation at the current activity level (flows, transits) for the microscope view. */
-let circNow = circ;
+/** Mean red-cell transit of every segment in the current state, s (flows change with activity and scenario). */
+let transitNow: ArrayLike<number> = Float32Array.from(circ.segments, (s) => s.transit);
 
 function setActivity(level: number): void {
   ui.activityPending = level;
-  send({ type: 'activity', level });
+  ui.limit = null;
+  send({ type: 'activity', level, scenario: { ...ui.scenario } });
+}
+
+function setScenario(scenario: Scenario): void {
+  ui.scenarioPending = scenario;
+  ui.limit = null;
+  send({ type: 'activity', level: ui.activity.level, scenario });
 }
 
 /** Organ bed centres for tap-to-zoom, with the capillary segment each one opens. */
@@ -148,7 +170,7 @@ let framesReceived = 0;
 function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolean {
   const c = m.pickCell(clientX, clientY, canvas.getBoundingClientRect());
   if (!c || !ui.micro) return false;
-  const capSeg = circNow.segments[ui.micro.capillary];
+  const capSeg = circ.segments[ui.micro.capillary];
   const r = m.net.routes[c.route];
   let segment: number;
   let elapsed: number;
@@ -157,7 +179,7 @@ function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolea
     // Still in the terminal arteriole: the end of the bed's feeding segment.
     segment = capSeg.prevIndex[0];
     const remaining = (r.capStart - c.s) / ARTERIOLE_SPEED;
-    duration = Math.max(circNow.segments[segment].transit, remaining * 1.01);
+    duration = Math.max(transitNow[segment], remaining * 1.01);
     elapsed = duration - remaining;
   } else if (c.s <= r.capEnd) {
     segment = capSeg.index;
@@ -167,7 +189,7 @@ function adoptMicroCell(m: MicroScene, clientX: number, clientY: number): boolea
     // In the collecting venule: the start of the bed's draining segment.
     segment = capSeg.nextIndex[0];
     elapsed = (c.s - r.capEnd) / VENULE_SPEED;
-    duration = Math.max(circNow.segments[segment].transit, elapsed * 1.5);
+    duration = Math.max(transitNow[segment], elapsed * 1.5);
   }
   adoptedRoute = { route: c.route, afterTick: ticksSent };
   wantFollow = true;
@@ -190,7 +212,8 @@ function chooseColorScale(scale: ColorScale): void {
 }
 
 function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
-  const seg = circNow.segments[capillary];
+  const seg = circ.segments[capillary];
+  const transit = transitNow[capillary];
   const keepRoute = opts.keepFollow ? microRoute : -1;
   // Keep the camera when rebuilding the same bed.
   const view = micro && ui.micro?.capillary === capillary ? { pos: micro.camera.position.clone(), target: micro.controls.target.clone() } : null;
@@ -200,7 +223,7 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
   const bed = microBedFor(seg);
   const net = buildNetwork(bed, seg.length * 1000, seg.diameter * 1000);
   const sim = new MicroSim(net, {
-    transit: seg.transit,
+    transit,
     transitCv: seg.transitCv ?? 0,
     hctRatio: seg.hct,
     exchange: ex.model,
@@ -223,15 +246,15 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     blurb: bed.blurb,
     lengthUm: seg.length * 1000,
     diameterUm: seg.diameter * 1000,
-    transit: seg.transit,
-    speedUm: (seg.length * 1000) / seg.transit,
+    transit,
+    speedUm: (seg.length * 1000) / transit,
     saturationIn: ex.saturationIn,
     saturationOut: ex.saturationOut,
     dotsPerPass: (Math.abs(ex.saturationIn - ex.saturationOut) * 4 * HB_PER_RBC) / 1e9,
     fiberLabel: bed.fiberLabel,
     lung: seg.exchange?.type === 'lung',
     targetPo2: ex.model.targetPo2,
-    meanCapillaryPo2: meanCapillaryPo2(ex.model, ex.contentIn, transitQuadrature(seg.transit, seg.transitCv ?? 0)),
+    meanCapillaryPo2: meanCapillaryPo2(ex.model, ex.contentIn, transitQuadrature(transit, seg.transitCv ?? 0)),
     diffusingCapacity: ex.model.diffusingCapacity,
     restDiffusingCapacity: ex.model.restDiffusingCapacity,
     myoglobin: seg.tissue === 'muscle' || seg.tissue === 'heart' ? myoglobinSaturation(ex.model.targetPo2) : null,
@@ -449,6 +472,7 @@ const hud = mount(Hud, {
     },
     onFollowRandom: () => followCell(-1),
     onActivity: setActivity,
+    onScenario: setScenario,
     onStopFollow: stopFollowing,
     onOpenBed: openBed,
     onFollowCell: (cell: number) => {
@@ -466,3 +490,13 @@ const hud = mount(Hud, {
 
 void hud;
 requestAnimationFrame(fitBodyView);
+
+// Sheets sit just above the dock, whose height changes with screen width.
+const dockEl = document.getElementById('dock');
+if (dockEl) {
+  const setDockSpace = () =>
+    document.documentElement.style.setProperty('--dock-space', `${Math.round(window.innerHeight - dockEl.getBoundingClientRect().top)}px`);
+  new ResizeObserver(setDockSpace).observe(dockEl);
+  window.addEventListener('resize', setDockSpace);
+  setDockSpace();
+}

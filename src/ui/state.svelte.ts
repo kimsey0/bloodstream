@@ -1,6 +1,7 @@
 /** Reactive UI state shared between the app controller and the Svelte HUD. */
 import type { ColorScale } from '../color/saturation';
 import { STANDARD_CONDITIONS } from '../physiology/dissociation';
+import { NORMAL_SCENARIO, type Scenario } from '../physiology/scenario';
 import type { FollowInfo } from '../sim/protocol';
 
 export const SPEEDS = [0.01, 0.1, 1, 10, 30] as const;
@@ -45,6 +46,14 @@ export const ui = $state({
   activity: { level: 0, label: 'Rest', met: 1, heartRate: 70, cardiacOutput: 5000 / 60, vo2: 250 },
   activityPending: null as number | null,
   activityOpen: false,
+  /** "What if" scenario applied, and the one being applied (null when idle). */
+  scenario: NORMAL_SCENARIO as Scenario,
+  scenarioPending: null as Scenario | null,
+  whatIfOpen: false,
+  /** The last activity or scenario the body could not sustain, and the organ that ran short. */
+  limit: null as { level: number; organ: string; label: string } | null,
+  /** Cardiac output the tissues ask for, mL/s (above the actual one when the maximum binds). */
+  demandedCardiacOutput: 0,
   /** Heartbeat phase (0 = start of ejection) and systolic fraction, updated every frame. */
   beatPhase: 0,
   systole: 0.35,

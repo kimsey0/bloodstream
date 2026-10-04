@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ACTIVITY_LABELS, activityState } from '../physiology/activity';
+  import { isNormalScenario } from '../physiology/scenario';
   import { ui } from './state.svelte';
 
   interface Props {
@@ -51,6 +52,8 @@
   <p class="note">
     {#if busy}
       Recalculating flows and oxygen exchange…
+    {:else if ui.limit}
+      <b>{ui.limit.label} is beyond this body's VO₂max{isNormalScenario(ui.scenario) ? '' : ' in these conditions'}.</b> The {ui.limit.organ.toLowerCase()} could not get the O₂ it would use, so the body stays at {ui.activity.label.toLowerCase()}.
     {:else}
       The change is instant here; in a real body heart rate and flow take a minute or two to settle.
     {/if}
@@ -63,7 +66,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 140px);
+    bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(420px, calc(100% - 32px));
     padding: 12px 14px;
     background: var(--panel);
@@ -73,11 +76,6 @@
     -webkit-backdrop-filter: blur(10px);
     display: grid;
     gap: 10px;
-  }
-  @media (max-width: 480px) {
-    .sheet {
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 168px);
-    }
   }
   .head {
     display: flex;

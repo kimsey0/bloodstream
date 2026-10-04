@@ -42,6 +42,13 @@ on desktop and on phones.
 - **See blood's true colour.** The default blue → red code is easy to
   read, but real blood is never blue. Switch to true colour to see
   oxygen-poor blood as it is: dark red.
+- **Ask "what if?".** Change the blood or the air: anaemia, polycythaemia,
+  altitude up to the Everest summit, carbon monoxide, or haemoglobin with a
+  higher or lower O₂ affinity. Heart, brain and muscle raise their blood
+  flow to compensate, and the activity sheet tells you when an activity is
+  beyond this body's VO₂max. The dissociation curve can plot O₂ content as
+  well as saturation, which shows what anaemia and CO do that saturation
+  hides.
 - **See the heartbeat.** Blood leaves the heart in pulses. Cells surge in
   the aorta during ejection, and the pulse fades to near-steady flow in the
   capillaries.
@@ -70,6 +77,8 @@ the test suite checks them against published values.
 | Femoral venous pH / P50 at max | 7.21 / 36 mmHg | 7.19–7.21 / 37.5 ± 3.1 mmHg |
 | Working-muscle cell PO₂ / myoglobin saturation at max | 2.6 mmHg / 44 % | 3.1 mmHg / 49 % |
 | Capillary RBC speed / venule speed | 0.25–0.8 mm/s / ~2 mm/s | 0.2–1.5 / 0.2–4 mm/s |
+| Barometric / alveolar PO₂ on the Everest summit at rest | 253 / 35 mmHg | 253 / 35 mmHg (West et al. 1983) |
+| P50 of the remaining Hb at 30 % / 50 % COHb | 18 / 13 mmHg | falls with COHb (Roughton & Darling 1944) |
 
 The dissociation curve is Severinghaus's (P50 26.8 mmHg). The single
 haemoglobin molecule uses Imai's Adair constants with binding rates in
@@ -141,7 +150,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (85 tests)
+npm test            # physiology validation suite (94 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```
@@ -167,6 +176,11 @@ whether the emergent numbers still match the references.
 - Activity changes take effect almost immediately rather than over 1–2
   minutes. Exercise means running, so the arms barely work.
 - Atria and veins carry no pulse.
+- "What if" compensation is by blood flow only, and partly assumed: how far
+  each organ dilates, and that tissues other than heart, brain and muscle
+  dilate only as a rescue. Arterial PCO₂ at altitude is interpolated
+  between sea level and West's measurements above 7,800 m. Acclimatization
+  beyond breathing (more Hb, more 2,3-DPG) is left to the sliders.
 - The lungs have no ventilation–perfusion mismatch. Their diffusing
   capacity during exercise is set so the alveolar–arterial PO₂ difference
   matches measurements.
@@ -176,7 +190,10 @@ whether the emergent numbers still match the references.
 Guyton & Hall, *Textbook of Medical Physiology*; Ganong's *Review of
 Medical Physiology*; West, *Respiratory Physiology*; Severinghaus, J Appl
 Physiol 1979 (O₂ dissociation); Imai, *Allosteric Effects in Haemoglobin*
-(Adair constants); Gibson and colleagues (O₂ binding kinetics); Evans &
+(Adair constants); Roughton & Darling 1944 (CO and the O₂ curve); West et
+al., J Appl Physiol 1983 and West 1996 (Everest gas exchange, model
+atmosphere); Cotes et al. / ATS–ERS 2017 (Hb correction of diffusing
+capacity); Gibson and colleagues (O₂ binding kinetics); Evans &
 Fung 1972 (red-cell shape); Pries et al. 1990 (capillary haematocrit);
 Åstrand & Rodahl, *Textbook of Work Physiology* and Rowell, *Human
 Circulation* (exercise); Dempsey & Wagner, J Appl Physiol 1999 (blood gases

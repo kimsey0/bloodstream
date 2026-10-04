@@ -8,9 +8,10 @@ import { samplePath } from '../anatomy/lut';
 import { exchangeSaturation, integrateContent } from './oxygen';
 import { PROFILE_SAMPLES, type AdoptMessage, type FollowInfo, type FromWorker, type InitMessage, type ToWorker } from './protocol';
 import { Rng } from './rng';
-import { activityState } from '../physiology/activity';
-import { Circulation } from './circulation';
-import { solveSteadyState, type SteadyState } from './oxygen';
+import { setHaemoglobin } from '../physiology/dissociation';
+import { NORMAL_SCENARIO, type Scenario } from '../physiology/scenario';
+import { solveScenario, type ScenarioState } from './compensation';
+import { O2SupplyError } from './oxygen';
 import { Simulation } from './simulation';
 import { CellTracker } from './tracking';
 
@@ -112,6 +113,9 @@ function postState(type: 'ready' | 'state'): void {
     mixedVenousPo2: sim.steady.mixedVenous.po2In,
     arterialConditions: sim.steady.arterial.conditionsIn,
     mixedVenousConditions: sim.steady.mixedVenous.conditionsIn,
+    transits: Float32Array.from(segs, (s) => s.transit),
+    scenario,
+    demandedCardiacOutput: demandedCardiacOutput || sim.circulation.cardiacOutput,
     meanCirculationTime: sim.circulation.meanRbcCirculationTime,
     activity: { level: a.level, label: a.label, met: a.met, heartRate: a.heartRate, cardiacOutput: a.cardiacOutput, vo2: a.vo2 },
     exchange: [...sim.steady.exchange].map(([segment, ex]) => ({
@@ -124,19 +128,33 @@ function postState(type: 'ready' | 'state'): void {
   });
 }
 
-/** Solved states per activity level (rounded to 0.01), since solving takes ~1–2 s. */
-const stateCache = new Map<number, { circ: Circulation; steady: SteadyState }>();
+/** Solved states per activity level (rounded to 0.01) and scenario, since solving takes ~1–4 s. */
+const stateCache = new Map<string, ScenarioState>();
+let scenario: Scenario = NORMAL_SCENARIO;
+let demandedCardiacOutput = 0;
 
-function setActivity(level: number): void {
+function setActivity(level: number, next: Scenario = scenario): void {
   if (!sim) return;
-  const key = Math.round(level * 100);
+  const lv = Math.round(level * 100) / 100;
+  const key = `${lv}|${JSON.stringify(next)}`;
+  const bloodChanged = JSON.stringify(next) !== JSON.stringify(scenario);
+  setHaemoglobin(next);
   let st = stateCache.get(key);
   if (!st) {
-    const circ = new Circulation({ activity: activityState(key / 100) });
-    st = { circ, steady: solveSteadyState(circ) };
+    try {
+      st = solveScenario(lv, next);
+    } catch (e) {
+      // Not sustainable: keep the current state and its blood.
+      setHaemoglobin(scenario);
+      if (!(e instanceof O2SupplyError)) throw e;
+      post({ type: 'rejected', level: lv, scenario: next, segment: e.segment });
+      return;
+    }
     stateCache.set(key, st);
   }
-  sim.setState(st.circ, st.steady, st.circ.activity.heartRate);
+  scenario = next;
+  demandedCardiacOutput = st.demandedCardiacOutput;
+  sim.setState(st.circ, st.steady, st.circ.activity.heartRate, bloodChanged);
   postState('state');
 }
 
@@ -256,7 +274,7 @@ self.onmessage = (e: MessageEvent<ToWorker>) => {
       follow(msg.cell);
       break;
     case 'activity':
-      setActivity(msg.level);
+      setActivity(msg.level, msg.scenario);
       break;
     case 'adopt':
       adopt(msg);

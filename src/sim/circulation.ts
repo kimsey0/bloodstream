@@ -41,10 +41,11 @@ export function workingFraction(d: SegmentDef): number {
 export function bedFlowAndVo2(d: SegmentDef, a: ActivityState): { flow: number; vo2: number } {
   const t = d.tissue!;
   const share = d.share ?? 1;
-  if (t !== 'muscle') return { flow: a.tissueFlow[t] * share, vo2: a.tissueVo2[t] * share };
+  const scale = a.bedFlowScale?.[d.id.replace(/\.(art|cap|ven)$/, '.cap')] ?? 1;
+  if (t !== 'muscle') return { flow: a.tissueFlow[t] * share * scale, vo2: a.tissueVo2[t] * share };
   const ex = d.exerciseShare ?? 0;
   return {
-    flow: REST_STATE.tissueFlow.muscle * share + (a.tissueFlow.muscle - REST_STATE.tissueFlow.muscle) * ex,
+    flow: (REST_STATE.tissueFlow.muscle * share + (a.tissueFlow.muscle - REST_STATE.tissueFlow.muscle) * ex) * scale,
     vo2: REST_STATE.tissueVo2.muscle * share + (a.tissueVo2.muscle - REST_STATE.tissueVo2.muscle) * ex,
   };
 }

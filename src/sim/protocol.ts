@@ -1,4 +1,5 @@
 import type { BloodConditions } from '../physiology/dissociation';
+import type { Scenario } from '../physiology/scenario';
 import type { ExchangeModel } from './oxygen';
 
 /** Messages between the main thread and the simulation worker. */
@@ -58,6 +59,8 @@ export interface AdoptMessage {
 export interface ActivityMessage {
   type: 'activity';
   level: number;
+  /** "What if" blood and altitude (default: keep the current one). */
+  scenario?: Scenario;
 }
 
 export type ToWorker = InitMessage | TickMessage | ControlMessage | FollowMessage | AdoptMessage | ActivityMessage;
@@ -91,6 +94,21 @@ export interface ReadyMessage {
   meanCirculationTime: number;
   /** Exchange models of every capillary bed, for the microscope view. */
   exchange: ExchangeInfo[];
+  /** Mean red-cell transit time of every segment now, s. */
+  transits: Float32Array;
+  /** The "what if" scenario this state is for. */
+  scenario: Scenario;
+  /** Cardiac output the tissues asked for, mL/s (above the actual one when the maximum binds). */
+  demandedCardiacOutput: number;
+}
+
+/** An activity level or scenario the body cannot sustain; the previous state stays. */
+export interface RejectedMessage {
+  type: 'rejected';
+  level: number;
+  scenario: Scenario;
+  /** Segment id of the tissue that could not get its O2. */
+  segment: string;
 }
 
 export interface ExchangeInfo {
@@ -157,6 +175,6 @@ export interface FrameMessage {
   follow?: FollowInfo;
 }
 
-export type FromWorker = ReadyMessage | FrameMessage;
+export type FromWorker = ReadyMessage | FrameMessage | RejectedMessage;
 
 export const PROFILE_SAMPLES = 16;

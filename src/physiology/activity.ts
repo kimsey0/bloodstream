@@ -77,9 +77,11 @@ export interface ActivityState {
   muscleAcid: number;
   /** Venous temperature above arterial in fully working muscle, °C. */
   muscleHeat: number;
+  /** Extra factor on a bed's flow, by capillary segment id (compensation in "what if" scenarios). */
+  bedFlowScale?: Record<string, number>;
 }
 
-type Numeric = Omit<ActivityState, 'level' | 'label' | 'tissueFlow' | 'tissueVo2'>;
+type Numeric = Omit<ActivityState, 'level' | 'label' | 'tissueFlow' | 'tissueVo2' | 'bedFlowScale'>;
 
 interface Anchor extends Numeric {
   level: number;
