@@ -73,8 +73,9 @@ export interface TissueParams {
  * 64 % of blood volume sits in systemic veins, and the splanchnic (gut +
  * liver) circulation alone holds roughly a third of all blood. Resting
  * muscle (≈ 3 mL/min per 100 g, total transit ≈ 30–40 s) holds much less. Tissue PO2 values are
- * typical measured resting values: brain 25 (clinical brain-tissue oxygen
- * monitoring, normal 20–35 mmHg); muscle 34, inside the cells (myoglobin
+ * typical measured resting values: brain 25 (awake human white matter
+ * 22.6 ± 7.2 mmHg, Pennings et al., J Neurotrauma 2008; grey matter runs
+ * higher); muscle 34, inside the cells (myoglobin
  * spectroscopy; Richardson et al., J Physiol 2006); others interstitial.
  * Each lies below the tissue's venous PO2, as diffusion requires.
  */

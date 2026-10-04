@@ -51,6 +51,8 @@ the same commit.
 | Varat 1972 | Varat MA, Adolph RJ, Fowler NO. Cardiovascular effects of anemia. *Am Heart J* 83:415–426, 1972. | Cardiac output, coronary and cerebral flow in anaemia |
 | Brutsaert 2000 | Brutsaert TD et al. *Am J Phys Anthropol* 113:169–181, 2000. | SaO2 at 3,600–3,850 m in acclimatized lowlanders, rest and exercise |
 | Machado 2009 | Machado GM, Oliveira MM, Fernandes LAF. *IEEE TVCG* 15:1291, 2009. | Colour-vision-deficiency simulation |
+| Pennings 2008 | Pennings FA, Schuurman PR, van den Munckhof P, Bouma GJ. Brain tissue oxygen pressure monitoring in awake patients during functional neurosurgery: the assessment of normal values. *J Neurotrauma* 25:1173–1177, 2008. | Resting brain tissue PO2 (human white matter) |
+| Erecińska & Silver 2001 | Erecińska M, Silver IA. Tissue oxygen tension and brain sensitivity to hypoxia. *Respir Physiol* 128:263–276, 2001. | Grey vs white matter brain PO2 (Table 1, animals) |
 
 Read but not used: Luft UC et al., *J Appl Physiol* 2:37, 1949 (alveolar
 gases in the seconds after rapid decompression; not relevant to
@@ -106,7 +108,7 @@ acclimatized altitude).
 | Parameter | Value | Status | Source |
 |---|---|---|---|
 | Resting muscle intracellular PO2 | 34 mmHg | M | Richardson 2006 Table 1 (34 ± 6) |
-| Resting brain tissue PO2 | 25 mmHg | A | Clinical brain-tissue O2 monitoring normal range 20–35 mmHg (no specific reference) |
+| Resting brain tissue PO2 | 25 mmHg | M | Pennings 2008 abstract and Results: frontal white matter of 22 awake patients 22.6 ± 7.2 mmHg (range 11–37); 23.1 ± 6.6 over the next 24 h (n = 11). Grey matter runs higher than white (Erecińska & Silver 2001 Table 1: rat cortex grey 19–40 vs white 6–16 mmHg), so the lumped brain bed sits slightly above the white-matter mean, within its SD |
 | Resting heart, kidney, gut, liver, skin, bronchial, other tissue PO2 | 10, 30, 30, 25, 30, 25, 20 mmHg | A | "Typical interstitial", no specific source |
 | Diffusing capacity rise with flow (muscle, heart) | DmO2 ∝ flow^0.9 | F | Thigh intracellular PO2 at max = 3.1 ± 0.3 mmHg (Richardson 1995 Table I) |
 | Myoglobin P50 | 3.2 mmHg | M | Richardson 1995 (value used for ~39 °C) |
