@@ -1,24 +1,28 @@
 /**
  * The body's fast compensation in "what if" scenarios: local blood flow.
  *
- * Heart, brain and skeletal muscle match their blood flow to their O2 needs
- * (local metabolic control: coronary and cerebral flow rise in anaemia and
- * hypoxia). Each such bed takes the flow at which its cells keep the tissue
- * PO2 they would have, at the same activity, with normal blood at sea level,
- * up to its maximal dilation (MAX_FACTOR); beyond that its cells' PO2 falls.
- * Kidney, gut, skin and other tissues extract more instead, and dilate only
- * as a rescue (below).
+ * Tissues respond to their O2 delivery (flow × arterial O2 content):
+ * - The heart already extracts ~70 % of its O2, so it holds its delivery:
+ *   coronary flow rises in inverse proportion to arterial O2 content
+ *   (in anaemia coronary flow rises with cardiac output or more, and coronary
+ *   sinus PO2 stays unchanged; Varat et al., Am Heart J 1972).
+ * - Other tissues first extract more. Only when their extraction would pass
+ *   EXTRACTION_RESERVE times its normal value do they raise their flow, to
+ *   hold it there. The reserve is set so that resting cardiac output starts
+ *   to rise near Hb 7 g/dL (Varat et al. 1972).
+ * - Any tissue whose cells would fall below MIN_TISSUE_PO2 dilates further,
+ *   opening capillaries as it does (low arterial PO2 can limit diffusion
+ *   even when delivery is enough).
+ * Each bed is limited by its maximal dilation (MAX_FACTOR). The liver, fed
+ * mostly by portal blood, is left out.
  *
  * Cardiac output is the sum of all bed flows and cannot exceed its maximum
  * (22 L/min). Beyond it, working muscle gets less than it needs: that is
- * where VO2max falls. The other tissues (kidney, gut, skin, …) dilate only to keep
- * their cells' PO2 above 2 mmHg, and as they dilate they open capillaries, raising their
- * diffusing capacity as muscle does. The liver, fed mostly by portal blood, is left out.
+ * where VO2max falls.
  *
- * These beds take arterial blood directly, so each is solved on its own from
- * the arterial blood the scenario gives. That comes from a lenient steady
- * state (tissues short of O2 don't stop it), first with uncompensated flows
- * and then once more with the compensated ones.
+ * Arterial O2 content comes from a lenient steady state (tissues short of O2
+ * don't stop it), first with uncompensated flows and then once more with the
+ * compensated ones.
  */
 import { activityState, arterialChemistry, type ActivityState } from '../physiology/activity';
 import { conditionsFromChemistry, currentHaemoglobin, NORMAL_HAEMOGLOBIN, setHaemoglobin } from '../physiology/dissociation';
@@ -32,25 +36,28 @@ const MAX_CARDIAC_OUTPUT = 22000 / 60;
 const MIN_FACTOR = 0.5;
 /**
  * Highest flow factor per tissue. Coronary flow can rise ~4× (coronary flow reserve); cerebral
- * flow about doubles in severe hypoxia. Working muscle barely raises its flow for O2-poor blood
- * (leg flow during submaximal exercise at altitude is about as at sea level; extraction rises
- * instead), so 1.5×. Other tissues: 3×, an assumption.
+ * flow about doubles in severe hypoxia. Others: 3×, an assumption.
  */
-const MAX_FACTOR: Record<string, number> = { heart: 4, brain: 2, muscle: 1.5 };
-const RESCUE_MAX_FACTOR = 3;
-/** Tissues that do not hold their PO2 still dilate rather than let their cells' PO2 fall below this, mmHg. */
-const RESCUE_PO2 = 2;
-
-const autoregulates = (tissue: string | undefined) => tissue === 'heart' || tissue === 'brain' || tissue === 'muscle';
+const MAX_FACTOR: Record<string, number> = { heart: 4, brain: 2 };
+const OTHER_MAX_FACTOR = 3;
+/**
+ * How many times its normal O2 extraction (same activity, normal blood at sea level) a tissue
+ * other than the heart takes before it raises its flow. Set so resting cardiac output starts to
+ * rise near Hb 7 g/dL (Varat et al., Am Heart J 1972: "usually increased ... when the
+ * hemoglobin is approximately 7 Gm. per 100 ml. of blood or less").
+ */
+export const EXTRACTION_RESERVE = 2;
+/** No tissue lets its cells' PO2 fall below this, mmHg. */
+const MIN_TISSUE_PO2 = 2;
 
 interface NormalState {
-  /** Tissue PO2 per capillary segment index. */
-  tissuePo2: Map<number, number>;
+  /** Arterial O2 content, mL/mL. */
+  arterialContent: number;
 }
 
 const normalCache = new Map<number, NormalState>();
 
-/** Tissue PO2s and the alveolar–arterial gap with normal blood at sea level, at an activity level. */
+/** Arterial O2 content with normal blood at sea level, at an activity level. */
 function normalState(level: number): NormalState {
   const key = Math.round(level * 100);
   let st = normalCache.get(key);
@@ -61,9 +68,7 @@ function normalState(level: number): NormalState {
       const a = activityState(key / 100);
       const circ = new Circulation({ activity: a });
       const ss = solveSteadyState(circ);
-      const tissuePo2 = new Map<number, number>();
-      for (const [i, ex] of ss.exchange) tissuePo2.set(i, ex.targetPo2);
-      st = { tissuePo2 };
+      st = { arterialContent: ss.arterial.contentIn };
     } finally {
       setHaemoglobin(blood);
     }
@@ -105,9 +110,11 @@ function flowsFor(a: ActivityState, guess: ActivityState): Compensation {
   for (const s of circ.segments) {
     if (s.exchange?.type !== 'tissue' || s.tissue === 'liver') continue;
     const ex = s.exchange;
-    const holds = autoregulates(s.tissue);
-    const target = holds ? normal.tissuePo2.get(s.index)! : RESCUE_PO2;
+    const heart = s.tissue === 'heart';
     const vo2 = ex.vo2 / 60;
+    // Flow that holds delivery (heart) or caps extraction at EXTRACTION_RESERVE × normal (others).
+    const deliveryRatio = normal.arterialContent / ca;
+    const byDelivery = heart ? deliveryRatio : deliveryRatio / EXTRACTION_RESERVE;
     const enough = (k: number) => {
       const flow = s.flow * k;
       const cout = ca - vo2 / flow;
@@ -116,13 +123,13 @@ function flowsFor(a: ActivityState, guess: ActivityState): Compensation {
       const condOut = conditionsFromChemistry(
         addChemistry(chem, { co2: a.rq * (ca - cout), acid: ex.acid ?? 0, heat: ex.heat ?? 0 }),
       );
-      const model = exchangeModel(dm / 60 / s.volume, target, condIn, condOut, ca, cout);
-      // Holding tissue PO2 at its normal value, does diffusion take out at least what the tissue uses?
+      const model = exchangeModel(dm / 60 / s.volume, MIN_TISSUE_PO2, condIn, condOut, ca, cout);
+      // With the cells at MIN_TISSUE_PO2, does diffusion take out at least what the tissue uses?
       // Red cells cross in the bed's red-cell transit time, which scales inversely with flow.
       return expectedOutletContent(ca, transitQuadrature(s.transit / k, s.transitCv ?? 0), model) <= cout;
     };
-    const minFactor = holds ? MIN_FACTOR : 1;
-    const maxFactor = holds ? MAX_FACTOR[s.tissue!] : RESCUE_MAX_FACTOR;
+    const maxFactor = MAX_FACTOR[s.tissue!] ?? OTHER_MAX_FACTOR;
+    const minFactor = Math.min(maxFactor, Math.max(heart ? MIN_FACTOR : 1, byDelivery));
     let k = maxFactor;
     if (enough(minFactor)) k = minFactor;
     else if (enough(maxFactor)) {

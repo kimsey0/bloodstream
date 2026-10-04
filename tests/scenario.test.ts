@@ -25,6 +25,12 @@ describe('altitude', { timeout: 60_000 }, () => {
     expect(a.arterialPco2).toBeCloseTo(7.5, 1);
   });
 
+  it('matches acclimatized lowlanders at rest at 3,700 m: SaO2 92 % (Brutsaert et al. 2000, Table 4)', () => {
+    const st = solveScenario(0, { ...NORMAL_SCENARIO, altitude: 3700, hb: 17.6 });
+    expect(st.steady.arterial.saturationIn).toBeGreaterThan(0.9);
+    expect(st.steady.arterial.saturationIn).toBeLessThan(0.94);
+  });
+
   it('desaturates arterial blood at 4,500 m but still allows walking', () => {
     const rest = solveScenario(0, preset('altitude'));
     expect(rest.steady.arterial.po2In).toBeGreaterThan(40);
@@ -36,13 +42,20 @@ describe('altitude', { timeout: 60_000 }, () => {
 });
 
 describe('haemoglobin', { timeout: 60_000 }, () => {
-  it('in anaemia keeps arterial blood saturated but halves its O2, and raises cardiac output', () => {
+  it('in anaemia keeps arterial blood saturated but halves its O2', () => {
     const st = solveScenario(0, preset('anaemia'));
     expect(st.steady.arterial.saturationIn).toBeGreaterThan(0.96);
     expect(st.steady.arterial.contentIn * 100).toBeLessThan(11.5);
-    const rise = st.circ.cardiacOutput / activityState(0).cardiacOutput;
-    expect(rise).toBeGreaterThan(1.1);
-    expect(rise).toBeLessThan(1.6);
+  });
+
+  it('raises resting cardiac output only below Hb ~7 g/dL, then roughly linearly (Varat et al. 1972)', () => {
+    const rise = (hb: number) => solveScenario(0, { ...NORMAL_SCENARIO, hb }).circ.cardiacOutput / activityState(0).cardiacOutput - 1;
+    const r8 = rise(8);
+    const r6 = rise(6);
+    const r4 = rise(4);
+    expect(r8).toBeLessThan(0.1);
+    expect(r6).toBeGreaterThan(0.15);
+    expect(r4 - r6).toBeGreaterThan(0.6 * (r6 - r8));
   });
 
   it('without compensation, anaemia leaves the heart short of O2 even at rest', () => {
