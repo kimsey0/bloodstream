@@ -51,7 +51,9 @@ on desktop and on phones.
   hides.
 - **See the heartbeat.** Blood leaves the heart in pulses. Cells surge in
   the aorta during ejection, and the pulse fades to near-steady flow in the
-  capillaries.
+  capillaries. In the heart wall it runs the other way: coronary flow is
+  highest in diastole, when the contracting muscle stops squeezing its own
+  vessels.
 
 | Following a cell | Lung capillaries | Muscle capillaries | Maximal exercise |
 |---|---|---|---|
@@ -154,7 +156,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (96 tests)
+npm test            # physiology validation suite (98 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```
@@ -208,7 +210,8 @@ Circulation* (exercise); Dempsey & Wagner, J Appl Physiol 1999 (blood gases
 at maximal exercise); Calbet et al., Am J Physiol 2005 and González-Alonso &
 Calbet, Circulation 2003 (limb venous blood at maximal exercise); Hopkins
 et al., Respir Physiol 1996 (pulmonary transit); Richardson et al., J Clin
-Invest 1995 (muscle intracellular PO₂); Machado et al. 2009 (colour-vision simulation).
+Invest 1995 (muscle intracellular PO₂); Seligman et al., EuroIntervention 2022 and
+Davies et al., Circulation 2006 (phasic coronary flow); Machado et al. 2009 (colour-vision simulation).
 Details and specific values are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 and in the doc comments of `src/physiology/`.
 

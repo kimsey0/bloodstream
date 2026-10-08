@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CardiacWaveform, ejectionDuration } from '../src/physiology/heartbeat';
+import { CardiacWaveform, CORONARY_RATIO, ejectionDuration, PULSE_CORONARY_LEFT, PULSE_CORONARY_RIGHT } from '../src/physiology/heartbeat';
 import { Simulation } from '../src/sim/simulation';
 
 describe('cardiac waveform', () => {
@@ -27,7 +27,42 @@ describe('cardiac waveform', () => {
   });
 });
 
+describe('coronary waveform', () => {
+  it('averages to 1 and carries about three-quarters of coronary flow in diastole at rest', () => {
+    const w = new CardiacWaveform(70);
+    for (const ch of [PULSE_CORONARY_LEFT, PULSE_CORONARY_RIGHT]) {
+      expect(w.channelOverBeats(ch, 0.37, 5)).toBeCloseTo(1, 9);
+      const r = CORONARY_RATIO[ch];
+      expect(w.coronary(0.8, r) / w.coronary(0.1, r)).toBeCloseTo(r, 9);
+      const diastolicShare = w.coronary(0.8, r) * (1 - w.systole);
+      expect(diastolicShare).toBeGreaterThan(0.7);
+      expect(diastolicShare).toBeLessThan(0.8);
+    }
+  });
+});
+
 describe('pulsatile simulation', () => {
+  it('moves cells into the left heart wall faster in diastole than in systole', () => {
+    const sim = new Simulation({ cellCount: 8000, seed: 10 });
+    const art = sim.circulation.get('heart_L.art').index;
+    const w = sim.waveform!;
+    let sys = 0;
+    let sysN = 0;
+    let dia = 0;
+    let diaN = 0;
+    for (let i = 0; i < 1500; i++) {
+      sim.step(0.004);
+      const ph = sim.beatPhase;
+      for (let c = 0; c < sim.count; c++) {
+        if (sim.segment[c] !== art) continue;
+        const v = sim.speed(c);
+        if (ph > 0.1 * w.systole && ph < 0.9 * w.systole) (sys += v), sysN++;
+        else if (ph > w.systole + 0.05) (dia += v), diaN++;
+      }
+    }
+    expect(dia / diaN / (sys / sysN)).toBeGreaterThan(1.5);
+  });
+
   it('ejects cells from the left ventricle only during systole', () => {
     const sim = new Simulation({ cellCount: 3000, seed: 8 });
     const lv = sim.circulation.root.index;

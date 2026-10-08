@@ -238,6 +238,14 @@ and 0.3 in pulmonary arteries and capillaries, and 0 in veins and atria.
 Averaged over a beat this is the mean, so transit times and steady-state
 results are unaffected.
 
+The coronary arteries, arterioles and capillaries follow a waveform of
+their own, because contracting heart muscle squeezes its vessels in
+systole: flow is one level during ejection and a higher level in diastole.
+The diastolic-to-systolic ratio is 1.85 on the left and 1.53 on the right
+(Seligman et al. 2022, resting velocity ratios), so about three-quarters of
+coronary flow arrives in diastole. Arteries and arterioles follow it fully,
+capillaries with α 0.5.
+
 ## Activity levels
 
 `src/physiology/activity.ts` interpolates four anchor states from a 0–1
@@ -500,7 +508,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 96 headless tests. The main emergent results are below;
+`npm test` runs 98 headless tests. The main emergent results are below;
 [SOURCES.md](SOURCES.md) lists every parameter's source and status, and
 where the model and measurements still disagree.
 

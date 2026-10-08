@@ -10,7 +10,7 @@
  * seconds and independent of frame rate.
  */
 import { BLOOD, O2_CAPACITY, virtualPo2Factor, type BloodConditions } from '../physiology/dissociation';
-import { CardiacWaveform, flowRate, pulsatility } from '../physiology/heartbeat';
+import { CardiacWaveform, flowRate, PULSE_CHANNELS, pulseChannel, pulsatility } from '../physiology/heartbeat';
 import { REST } from '../physiology/params';
 import { Circulation, type Segment } from './circulation';
 import { conditionsAt, exchangePo2, integrateContent, po2OnCurve, solveSteadyState, type ExchangeModel, type SteadyState } from './oxygen';
@@ -83,12 +83,16 @@ export class Simulation {
   private exchange: (ExchangeModel | undefined)[];
   /** Per-segment pulsatility (see heartbeat.ts). */
   private alpha: Float64Array;
+  /** Per-segment pulse channel: aortic, or left or right coronary (see heartbeat.ts). */
+  private channel: Uint8Array;
   /** Blood conditions in each segment outside capillaries (in capillaries they shift with exchange). */
   private conditions: BloodConditions[];
   /** Virtual-PO2 factor of each segment's conditions. */
   private factors: Float64Array;
-  /** Aortic waveform value at the current instant. */
-  private pulseNow = 1;
+  /** Waveform value of each pulse channel at the current instant. */
+  private pulseNow = new Float64Array(PULSE_CHANNELS).fill(1);
+  /** Mean waveform value of each pulse channel over the current step. */
+  private readonly pulseStep = new Float64Array(PULSE_CHANNELS);
   /** Heartbeats since the start (fractional part = phase), kept continuous when heart rate changes. */
   private beats = 0;
   private readonly listeners = new Set<TransitionListener>();
@@ -100,6 +104,7 @@ export class Simulation {
     this.rng = new Rng(opts.seed ?? 1);
     this.exchange = this.circulation.segments.map((s) => this.steady.exchange.get(s.index));
     this.alpha = new Float64Array(this.circulation.segments.map(pulsatility));
+    this.channel = new Uint8Array(this.circulation.segments.map(pulseChannel));
     this.conditions = this.steady.segments.map((o) => o.conditionsIn);
     this.factors = new Float64Array(this.conditions.map(virtualPo2Factor));
     const hr = opts.heartRate ?? REST.heartRate;
@@ -169,14 +174,15 @@ export class Simulation {
   step(dt: number): void {
     const segs = this.circulation.segments;
     const t0 = this.time;
-    // Mean pulse over this step: segments advance at mean × (1 + α (W − 1)).
+    // Mean pulse over this step: segments advance at mean × (1 + α (W − 1)), with W from their channel.
     const db = this.waveform ? dt / this.waveform.period : 0;
-    const W = this.waveform ? this.waveform.meanOverBeats(this.beats, db) : 1;
+    const W = this.pulseStep;
+    for (let c = 0; c < PULSE_CHANNELS; c++) W[c] = this.waveform ? this.waveform.channelOverBeats(c, this.beats, db) : 1;
     for (let i = 0; i < this.count; i++) {
       let remaining = dt;
       while (remaining > 0) {
         const k = this.segment[i];
-        const rate = flowRate(this.alpha[k], W);
+        const rate = flowRate(this.alpha[k], W[this.channel[k]]);
         // `elapsed` and `duration` are in flow-weighted time: a segment's transit is reached
         // after `duration` seconds of mean flow, faster in systole, slower (or not at all) in diastole.
         const left = this.duration[i] - this.elapsed[i];
@@ -207,7 +213,7 @@ export class Simulation {
     }
     this.time = t0 + dt;
     this.beats += db;
-    this.pulseNow = this.waveform ? this.waveform.w(this.beatPhase) : 1;
+    for (let c = 0; c < PULSE_CHANNELS; c++) this.pulseNow[c] = this.waveform ? this.waveform.channelAt(c, this.beatPhase) : 1;
   }
 
   /** Phase within the current heartbeat (0 = start of ejection), or 0 for steady flow. */
@@ -298,7 +304,7 @@ export class Simulation {
   /** The cell's current speed, mm/s. */
   speed(cell: number): number {
     const seg = this.circulation.segments[this.segment[cell]];
-    const mean = (seg.length / this.duration[cell]) * flowRate(this.alpha[seg.index], this.pulseNow);
+    const mean = (seg.length / this.duration[cell]) * flowRate(this.alpha[seg.index], this.pulseNow[this.channel[seg.index]]);
     const t = this.progress(cell);
     if (seg.kind === 'venule') return mean * rampUpSlope(t);
     if (seg.kind === 'arteriole') return mean * rampUpSlope(1 - t);

@@ -316,7 +316,9 @@
       Blood picks up CO₂ as it gives up O₂, which makes it more acidic. That shifts the O₂ curve right (the Bohr
       effect) and helps unloading; the followed cell's panel shows pH, PCO₂, temperature and P50 change along each capillary.
       Each heartbeat ejects blood only for about a third of the beat, so cells in the aorta surge and pause, while flow in
-      capillaries and veins stays almost steady.
+      capillaries and veins stays almost steady. The heart wall is the exception: contracting muscle squeezes its own vessels, so
+      about three-quarters of its blood arrives in diastole, between beats. A fast heart rate shortens diastole and with it this
+      supply time.
     </p>
     <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan.</p>
     <h2>Where the numbers come from</h2>

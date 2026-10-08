@@ -50,6 +50,8 @@ the same commit.
 | ATS/ERS 2017 | Graham BL et al. *Eur Respir J* 49:1600016, 2017 (Hb correction of DLCO after Cotes). | Lung diffusing capacity vs Hb |
 | Varat 1972 | Varat MA, Adolph RJ, Fowler NO. Cardiovascular effects of anemia. *Am Heart J* 83:415–426, 1972. | Cardiac output, coronary and cerebral flow in anaemia |
 | Brutsaert 2000 | Brutsaert TD et al. *Am J Phys Anthropol* 113:169–181, 2000. | SaO2 at 3,600–3,850 m in acclimatized lowlanders, rest and exercise |
+| Seligman 2022 | Seligman H et al. Phasic flow patterns of right versus left coronary arteries in patients undergoing clinical physiological assessment. *EuroIntervention* 17:1260–1270, 2022. | Diastolic-to-systolic coronary flow velocity ratio, left and right |
+| Davies 2006 | Davies JE et al. Evidence of a dominant backward-propagating "suction" wave responsible for diastolic coronary filling in humans. *Circulation* 113:1768–1778, 2006. | Why coronary flow peaks in diastole (qualitative) |
 | Machado 2009 | Machado GM, Oliveira MM, Fernandes LAF. *IEEE TVCG* 15:1291, 2009. | Colour-vision-deficiency simulation |
 | Pennings 2008 | Pennings FA, Schuurman PR, van den Munckhof P, Bouma GJ. Brain tissue oxygen pressure monitoring in awake patients during functional neurosurgery: the assessment of normal values. *J Neurotrauma* 25:1173–1177, 2008. | Resting brain tissue PO2 (human white matter) |
 | Erecińska & Silver 2001 | Erecińska M, Silver IA. Tissue oxygen tension and brain sensitivity to hypoxia. *Respir Physiol* 128:263–276, 2001. | Grey vs white matter brain PO2 (Table 1, animals) |
@@ -128,6 +130,9 @@ acclimatized altitude).
 | Alveolar PO2 at max | 115 mmHg | M | Richardson 1995 Fig. 9 shows ~120 mmHg in knee-extensor exercise; a search summary of the exercise literature gave ~115. Not checked against whole-body data |
 | Ejection duration | 0.30 s at 70 bpm → 0.20 s at 180 | T | Weissler |
 | Diastolic aortic flow, pulsatility per vessel class | 0.03; α 0.08–0.9 | A | |
+| Coronary diastolic-to-systolic flow ratio | left 1.85, right 1.53 | M | Seligman 2022 Table 2 (resting velocity ratio, 482 arteries; velocity taken as proportional to flow). Gives ~78 % / ~74 % of coronary flow in diastole at 70 bpm |
+| Coronary flow within systole and within diastole | constant (two levels) | A | Davies 2006 shows the diastolic peak comes early in diastole; the shape inside each phase is not modelled |
+| Coronary capillary pulsatility | α 0.5 on the coronary waveform | A | Arteries and arterioles follow it in full |
 
 ### "What if" scenarios (`scenario.ts`, `compensation.ts`)
 
