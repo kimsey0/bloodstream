@@ -4,7 +4,7 @@ import { COLOR_SCALES, setColorScale, type ColorScale } from '../color/saturatio
 import { setHaemoglobin, virtualPo2Factor } from '../physiology/dissociation';
 import type { Scenario } from '../physiology/scenario';
 import { myoglobinSaturation } from '../physiology/params';
-import { meanCapillaryPo2, transitQuadrature } from '../sim/oxygen';
+import { capillaryProfile, meanCapillaryPo2, transitQuadrature } from '../sim/oxygen';
 import { BED_CENTERS } from '../anatomy/layout';
 import { buildPaths } from '../anatomy/paths';
 import { activityState } from '../physiology/activity';
@@ -258,7 +258,20 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     diffusingCapacity: ex.model.diffusingCapacity,
     restDiffusingCapacity: ex.model.restDiffusingCapacity,
     myoglobin: seg.tissue === 'muscle' || seg.tissue === 'heart' ? myoglobinSaturation(ex.model.targetPo2) : null,
+    profile: {
+      ...capillaryProfile(ex.model, ex.contentIn, 1.5 * transit),
+      transit,
+      fastTransit: fastestTenthTransit(transit, seg.transitCv ?? 0),
+    },
   };
+}
+
+/** Transit time within which the fastest 10 % of cells cross a segment (log-normal transit times). */
+function fastestTenthTransit(mean: number, cv: number): number {
+  if (cv <= 0) return mean;
+  const s2 = Math.log(1 + cv * cv);
+  // −1.2816 is the standard normal 10th percentile.
+  return mean * Math.exp(-1.2816 * Math.sqrt(s2) - s2 / 2);
 }
 
 function dismissHint(): void {

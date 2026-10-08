@@ -15,8 +15,10 @@
  * the first O2 (T-state, measured 1800–3700 s⁻¹) and ~38 s⁻¹ for the last
  * (R-state, measured 16–32 s⁻¹).
  *
- * Cooperative binding happens in milliseconds. In the lungs the rate-limiting
- * step is diffusion, not this chemistry.
+ * Cooperative binding happens in milliseconds. Uptake by whole red cells is
+ * still not instantaneous: Roughton and Forster split the lung's diffusing
+ * capacity into the alveolar membrane and uptake by the red cells in the
+ * capillaries, and both resist O2 transfer. The model lumps them into DLO2.
  */
 import { BLOOD } from './dissociation';
 import type { Rng } from '../sim/rng';

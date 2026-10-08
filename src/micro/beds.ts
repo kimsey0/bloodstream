@@ -31,7 +31,7 @@ export const MICRO_BEDS: MicroBed[] = [
     label: 'Lung alveoli',
     style: 'alveoli',
     capillaries: 18,
-    blurb: 'Capillaries wrap the air sacs. O₂ crosses a barrier under 1 µm thick, and the cell is fully loaded about a third of the way along.',
+    blurb: 'Capillaries wrap the air sacs. O₂ crosses a barrier under 1 µm thick, driven by the PO₂ difference between air and blood.',
   },
   {
     capillary: 'heart_L.cap',

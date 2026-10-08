@@ -46,6 +46,7 @@ the same commit.
 | Geers & Gros 2000 | Geers C, Gros G. *Physiol Rev* 80:681–715, 2000 (as summarised by *Deranged Physiology*, "Transport of carbon dioxide in the blood"). | Cross-check of the CO2 a–v difference |
 | West 1983 | West JB et al. Pulmonary gas exchange on the summit of Mount Everest. *J Appl Physiol* 55:678–687, 1983. **Seen only as a search-result summary, not read in full.** | Summit and 7,830 m alveolar gases |
 | West 1996 | West JB. Prediction of barometric pressures at high altitudes with the use of model atmospheres. *J Appl Physiol* 81:1850–1854, 1996. | Barometric pressure vs altitude |
+| Roughton & Forster 1957 | Roughton FJW, Forster RE. *J Appl Physiol* 11:290–302, 1957. **Cited for the concept only, not read.** | Lung diffusing capacity as membrane plus red-cell uptake in series (no number used) |
 | Roughton & Darling 1944 | Roughton FJW, Darling RC. *Am J Physiol* 141:17–31, 1944. | Method for the CO-shifted curve (not checked numerically against the paper) |
 | ATS/ERS 2017 | Graham BL et al. *Eur Respir J* 49:1600016, 2017 (Hb correction of DLCO after Cotes). | Lung diffusing capacity vs Hb |
 | Varat 1972 | Varat MA, Adolph RJ, Fowler NO. Cardiovascular effects of anemia. *Am Heart J* 83:415–426, 1972. | Cardiac output, coronary and cerebral flow in anaemia |
@@ -168,7 +169,7 @@ parameters.
 |---|---|---|
 | Arterial and mixed venous SO2 and PO2 at rest | `oxygen.test.ts` | Guyton & Hall; West RP |
 | Coronary sinus, jugular and renal venous SO2 | `oxygen.test.ts` | Guyton & Hall (ranges) |
-| Lung equilibration ~0.25 s of 0.75 s | `oxygen.test.ts` | West RP ch. 3 |
+| Lung equilibration ~0.25 s of 0.75 s (also as plotted in the microscope) | `oxygen.test.ts` | West RP ch. 3 |
 | Mixed venous PCO2 / pH at rest | `bohr.test.ts` | Guyton & Hall; Calbet 2005 Table 2 |
 | Femoral venous P50 at max, 37.5 ± 3.1 | `bohr.test.ts` | Calbet 2005 Table 3 |
 | Femoral venous pH, PCO2; arterial pH, PCO2 at max | `activity.test.ts` | Calbet 2005 Table 2; Richardson 1995 Table I |

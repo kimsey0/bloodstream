@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { o2Content, saturation } from '../src/physiology/dissociation';
 import { REST } from '../src/physiology/params';
 import { Circulation } from '../src/sim/circulation';
-import { integratePo2, solveSteadyState } from '../src/sim/oxygen';
+import { capillaryProfile, integratePo2, solveSteadyState } from '../src/sim/oxygen';
 
 const circ = new Circulation();
 const ss = solveSteadyState(circ);
@@ -71,6 +71,17 @@ describe('pulmonary O2 loading', () => {
   it('becomes diffusion-limited when transit shortens to ~0.25 s (hard exercise)', () => {
     const p = integratePo2(30, 0.2, lung);
     expect(saturation(p)).toBeLessThan(0.97);
+  });
+
+  it('plots the same equilibration time along the capillary as the chart shows', () => {
+    const cap = circ.get('lung_L.cap');
+    const prof = capillaryProfile(lung, at('lung_L.cap').contentIn, 1.5 * cap.transit);
+    expect(prof.equilibration).not.toBeNull();
+    expect(prof.equilibration!).toBeGreaterThan(0.18);
+    expect(prof.equilibration!).toBeLessThan(0.35);
+    // PO2 rises monotonically towards alveolar gas and never passes it.
+    for (let i = 1; i < prof.po2.length; i++) expect(prof.po2[i]).toBeGreaterThanOrEqual(prof.po2[i - 1] - 1e-9);
+    expect(prof.po2.at(-1)!).toBeLessThanOrEqual(lung.targetPo2 + 1e-9);
   });
 
   it('never overshoots alveolar PO2', () => {

@@ -150,8 +150,12 @@ reverses as CO2 leaves, which raises haemoglobin's affinity while it
 loads. A cell's PO2 is therefore continuous where it enters a capillary.
 
 - **Lungs:** a = DLO2 / capillary blood volume, target = alveolar PO2.
-  Loading is diffusion-limited. At rest blood reaches equilibrium about
-  0.25 s into a 0.75 s transit.
+  Blood loads by diffusion, but at rest it reaches equilibrium about
+  0.25 s into a 0.75 s transit, so uptake is limited by blood flow
+  (perfusion-limited). Only when transit shortens below the equilibration
+  time, in hard exercise or at altitude, does it become diffusion-limited.
+  DLO2 lumps both resistances that Roughton and Forster separated: the
+  alveolar membrane, and uptake by the red cells themselves.
 - **Tissues:** a = DmO2 / capillary blood volume, target = tissue PO2.
   DmO2 is the bed's O2 diffusing capacity (mL O2/min/mmHg).
   - At rest, each tissue has a measured PO2: muscle 34 mmHg inside the
@@ -469,7 +473,13 @@ disagreements).
     changes the plotted curve, a dashed curve shows normal blood.
   - Below the chart, O2 content in mL/dL, split into haemoglobin-bound and
     dissolved.
-- **Microscope panel:** collapsible to a pill.
+- **Microscope panel:** collapsible to a pill. Below the bed's numbers,
+  `ProfileChart.svelte` plots an entering cell's PO2 against time in the
+  capillary (`capillaryProfile` in `oxygen.ts`), coloured by saturation,
+  with the target PO2 and the times at which the average cell and the
+  fastest 10 % leave. In the lungs it marks where blood comes within 5 %
+  of alveolar PO2 and says whether uptake is perfusion- or
+  diffusion-limited, after West's figure.
 - **Sheets:** bed picker (all beds, grouped by region), activity slider,
   and "What if?" (presets, sliders for Hb, altitude, CO and P50, and the
   compensation switch). Sheets sit above the dock at its measured height
@@ -508,7 +518,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 98 headless tests. The main emergent results are below;
+`npm test` runs 99 headless tests. The main emergent results are below;
 [SOURCES.md](SOURCES.md) lists every parameter's source and status, and
 where the model and measurements still disagree.
 

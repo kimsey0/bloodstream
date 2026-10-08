@@ -86,8 +86,11 @@ the test suite checks them against published values.
 
 The dissociation curve is Severinghaus's (P50 26.8 mmHg). The single
 haemoglobin molecule uses Imai's Adair constants with binding rates in
-Gibson's measured ranges. Lung loading is diffusion-limited, from DLO₂ and
-capillary blood volume. Each organ unloads O₂ by diffusion towards its
+Gibson's measured ranges. Lungs load O₂ by diffusion, from DLO₂ and
+capillary blood volume. At rest blood matches the air a third of the way
+along the capillary, so uptake is limited by blood flow (perfusion-limited);
+short transits in hard exercise, or thin air, can make it diffusion-limited.
+The microscope plots a cell's PO₂ along the capillary to show which. Each organ unloads O₂ by diffusion towards its
 cells' PO₂. Its diffusing capacity is set at rest from measured tissue
 PO₂, and in muscle and heart rises with blood flow. At every activity
 level, tissue PO₂ then settles where diffusion delivers exactly what the
@@ -156,7 +159,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (98 tests)
+npm test            # physiology validation suite (99 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```

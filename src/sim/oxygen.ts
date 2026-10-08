@@ -209,6 +209,48 @@ export function integratePo2(po2: number, duration: number, ex: ExchangeModel): 
   return c === ex.targetContent ? ex.targetPo2 : exchangePo2(ex, c);
 }
 
+/** A cell's PO2 and saturation along an exchanging capillary, sampled from entry. */
+export interface CapillaryProfile {
+  /** Time since the cell entered the capillary, s. */
+  t: number[];
+  po2: number[];
+  saturation: number[];
+  /**
+   * Time at which the cell's PO2 is within 5 % of its starting gap to the target PO2 (alveolar gas
+   * or tissue), or null if it does not get there within the profile.
+   */
+  equilibration: number | null;
+}
+
+/** PO2 and saturation of a cell entering with `contentIn`, over `duration` seconds in `n` steps. */
+export function capillaryProfile(ex: ExchangeModel, contentIn: number, duration: number, n = 80): CapillaryProfile {
+  const t: number[] = [];
+  const po2: number[] = [];
+  const sat: number[] = [];
+  let c = contentIn;
+  let p = exchangePo2(ex, c);
+  const gap = ex.targetPo2 - p;
+  let equilibration: number | null = null;
+  for (let i = 0; i <= n; i++) {
+    const ti = (duration * i) / n;
+    if (i > 0) {
+      c = integrateContent(c, duration / n, ex, p);
+      const next = c === ex.targetContent ? ex.targetPo2 : exchangePo2(ex, c, p);
+      // Where the cell comes within 5 % of the gap, interpolated within the step.
+      const goal = ex.targetPo2 - 0.05 * gap;
+      if (equilibration === null && (goal - next) * Math.sign(gap) <= 0) {
+        const u = (goal - p) / (next - p || 1);
+        equilibration = t[i - 1] + Math.min(1, Math.max(0, u)) * (ti - t[i - 1]);
+      }
+      p = next;
+    }
+    t.push(ti);
+    po2.push(p);
+    sat.push(exchangeSaturation(ex, c));
+  }
+  return { t, po2, saturation: sat, equilibration };
+}
+
 /** Inverse standard normal CDF (Acklam's rational approximation, |ε| < 1.2e-9). */
 function probit(q: number): number {
   const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];

@@ -2,6 +2,7 @@
 import type { ColorScale } from '../color/saturation';
 import { STANDARD_CONDITIONS } from '../physiology/dissociation';
 import { NORMAL_SCENARIO, type Scenario } from '../physiology/scenario';
+import type { CapillaryProfile } from '../sim/oxygen';
 import type { FollowInfo } from '../sim/protocol';
 
 export const SPEEDS = [0.01, 0.1, 1, 10, 30] as const;
@@ -86,6 +87,8 @@ export interface MicroInfo {
   restDiffusingCapacity: number;
   /** Myoglobin saturation in muscle and heart cells, else null. */
   myoglobin: number | null;
+  /** PO2 and saturation of a cell along the capillary, with the bed's mean and fastest-10 % transit times, s. */
+  profile: CapillaryProfile & { transit: number; fastTransit: number };
 }
 
 /** Recent (time, saturation, speed, PO2, O2 content, virtual-PO2 factor of the blood around it) samples of the followed cell, for the sparkline. Not reactive on purpose. */

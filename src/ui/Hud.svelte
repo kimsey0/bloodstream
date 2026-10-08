@@ -303,7 +303,8 @@
     </p>
     <p>
       The magnifier opens a capillary bed at true scale: real cell sizes, capillary widths and speeds, with each white dot standing
-      for a billion O₂ molecules crossing the capillary wall.
+      for a billion O₂ molecules crossing the capillary wall. Its panel plots a cell's PO₂ along the capillary: in the lungs, whether
+      blood matches the air before it leaves.
     </p>
     <p>
       Tap near an organ to zoom into its capillaries, or tap any cell (or the target button) to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,

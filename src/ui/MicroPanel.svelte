@@ -1,5 +1,6 @@
 <script lang="ts">
   import { saturationCss } from '../color/saturation';
+  import ProfileChart from './ProfileChart.svelte';
   import { ui, type MicroInfo } from './state.svelte';
 
   interface Props {
@@ -10,6 +11,8 @@
   let { info, onBack, onResetView }: Props = $props();
 
   const pct = (x: number) => `${Math.round(x * 100)}%`;
+  /** PO2-along-the-capillary chart: open by default where there is room. */
+  let profileOpen = $state(globalThis.innerWidth > 520 && globalThis.innerHeight > 700);
   /** A round scale-bar length whose bar is 60–160 px wide. */
   let bar = $derived.by(() => {
     const per100 = ui.microScalePx;
@@ -68,6 +71,10 @@
       </dd>
     </div>
   </dl>
+  {#if profileOpen}<ProfileChart {info} />{/if}
+  <button class="toggle" aria-expanded={profileOpen} onclick={() => (profileOpen = !profileOpen)}
+    >{profileOpen ? 'Hide' : 'Show'} PO₂ along the capillary</button
+  >
   <div class="foot">
     <span class="dot"></span>
     <span class="dotlabel"
@@ -153,6 +160,8 @@
     top: calc(env(safe-area-inset-top, 0px) + 12px);
     right: 16px;
     width: min(380px, calc(100% - 32px));
+    max-height: calc(100% - env(safe-area-inset-top, 0px) - 24px);
+    overflow-y: auto;
     display: grid;
     gap: 8px;
     padding: 12px 14px;
@@ -190,6 +199,10 @@
   button:focus-visible {
     outline: 2px solid var(--steel);
     outline-offset: 2px;
+  }
+  .toggle {
+    justify-self: start;
+    color: var(--muted);
   }
   .back {
     display: inline-flex;
