@@ -1,5 +1,6 @@
 import type { BloodConditions } from '../physiology/dissociation';
 import type { Scenario } from '../physiology/scenario';
+import type { OxygenBudget } from './budget';
 import type { ExchangeModel } from './oxygen';
 
 /** Messages between the main thread and the simulation worker. */
@@ -100,6 +101,8 @@ export interface ReadyMessage {
   scenario: Scenario;
   /** Cardiac output the tissues asked for, mL/s (above the actual one when the maximum binds). */
   demandedCardiacOutput: number;
+  /** O2 delivery, use and extraction, whole body and per organ. */
+  budget: OxygenBudget;
 }
 
 /** An activity level or scenario the body cannot sustain; the previous state stays. */

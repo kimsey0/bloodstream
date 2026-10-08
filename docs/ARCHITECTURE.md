@@ -451,7 +451,7 @@ disagreements).
 `src/app/main.ts` connects the worker, both scenes and the Svelte HUD
 (`src/ui/`):
 
-- **Dock:** speed, pause, follow, activity, "what if", magnifier, reset view and info.
+- **Dock:** speed, pause, follow, activity, "what if", magnifier, O2 budget, reset view and info.
 - **Follow panel:** collapsible to a pill. It shows saturation and PO2,
   location and speed, the blood's pH, PCO2, temperature and P50, a circuit
   timer and previous circuits, an SO2/speed sparkline, the haemoglobin
@@ -473,6 +473,12 @@ disagreements).
     changes the plotted curve, a dashed curve shows normal blood.
   - Below the chart, O2 content in mL/dL, split into haemoglobin-bound and
     dissolved.
+- **O2 budget** (`BudgetPanel.svelte`, from `src/sim/budget.ts` via the
+  worker's state message): whole-body O2 delivery (cardiac output ×
+  arterial content), use (Fick) and extraction, and per organ its flow
+  through exchanging capillaries, O2 used, extraction and the saturation
+  of the blood leaving. Organ deliveries count the liver's portal blood
+  again, so they add up to more than the total.
 - **Microscope panel:** collapsible to a pill. Below the bed's numbers,
   `ProfileChart.svelte` plots an entering cell's PO2 against time in the
   capillary (`capillaryProfile` in `oxygen.ts`), coloured by saturation,
@@ -518,7 +524,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 99 headless tests. The main emergent results are below;
+`npm test` runs 103 headless tests. The main emergent results are below;
 [SOURCES.md](SOURCES.md) lists every parameter's source and status, and
 where the model and measurements still disagree.
 

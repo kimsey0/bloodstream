@@ -72,6 +72,7 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
     ui.scenario = msg.scenario;
     ui.scenarioPending = null;
     ui.demandedCardiacOutput = msg.demandedCardiacOutput;
+    ui.budget = msg.budget;
     for (const ex of msg.exchange) {
       exchange.set(ex.segment, ex);
       ui.bedSaturation[ex.segment] = [ex.saturationIn, ex.saturationOut];

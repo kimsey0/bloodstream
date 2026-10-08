@@ -5,6 +5,7 @@
  * alternate with frames, so the queue never backs up on slow devices.
  */
 import { samplePath } from '../anatomy/lut';
+import { oxygenBudget } from './budget';
 import { exchangeSaturation, integrateContent } from './oxygen';
 import { PROFILE_SAMPLES, type AdoptMessage, type FollowInfo, type FromWorker, type InitMessage, type ToWorker } from './protocol';
 import { Rng } from './rng';
@@ -116,6 +117,7 @@ function postState(type: 'ready' | 'state'): void {
     transits: Float32Array.from(segs, (s) => s.transit),
     scenario,
     demandedCardiacOutput: demandedCardiacOutput || sim.circulation.cardiacOutput,
+    budget: oxygenBudget(sim.circulation, sim.steady),
     meanCirculationTime: sim.circulation.meanRbcCirculationTime,
     activity: { level: a.level, label: a.label, met: a.met, heartRate: a.heartRate, cardiacOutput: a.cardiacOutput, vo2: a.vo2 },
     exchange: [...sim.steady.exchange].map(([segment, ex]) => ({

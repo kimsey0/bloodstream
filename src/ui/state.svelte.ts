@@ -2,6 +2,7 @@
 import type { ColorScale } from '../color/saturation';
 import { STANDARD_CONDITIONS } from '../physiology/dissociation';
 import { NORMAL_SCENARIO, type Scenario } from '../physiology/scenario';
+import type { OxygenBudget } from '../sim/budget';
 import type { CapillaryProfile } from '../sim/oxygen';
 import type { FollowInfo } from '../sim/protocol';
 
@@ -22,6 +23,9 @@ export const ui = $state({
   meanCirculationTime: 0,
   cardiacOutput: 0,
   bloodVolume: 0,
+  /** O2 delivery, use and extraction (null until the first state arrives). */
+  budget: null as OxygenBudget | null,
+  budgetOpen: false,
   infoOpen: false,
   follow: null as FollowInfo | null,
   /** Segment names, indexed like the circulation graph. */

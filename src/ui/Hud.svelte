@@ -1,6 +1,7 @@
 <script lang="ts">
   import { saturationCss, type ColorScale } from '../color/saturation';
   import ActivityPanel from './ActivityPanel.svelte';
+  import BudgetPanel from './BudgetPanel.svelte';
   import BedPicker from './BedPicker.svelte';
   import FollowPanel from './FollowPanel.svelte';
   import MicroPanel from './MicroPanel.svelte';
@@ -85,6 +86,10 @@
 
 {#if ui.whatIfOpen}
   <WhatIfPanel onApply={onScenario} />
+{/if}
+
+{#if ui.budgetOpen && ui.budget}
+  <BudgetPanel budget={ui.budget} />
 {/if}
 
 {#if ui.pickerOpen}
@@ -178,7 +183,7 @@
       aria-label="Activity level"
       title="Activity level"
       aria-expanded={ui.activityOpen}
-      onclick={() => ((ui.activityOpen = !ui.activityOpen), (ui.pickerOpen = false), (ui.whatIfOpen = false))}
+      onclick={() => ((ui.activityOpen = !ui.activityOpen), (ui.pickerOpen = false), (ui.whatIfOpen = false), (ui.budgetOpen = false))}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><circle cx="10" cy="2.6" r="1.6" fill="currentColor" /><path
@@ -197,7 +202,7 @@
       aria-label="What if: change the blood or the altitude"
       title="What if: change the blood or the altitude"
       aria-expanded={ui.whatIfOpen}
-      onclick={() => ((ui.whatIfOpen = !ui.whatIfOpen), (ui.activityOpen = false), (ui.pickerOpen = false))}
+      onclick={() => ((ui.whatIfOpen = !ui.whatIfOpen), (ui.activityOpen = false), (ui.pickerOpen = false), (ui.budgetOpen = false))}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><path
@@ -215,7 +220,7 @@
       aria-label="Zoom into a capillary bed"
       title="Zoom into a capillary bed"
       aria-expanded={ui.pickerOpen}
-      onclick={() => ((ui.pickerOpen = !ui.pickerOpen), (ui.activityOpen = false), (ui.whatIfOpen = false))}
+      onclick={() => ((ui.pickerOpen = !ui.pickerOpen), (ui.activityOpen = false), (ui.whatIfOpen = false), (ui.budgetOpen = false))}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path
@@ -224,6 +229,21 @@
           stroke-width="1.8"
           stroke-linecap="round"
         /><path d="M4.5 6.5h4M6.5 4.5v4" stroke="currentColor" stroke-width="1.3" /></svg
+      >
+    </button>
+    <button
+      class="icon"
+      class:on={ui.budgetOpen}
+      aria-label="Oxygen budget: delivery, use and extraction"
+      title="Oxygen budget: delivery, use and extraction"
+      aria-expanded={ui.budgetOpen}
+      onclick={() => ((ui.budgetOpen = !ui.budgetOpen), (ui.activityOpen = false), (ui.whatIfOpen = false), (ui.pickerOpen = false))}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true"
+        ><path d="M2 14.2h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><path
+          d="M3.5 12.6V7.5h2.4v5.1zM6.8 12.6V3.2h2.4v9.4zM10.1 12.6V9.4h2.4v3.2z"
+          fill="currentColor"
+        /></svg
       >
     </button>
     <button class="icon" aria-label="Reset view" title="Reset view" onclick={() => (ui.view === 'micro' ? onMicroReset() : onResetView())}>
@@ -321,6 +341,11 @@
       about three-quarters of its blood arrives in diastole, between beats. A fast heart rate shortens diastole and with it this
       supply time.
     </p>
+    <p>
+      The bar-chart button shows the O₂ budget: the heart sends out about 1 L of O₂ a minute at rest and the body uses a quarter
+      of it. Each organ takes a different share of what reaches it, from about a tenth in the kidneys to two-thirds in the heart
+      wall.
+    </p>
     <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan.</p>
     <h2>Where the numbers come from</h2>
     <p class="sources">
@@ -378,6 +403,10 @@
       flex-wrap: wrap;
       justify-content: space-between;
       row-gap: 8px;
+      column-gap: 4px;
+    }
+    .row .icon {
+      width: 34px;
     }
     .row .speeds {
       order: -1;

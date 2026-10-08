@@ -32,6 +32,11 @@ on desktop and on phones.
   (one dot per 10⁹ molecules). The panel gives the tissue's PO₂, its
   myoglobin saturation in muscle and heart, and how its diffusing capacity
   compares with rest: working muscle's rises ~30-fold.
+- **See the O₂ budget.** How much O₂ the heart sends out (cardiac output
+  × arterial O₂ content), how much the body uses, and for each organ its
+  blood flow, O₂ use and the share of arriving O₂ it extracts: about 10 %
+  in the kidneys and two-thirds in the heart wall at rest, and over 80 %
+  in working muscle at maximal exercise.
 - **Change the activity level.** Go from rest to maximal exercise. Heart rate,
   cardiac output, O₂ use, flow distribution, capillary recruitment and
   blood chemistry all change together.
@@ -159,7 +164,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (99 tests)
+npm test            # physiology validation suite (103 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```

@@ -171,6 +171,8 @@ parameters.
 | Coronary sinus, jugular and renal venous SO2 | `oxygen.test.ts` | Guyton & Hall (ranges) |
 | Lung equilibration ~0.25 s of 0.75 s (also as plotted in the microscope) | `oxygen.test.ts` | West RP ch. 3 |
 | Mixed venous PCO2 / pH at rest | `bohr.test.ts` | Guyton & Hall; Calbet 2005 Table 2 |
+| Whole-body O2 delivery ~1,000 mL/min and extraction ~25 % at rest, 75–85 % at maximal exercise | `budget.test.ts` | Guyton & Hall ch. 41 (the "utilization coefficient") |
+| Organ extraction at rest: heart > 55 %, kidney and skin lowest, brain about a third | `budget.test.ts` | Follows from the Ganong Table 32-1 organ flows and VO2 already used as inputs, so a consistency check rather than an independent one |
 | Femoral venous P50 at max, 37.5 ± 3.1 | `bohr.test.ts` | Calbet 2005 Table 3 |
 | Femoral venous pH, PCO2; arterial pH, PCO2 at max | `activity.test.ts` | Calbet 2005 Table 2; Richardson 1995 Table I |
 | A–a difference 15–25 mmHg at max, rising with work | `activity.test.ts` | Dempsey & Wagner 1999 p.1998–1999 |
