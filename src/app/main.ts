@@ -252,6 +252,7 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     speedUm: (seg.length * 1000) / transit,
     saturationIn: ex.saturationIn,
     saturationOut: ex.saturationOut,
+    saturationArterial: arteriolarInlet(capillary),
     dotsPerPass: (Math.abs(ex.saturationIn - ex.saturationOut) * 4 * HB_PER_RBC) / 1e9,
     fiberLabel: bed.fiberLabel,
     lung: seg.exchange?.type === 'lung',
@@ -267,6 +268,13 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
       fastTransit: fastestTenthTransit(transit, seg.transitCv ?? 0),
     },
   };
+}
+
+/** Saturation entering the arterioles that feed a capillary bed, if they exchange O2 too; else null. */
+function arteriolarInlet(capillary: number): number | null {
+  const prev = circ.segments[capillary].prevIndex;
+  if (prev.length !== 1 || circ.segments[prev[0]].kind !== 'arteriole') return null;
+  return exchange.get(prev[0])?.saturationIn ?? null;
 }
 
 /** Transit time within which the fastest 10 % of cells cross a segment (log-normal transit times). */

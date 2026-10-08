@@ -183,19 +183,35 @@ loads. A cell's PO2 is therefore continuous where it enters a capillary.
     liver 25. DmO2 is calibrated so the average cell, over the bed's
     log-normal transit distribution, gives up exactly VO2 / flow (Fick).
   - At other activity levels DmO2 is fixed, except in muscle and heart,
-    where it rises with flow as DmO2 ∝ flow^0.875: dilated vessels carry more
+    where it rises with flow as DmO2 ∝ flow^0.985: dilated vessels carry more
     red cells through more capillary surface. Tissue PO2 is then solved for:
     the value at which diffusion delivers exactly the tissue's VO2. A tissue
     that works harder, or gets less blood, draws its PO2 down until
     diffusion keeps up.
   - The single exponent is set so thigh muscle reaches the ~3 mmHg
     intracellular PO2 measured at maximal exercise (Richardson 1995).
-    Everything else follows: intracellular PO2 of 5–8 mmHg already at
-    walking and jogging, myoglobin 91 % saturated at rest and 50 % at max
-    (measured: 91 % and 49 %), DmO2 ~28× resting and 14 mL/min/mmHg per kg
-    at max (measured: 14 per kg in quadriceps), mean capillary PO2 ~29
-    mmHg (measured: 34–38), and kidney and liver PO2 falling as exercise
-    cuts their flow.
+    Everything else follows: intracellular PO2 of 4–5 mmHg already at
+    walking and jogging, myoglobin 91 % saturated at rest and 49 % at max
+    (measured: 91 % and 49 %), whole-bed DmO2 (arterioles and capillaries)
+    ~33× resting and 14 mL/min/mmHg per kg at max (measured: 14 per kg in
+    quadriceps), mean capillary PO2 ~29 mmHg (measured: 34–38), and kidney
+    and liver PO2 falling as exercise cuts their flow.
+- **Arterioles** (`feedingArteriole`, `bedModels`): blood also gives up O2
+  before the capillaries, across the walls of the small arteries and
+  arterioles, towards the same tissue PO2. Every bed whose capillaries are
+  fed by one arteriole segment (all but the liver) has an arteriolar O2
+  diffusing capacity. At rest its ratio to the capillaries' (per unit blood
+  volume) is set so resting skeletal muscle loses two-thirds of its O2 in
+  its arterioles, as Swain & Pittman (1989) measured in hamster muscle; the
+  same ratio applies everywhere, so each bed's share follows from its
+  transit times: ~45 % in brain, ~40 % in heart, skin and gut, 15 % in the
+  kidney (efferent arterioles). Arteriolar capacity does not recruit with
+  flow, so in exercise working muscle's share falls to ~28 % and the
+  capillaries take over. Arterioles and capillaries share one chemistry
+  line from the bed's inlet to its outlet, and the tissue PO2 is solved for
+  both together. Tracer cells unload in arterioles too, and vessels are
+  coloured accordingly; the microscope shows the arteriolar drop in its
+  panel.
   - Cells that linger longer extract more.
   - Myoglobin saturation, shown for muscle and heart, is PO2 / (PO2 + 3.2).
 
@@ -290,7 +306,7 @@ level:
 | CO2 output / O2 use (RQ) | 0.8 | 0.85 | 0.95 | 1.1 |
 | Arterial PCO2 / pH / temperature | 40 / 7.40 / 37 | 40 / 7.40 / 37.2 | 38 / 7.39 / 37.8 | 34 / 7.33 / 38.5 |
 | Working-muscle venous temperature rise | 0 | 0.1 °C | 0.15 °C | 0.2 °C |
-| Thigh muscle DmO2 (× rest) / intracellular PO2 (emergent) | 1× / 34 mmHg | 8× / 7.6 | 18× / 5.4 | 28× / 3.1 |
+| Thigh muscle DmO2, arterioles + capillaries (× rest) / intracellular PO2 (emergent) | 1× / 34 mmHg | 8× / 5.1 | 21× / 4.3 | 33× / 3.0 |
 
 Flow and VO2 are set per tissue. Muscle takes what the other tissues
 don't, and its extra flow and VO2 go mostly to the legs (thighs 25 % each,
@@ -359,7 +375,7 @@ Results:
 | 30 % COHb | PaO2 86 mmHg but SaO2 69 % | jogging |
 | 3,700 m, Hb 17.6 | SaO2 91 % (measured 92.0 %) | jogging (SaO2 84 %; measured 87 %); walking 90 % (measured 89 %) |
 | 4,500 m | PaO2 49 mmHg, SaO2 87 % | jogging |
-| Everest summit, Hb 18.5 | PaO2 25 mmHg, SaO2 59 %, cardiac output 6.5 L/min | rest |
+| Everest summit, Hb 18.5 | PaO2 25 mmHg, SaO2 59 %, cardiac output 6.8 L/min | rest |
 | Polycythaemia; low-affinity Hb | normal | maximal |
 
 Hard exercise at altitude still desaturates a little more than measured
@@ -548,7 +564,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 109 headless tests. The main emergent results are below;
+`npm test` runs 113 headless tests. The main emergent results are below;
 [SOURCES.md](SOURCES.md) lists every parameter's source and status, and
 where the model and measurements still disagree.
 
@@ -570,9 +586,10 @@ where the model and measurements still disagree.
 | Maximal exercise: arterial / mixed venous / femoral venous SO2 | 96 / 23 / 17 % | ≥ 95 / 20–30 / ~15 % (average subjects) |
 | Maximal exercise: femoral venous PO2 / pH / PCO2 | 19 mmHg / 7.20 / 66 | ~20 (average) / 7.19–7.21 / 72 (elite) |
 | Maximal exercise: femoral venous P50 | 36 mmHg | 37.5 ± 3.1 |
-| Thigh muscle intracellular PO2 at rest / jogging / max | 34 (set) / 5.4 / 3.1 mmHg | 34 ± 6 / ~3 from 50 % of max / 3.1 ± 0.3 |
-| Thigh myoglobin saturation at rest / max | 91 / 50 % | 91 ± 1 / 49 ± 3 % |
-| Thigh DmO2 at max | 28× rest, 14 mL/min/mmHg per kg | ~14× (Richardson 2006); 14 per kg in quadriceps |
+| Thigh muscle intracellular PO2 at rest / jogging / max | 34 (set) / 4.3 / 3.0 mmHg | 34 ± 6 / ~3 from 50 % of max / 3.1 ± 0.3 |
+| Thigh myoglobin saturation at rest / max | 91 / 49 % | 91 ± 1 / 49 ± 3 % |
+| Thigh DmO2 at max (arterioles + capillaries) | 33× rest, 14 mL/min/mmHg per kg | ~14× (Richardson 2006); 14 per kg in quadriceps |
+| Arteriolar share of O2 loss, resting muscle / maximal exercise | 67 % (set) / 28 % | ~⅔ at rest in hamster muscle (Swain & Pittman 1989) |
 | Thigh mean capillary PO2 at max | 29 mmHg | 37.5 (knee extensors); 34 (legs, elite skiers) |
 | Maximal exercise: lung transit / mean circulation | 0.37 s / 13 s | 0.3–0.45 s / ~13 s |
 
@@ -595,7 +612,15 @@ Other checks:
   and the kidney view shows peritubular capillaries only.
 - Red cells split at branches in proportion to blood flow, with no plasma
   skimming.
-- Systemic O2 exchange happens only in capillaries, not in arterioles.
+- Arteriolar O2 loss is calibrated on one measurement in resting hamster
+  muscle and transferred to all human beds by transit time. Its size is
+  disputed (the measured rate is ~10× what diffusion theory predicts;
+  Popel et al. 1989), and much of the O2 that leaves arterioles is picked
+  up by nearby capillaries and venules (Kuo & Pittman 1988). The lumped
+  model counts it all as the bed's O2 use, which keeps venous blood right
+  but not where in the bed each molecule ends up. The microscope's terminal
+  arteriole does not unload; its blood arrives at the capillary inlet's
+  saturation.
 - Vertebral arteries are folded into the carotids; anterior cardiac and
   Thebesian veins into the coronary sinus.
 - Layout-only branches are drawn but not simulated: their blood counts as

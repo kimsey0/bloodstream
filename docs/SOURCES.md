@@ -55,6 +55,11 @@ the same commit.
 | ATS/ERS 2017 | Graham BL et al. *Eur Respir J* 49:1600016, 2017 (Hb correction of DLCO after Cotes). | Lung diffusing capacity vs Hb |
 | Varat 1972 | Varat MA, Adolph RJ, Fowler NO. Cardiovascular effects of anemia. *Am Heart J* 83:415–426, 1972. | Cardiac output, coronary and cerebral flow in anaemia |
 | Brutsaert 2000 | Brutsaert TD et al. *Am J Phys Anthropol* 113:169–181, 2000. | SaO2 at 3,600–3,850 m in acclimatized lowlanders, rest and exercise |
+| Duling & Berne 1970 | Duling BR, Berne RM. Longitudinal gradients in periarteriolar oxygen tension: a possible mechanism for the participation of oxygen in local regulation of blood flow. *Circ Res* 27:669–678, 1970. | PO2 falls along arterioles (qualitative) |
+| Kuo & Pittman 1988 | Kuo L, Pittman RN. Effect of hemodilution on oxygen transport in arteriolar networks of hamster striated muscle. *Am J Physiol* 254:H331–H339, 1988. | SO2 from systemic arterial blood through four arteriolar orders; ~84 % of arteriolar O2 goes to nearby vessels |
+| Swain & Pittman 1989 | Swain DP, Pittman RN. Oxygen exchange in the microcirculation of hamster retractor muscle. *Am J Physiol* 256:H247–H255, 1989. | Two-thirds of resting muscle's net O2 loss in arterioles |
+| Popel 1989 | Popel AS, Pittman RN, Ellsworth ML. Rate of oxygen loss from arterioles is an order of magnitude higher than expected. *Am J Physiol* 256:H921–H924, 1989 (Table 1 as corrected in *Am J Physiol* 261, 1991). | Caveat: measured arteriolar loss ~10× diffusion theory |
+| Pittman 2011 | Pittman RN. *Regulation of Tissue Oxygenation*. Morgan & Claypool, 2011, ch. 6; and Oxygen gradients in the microcirculation, *Acta Physiol* 202:311–322, 2011. | Review: arteriolar O2 loss established, destination and size disputed |
 | Seligman 2022 | Seligman H et al. Phasic flow patterns of right versus left coronary arteries in patients undergoing clinical physiological assessment. *EuroIntervention* 17:1260–1270, 2022. | Diastolic-to-systolic coronary flow velocity ratio, left and right |
 | Davies 2006 | Davies JE et al. Evidence of a dominant backward-propagating "suction" wave responsible for diastolic coronary filling in humans. *Circulation* 113:1768–1778, 2006. | Why coronary flow peaks in diastole (qualitative) |
 | Machado 2009 | Machado GM, Oliveira MM, Fernandes LAF. *IEEE TVCG* 15:1291, 2009. | Colour-vision-deficiency simulation |
@@ -117,8 +122,12 @@ acclimatized altitude).
 | Resting muscle intracellular PO2 | 34 mmHg | M | Richardson 2006 Table 1 (34 ± 6) |
 | Resting brain tissue PO2 | 25 mmHg | M | Pennings 2008 abstract and Results: frontal white matter of 22 awake patients 22.6 ± 7.2 mmHg (range 11–37); 23.1 ± 6.6 over the next 24 h (n = 11). Grey matter runs higher than white (Erecińska & Silver 2001 Table 1: rat cortex grey 19–40 vs white 6–16 mmHg), so the lumped brain bed sits slightly above the white-matter mean, within its SD |
 | Resting heart, kidney, gut, liver, skin, bronchial, other tissue PO2 | 10, 30, 30, 25, 30, 25, 20 mmHg | A | "Typical interstitial", no specific source |
-| Diffusing capacity rise with flow (muscle, heart) | DmO2 ∝ flow^0.875 | F | Thigh intracellular PO2 at max = 3.1 ± 0.3 mmHg (Richardson 1995 Table I) |
+| Diffusing capacity rise with flow (muscle, heart, capillaries only) | DmO2 ∝ flow^0.985 | F | Thigh intracellular PO2 at max = 3.1 ± 0.3 mmHg (Richardson 1995 Table I) |
 | Myoglobin P50 | 3.2 mmHg | M | Richardson 1995 (value used for ~39 °C) |
+| Arteriolar share of resting muscle's O2 loss | 2/3 | M (animal), A (in humans) | Swain & Pittman 1989 abstract: SO2 69.9 % in first-order arterioles, 56.7 % in fourth-order, 50.6 % in large venules (hamster retractor muscle at rest). Kuo & Pittman 1988 Results: 78.1 % systemic arterial, 66.8 % first-order, 51.2 % fourth-order arterioles. Transferred to human muscle without a human measurement |
+| Arteriolar vs capillary conductance ratio (per unit blood volume) | same in every bed | A | Fitted in resting muscle to the share above; other beds' shares then follow from their transit times |
+| Arteriolar diffusing capacity with exercise or compensation | fixed at its resting value | A | Swain & Pittman 1989: arteriolar SO2 loss per length inversely proportional to red-cell flow, as a fixed conductance gives |
+| Arteriolar O2 counted as the bed's O2 use | | A | Kuo & Pittman 1988: ~84 % of it actually reaches nearby capillaries and venules; the bed's mass balance is unaffected |
 
 ### Lungs and exercise (`activity.ts`)
 
@@ -193,6 +202,7 @@ parameters.
 | Thigh intracellular PO2 2–4 mmHg at max, < 6 at jogging | `diffusion.test.ts` | Richardson 1995 Table I |
 | Myoglobin saturation at rest and max | `diffusion.test.ts` | Richardson 2006 Table 1; Richardson 1995 Table I |
 | Thigh DmO2 per kg at max | `diffusion.test.ts` | Richardson 1995 Table I (35.3 for ~2.5 kg) |
+| Arteriolar share: ⅔ in resting muscle, falling in exercise | `arteriole.test.ts` | Swain & Pittman 1989 (rest only; the fall is a model consequence) |
 | Thigh mean capillary PO2 at max | `diffusion.test.ts` | Richardson 1995 Table I (37.5); Calbet 2005 (33.8) |
 | Summit barometric and alveolar PO2 | `scenario.test.ts` | West 1996; West 1983 |
 | Resting SaO2 at 3,700 m, Hb 17.6 | `scenario.test.ts` | Brutsaert 2000 Table 4 (92.0 %) |
@@ -204,6 +214,8 @@ parameters.
 |---|---|---|---|
 | SaO2 at ~2 L/min VO2 at 3,700 m | 84 % | 86.6 % (Brutsaert 2000 Table 4) | Diffusing capacity at altitude taken from unacclimatized subjects (Wagner 1986); acclimatization may raise it |
 | Thigh mean capillary PO2 at max | 29 mmHg | 33.8–37.5 | |
+| Thigh diffusing capacity at max relative to rest (arterioles + capillaries) | ~33× | ~14× (Richardson 2006) | Resting capacity set by the resting tissue PO2 anchor; the rise is fitted to the maximal intracellular PO2 |
+| Size of arteriolar O2 loss | ⅔ of resting muscle's extraction | measured only in animals; ~10× diffusion theory (Popel 1989) | Unresolved in the literature (Pittman 2011) |
 | Mixed venous PCO2 at rest | 47 mmHg | 45–46 (textbook) | Straight-line CO2 slopes fitted to Calbet 2005 |
 | Cerebral flow in anaemia | unchanged until brain extraction doubles (Hb ~8) | rises; delivery only slightly reduced (Varat 1972 p.417) | One extraction reserve for all tissues except the heart |
 | Heart rate in anaemia | rises with cardiac output | stroke volume rises, tachycardia "frequently absent" (Varat 1972 p.415, p.418) | Heart rate scales with cardiac output |

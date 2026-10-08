@@ -78,6 +78,8 @@ export interface MicroInfo {
   speedUm: number;
   saturationIn: number;
   saturationOut: number;
+  /** Saturation entering the bed's arterioles, which give up O2 before the capillaries; null if none. */
+  saturationArterial: number | null;
   /** Mean O2 dots per cell passage (each dot = 10⁹ molecules). */
   dotsPerPass: number;
   fiberLabel?: string;

@@ -29,7 +29,9 @@ on desktop and on phones.
 - **Zoom into capillary beds.** Tap near an organ, or use the magnifier, to
   open its capillaries at true micrometre scale. You see biconcave red
   cells in single file, and white dots for O₂ crossing the capillary wall
-  (one dot per 10⁹ molecules). The panel gives the tissue's PO₂, its
+  (one dot per 10⁹ molecules). Blood has already given up some O₂ in the
+  arterioles: two-thirds of it in resting muscle, less in exercise. The
+  panel gives the tissue's PO₂, its
   myoglobin saturation in muscle and heart, and how its diffusing capacity
   compares with rest: working muscle's rises ~30-fold.
 - **See the O₂ budget.** How much O₂ the heart sends out (cardiac output
@@ -83,7 +85,7 @@ the test suite checks them against published values.
 | Alveolar–arterial PO₂ difference at max | 21 mmHg | 15–25 mmHg; ~22 (Wagner et al. 1986) |
 | Arterial / mixed venous / femoral venous saturation at max | 96 % / 23 % / 17 % | ≥ 95 / 20–30 / ~15 % |
 | Femoral venous pH / P50 at max | 7.20 / 36 mmHg | 7.19–7.21 / 37.5 ± 3.1 mmHg |
-| Working-muscle cell PO₂ / myoglobin saturation at max | 3.1 mmHg / 50 % | 3.1 mmHg / 49 % |
+| Working-muscle cell PO₂ / myoglobin saturation at max | 3.0 mmHg / 49 % | 3.1 mmHg / 49 % |
 | Capillary RBC speed / venule speed | 0.25–0.8 mm/s / ~2 mm/s | 0.2–1.5 / 0.2–4 mm/s |
 | Barometric / alveolar PO₂ on the Everest summit at rest | 253 / 35 mmHg | 253 / 35 mmHg (West et al. 1983) |
 | P50 of the remaining Hb at 30 % / 50 % COHb | 18 / 13 mmHg | falls with COHb (Roughton & Darling 1944) |
@@ -167,7 +169,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (109 tests)
+npm test            # physiology validation suite (113 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```
@@ -190,7 +192,9 @@ emergent numbers still match the references.
   body view are drawn far larger than life; the microscope view is true to
   scale.
 - Red cells split at branches in proportion to blood flow, with no
-  plasma skimming. Systemic O₂ exchange happens only in capillaries.
+  plasma skimming. O₂ loss from arterioles is calibrated on resting
+  hamster muscle (Swain & Pittman 1989), where two-thirds of the O₂ left
+  before the capillaries; its size in human tissues is uncertain.
 - Activity changes take effect almost immediately rather than over 1–2
   minutes. Exercise means running, so the arms barely work.
 - Atria and veins carry no pulse.
@@ -223,7 +227,9 @@ at maximal exercise); Calbet et al., Am J Physiol 2005 and González-Alonso &
 Calbet, Circulation 2003 (limb venous blood at maximal exercise); Hopkins
 et al., Respir Physiol 1996 (pulmonary transit); Richardson et al., J Clin
 Invest 1995 (muscle intracellular PO₂); Seligman et al., EuroIntervention 2022 and
-Davies et al., Circulation 2006 (phasic coronary flow); Wagner et al., J Clin
+Davies et al., Circulation 2006 (phasic coronary flow); Duling & Berne, Circ Res 1970,
+Kuo & Pittman 1988, Swain & Pittman 1989 and Popel et al. 1989, Am J Physiol, and Pittman,
+*Regulation of Tissue Oxygenation* 2011 (O₂ loss from arterioles); Wagner et al., J Clin
 Invest 1974 and J Appl Physiol 1986, Gale et al. and Torre-Bueno et al., J Appl
 Physiol 1985 (ventilation–perfusion mismatch and diffusion limitation); Machado et al. 2009 (colour-vision simulation).
 Details and specific values are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)

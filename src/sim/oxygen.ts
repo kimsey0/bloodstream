@@ -54,8 +54,8 @@ import {
 } from '../physiology/dissociation';
 import { arterialChemistry, REST_STATE } from '../physiology/activity';
 import { SEGMENT_DEFS } from '../physiology/anatomy';
-import { DIFFUSION, REST } from '../physiology/params';
-import { Circulation } from './circulation';
+import { ARTERIOLAR, DIFFUSION, REST } from '../physiology/params';
+import { Circulation, type Segment } from './circulation';
 
 export interface ExchangeModel {
   /** Conductance, mL O2 / mL blood / s / mmHg. */
@@ -611,24 +611,45 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
   const resting = circ.activity.level === 0 && params.alveolarPo2 === REST_STATE.alveolarPo2 && isNormalHaemoglobin();
   const rest = resting ? null : restingBeds();
   const exchange = new Map<number, ExchangeModel>();
+  const finish = (s: Segment, model: ExchangeModel) => {
+    model.diffusingCapacity = model.conductance * s.volume * 60;
+    model.restDiffusingCapacity = rest ? rest.capacity[s.index] : model.diffusingCapacity;
+    exchange.set(s.index, model);
+  };
+  // At rest: the arteriole-to-capillary conductance ratio that gives resting muscle its arteriolar share.
+  const ratio = rest ? 0 : arteriolarRatio(circ, contentIn, contentOut, chemIn, chemOut);
   for (const s of circ.segments) {
     const i = s.index;
-    let model: ExchangeModel;
-    if (s.exchange?.type === 'lung') model = lungModels.get(i)!;
-    else if (s.exchange?.type === 'tissue') {
-      const nodes = transitQuadrature(s.transit, s.transitCv ?? 0);
-      const condIn = conditionsFromChemistry(chemIn[i]);
-      const condOut = conditionsFromChemistry(chemOut[i]);
-      if (!rest) {
-        model = calibrateTissue(contentIn[i], contentOut[i], condIn, condOut, s.exchange.tissuePo2, nodes, s.id);
-      } else {
+    if (s.exchange?.type === 'lung') {
+      finish(s, lungModels.get(i)!);
+      continue;
+    }
+    if (s.exchange?.type !== 'tissue') continue;
+    const nodes = transitQuadrature(s.transit, s.transitCv ?? 0);
+    const condIn = conditionsFromChemistry(chemIn[i]);
+    const condOut = conditionsFromChemistry(chemOut[i]);
+    const art = feedingArteriole(circ, s);
+    if (!art) {
+      if (!rest) finish(s, calibrateTissue(contentIn[i], contentOut[i], condIn, condOut, s.exchange.tissuePo2, nodes, s.id));
+      else {
         const dm = rest.capacity[i] * diffusionScale(s.tissue, s.flow / rest.flow[i], circ.activity.bedFlowScale?.[s.id] ?? 1);
-        model = tissueAtCapacity(contentIn[i], contentOut[i], condIn, condOut, dm / 60 / s.volume, nodes, s.id, opts.lenient ?? false);
+        finish(s, tissueAtCapacity(contentIn[i], contentOut[i], condIn, condOut, dm / 60 / s.volume, nodes, s.id, opts.lenient ?? false));
       }
-    } else continue;
-    model.diffusingCapacity = model.conductance * s.volume * 60;
-    model.restDiffusingCapacity = rest ? rest.capacity[i] : model.diffusingCapacity;
-    exchange.set(i, model);
+      continue;
+    }
+    // Arterioles and capillaries exchange with the same tissue PO2, along one chemistry line from
+    // the bed's inlet to its outlet; they differ only in conductance and transit time.
+    const bed: BedPath = { cin: contentIn[i], cout: contentOut[i], condIn, condOut, artNodes: transitQuadrature(art.transit, art.transitCv ?? 0), capNodes: nodes };
+    let solved: { art: ExchangeModel; cap: ExchangeModel; c1: number };
+    if (!rest) solved = calibrateBed(bed, ratio, s.exchange.tissuePo2, s.id);
+    else {
+      const dm = rest.capacity[i] * diffusionScale(s.tissue, s.flow / rest.flow[i], circ.activity.bedFlowScale?.[s.id] ?? 1);
+      solved = bedAtCapacity(bed, rest.capacity[art.index] / 60 / art.volume, dm / 60 / s.volume, s.id, opts.lenient ?? false);
+    }
+    finish(art, solved.art);
+    finish(s, solved.cap);
+    contentOut[art.index] = solved.c1;
+    contentIn[i] = solved.c1;
   }
 
   const segments = circ.segments.map((s): SegmentO2 => {
@@ -646,7 +667,7 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
       po2Out,
       saturationIn: sat(contentIn[i], po2In),
       saturationOut: sat(contentOut[i], po2Out),
-      conditionsIn: condIn,
+      conditionsIn: ex ? conditionsAt(ex, contentIn[i]) : condIn,
       conditionsOut: ex ? conditionsAt(ex, contentOut[i]) : condOut,
     };
   });
@@ -695,6 +716,91 @@ export function restingBeds(): { capacity: Float64Array; flow: Float64Array } {
     }
   }
   return restCache;
+}
+
+/**
+ * The arterioles feeding a capillary bed directly, if any: they exchange O2 with the bed's
+ * tissue too (see `ARTERIOLAR` in params.ts). The liver's sinusoids, fed by two vessels, have none.
+ */
+export function feedingArteriole(circ: Circulation, s: Segment): Segment | undefined {
+  if (s.exchange?.type !== 'tissue' || s.prevIndex.length !== 1) return undefined;
+  const p = circ.segments[s.prevIndex[0]];
+  return p.kind === 'arteriole' ? p : undefined;
+}
+
+/** A bed's arterioles and capillaries: inlet and outlet content and conditions, and transit nodes. */
+export interface BedPath {
+  cin: number;
+  cout: number;
+  condIn: BloodConditions;
+  condOut: BloodConditions;
+  artNodes: number[];
+  capNodes: number[];
+}
+
+/** Exchange models of a bed's arterioles and capillaries with these conductances and tissue PO2. */
+export function bedModels(bed: BedPath, artConductance: number, capConductance: number, tissuePo2: number) {
+  const art = exchangeModel(artConductance, tissuePo2, bed.condIn, bed.condOut, bed.cin, bed.cout);
+  const cap = exchangeModel(capConductance, tissuePo2, bed.condIn, bed.condOut, bed.cin, bed.cout);
+  const c1 = expectedOutletContent(bed.cin, bed.artNodes, art);
+  return { art, cap, c1, cout: expectedOutletContent(c1, bed.capNodes, cap) };
+}
+
+/** Bisection for x in [lo, hi] where an increasing f(x) crosses 0. */
+function bisect(f: (x: number) => number, lo: number, hi: number, n: number): number {
+  for (let i = 0; i < n; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) < 0) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * At rest: the ratio of arteriolar to capillary conductance (per unit blood volume) at which
+ * resting skeletal muscle loses `ARTERIOLAR.restShareMuscle` of its O2 in its arterioles.
+ */
+function arteriolarRatio(circ: Circulation, contentIn: Float64Array, contentOut: Float64Array, chemIn: Chemistry[], chemOut: Chemistry[]): number {
+  const s = circ.segments.find((x) => x.tissue === 'muscle' && feedingArteriole(circ, x));
+  if (!s || s.exchange?.type !== 'tissue') return 0;
+  const art = feedingArteriole(circ, s)!;
+  const i = s.index;
+  const bed: BedPath = {
+    cin: contentIn[i],
+    cout: contentOut[i],
+    condIn: conditionsFromChemistry(chemIn[i]),
+    condOut: conditionsFromChemistry(chemOut[i]),
+    artNodes: transitQuadrature(art.transit, art.transitCv ?? 0),
+    capNodes: transitQuadrature(s.transit, s.transitCv ?? 0),
+  };
+  const p = s.exchange.tissuePo2;
+  const c1 = bed.cin - ARTERIOLAR.restShareMuscle * (bed.cin - bed.cout);
+  // Arterioles alone take their share; then the capillaries take the rest.
+  const la = bisect((l) => c1 - bedModels(bed, Math.exp(l), 0, p).c1, Math.log(1e-8), Math.log(10), 50);
+  const art1 = Math.exp(la);
+  const capOf = (a: number) => exchangeModel(a, p, bed.condIn, bed.condOut, bed.cin, bed.cout);
+  const lc = bisect((l) => bed.cout - expectedOutletContent(c1, bed.capNodes, capOf(Math.exp(l))), Math.log(1e-8), Math.log(10), 50);
+  return art1 / Math.exp(lc);
+}
+
+/** At rest: the capillary conductance (arterioles at `ratio` × it) at which the bed extracts its VO2. */
+function calibrateBed(bed: BedPath, ratio: number, tissuePo2: number, id: string) {
+  const venousPo2 = po2FromContent(bed.cout, bed.condOut);
+  if (!(tissuePo2 < venousPo2)) throw new Error(`${id}: resting tissue PO2 must lie below venous PO2 (${venousPo2.toFixed(1)} mmHg)`);
+  const l = bisect((x) => bed.cout - bedModels(bed, ratio * Math.exp(x), Math.exp(x), tissuePo2).cout, Math.log(1e-8), Math.log(10), 50);
+  return bedModels(bed, ratio * Math.exp(l), Math.exp(l), tissuePo2);
+}
+
+/** With given conductances: the tissue PO2 at which arterioles and capillaries together extract the bed's VO2. */
+function bedAtCapacity(bed: BedPath, artConductance: number, capConductance: number, id: string, lenient: boolean) {
+  const at = (p: number) => bedModels(bed, artConductance, capConductance, p);
+  if (at(0).cout > bed.cout) {
+    if (lenient) return at(0);
+    throw new O2SupplyError(id);
+  }
+  // Outlet content rises with tissue PO2 (less extraction).
+  const p = bisect((x) => at(x).cout - bed.cout, 0, po2FromContent(bed.cout, bed.condOut), 40);
+  return at(p);
 }
 
 /** At rest: the conductance at which a bed with this tissue PO2 extracts exactly its VO2. */

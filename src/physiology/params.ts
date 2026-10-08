@@ -107,9 +107,32 @@ export const TISSUES: Record<Tissue, TissueParams> = {
  */
 export const DIFFUSION = {
   /** DmO2 ∝ flow^recruitmentExponent in muscle and heart. */
-  recruitmentExponent: 0.875,
+  recruitmentExponent: 0.985,
   /** Resting muscle mass, kg (~40 % of a 70 kg body), for per-kg values. */
   muscleMass: 28,
+} as const;
+
+/**
+ * O2 also leaves blood before it reaches the capillaries, across the walls of the arterioles,
+ * towards the same tissue. In resting hamster striated muscle, SO2 fell from 69.9 % in
+ * first-order to 56.7 % in fourth-order arterioles and 50.6 % in large venules: about two-thirds
+ * of the net O2 loss happened in the arterioles (Swain & Pittman, Am J Physiol 1989, abstract;
+ * Kuo & Pittman 1988 found the same pattern from 78 % in systemic arterial blood). Each bed's
+ * arterioles get an O2 diffusing capacity of their own. Its ratio to the capillaries' (per unit
+ * blood volume) is set at rest so resting skeletal muscle loses that two-thirds in its
+ * arterioles; other beds use the same ratio, so their arteriolar share follows from how long
+ * blood spends in their arterioles and capillaries. Arteriolar capacity does not recruit, so its
+ * share falls as flow rises in exercise.
+ *
+ * Caveats: the measurements are in thin, resting animal muscle; the measured loss is about ten
+ * times what diffusion theory predicts (Popel et al. 1989), which is unresolved; and much of
+ * the lost O2 reaches nearby capillaries and venules rather than being used by the tissue
+ * around the arterioles (Kuo & Pittman 1988: ~84 %). The lumped model counts it all as the
+ * bed's O2 use, which keeps the bed's mass balance (and venous blood) right either way.
+ */
+export const ARTERIOLAR = {
+  /** Share of resting skeletal muscle's net O2 loss that happens in its arterioles. */
+  restShareMuscle: 2 / 3,
 } as const;
 
 /**

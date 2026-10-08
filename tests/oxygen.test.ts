@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { o2Content, saturation } from '../src/physiology/dissociation';
 import { REST } from '../src/physiology/params';
 import { Circulation } from '../src/sim/circulation';
-import { capillaryProfile, integratePo2, solveSteadyState } from '../src/sim/oxygen';
+import { capillaryProfile, feedingArteriole, integratePo2, solveSteadyState } from '../src/sim/oxygen';
 
 const circ = new Circulation();
 const ss = solveSteadyState(circ);
@@ -96,11 +96,13 @@ describe('pulmonary O2 loading', () => {
 });
 
 describe('tissue unloading', () => {
-  it('delivers each bed its VO2 at the bed mean transit time', () => {
+  it('delivers each bed its VO2 at the bed mean transit time, through its arterioles and capillaries', () => {
     for (const s of circ.segments) {
       if (s.exchange?.type !== 'tissue') continue;
       const o = ss.segments[s.index];
-      const vo2 = (o.contentIn - o.contentOut) * s.flow * 60;
+      const art = feedingArteriole(circ, s);
+      const cin = art ? ss.segments[art.index].contentIn : o.contentIn;
+      const vo2 = (cin - o.contentOut) * s.flow * 60;
       expect(vo2, s.id).toBeCloseTo(s.exchange.vo2, 6);
       expect(o.po2Out, s.id).toBeGreaterThan(s.exchange.tissuePo2);
     }

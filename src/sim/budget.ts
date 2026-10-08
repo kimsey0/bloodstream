@@ -5,13 +5,13 @@
  */
 import type { Tissue } from '../physiology/params';
 import type { Circulation } from './circulation';
-import type { SteadyState } from './oxygen';
+import { feedingArteriole, type SteadyState } from './oxygen';
 
 export interface OrganBudget {
   tissue: Tissue;
   /** Blood flow through the organ's exchanging capillaries, mL/min. */
   flow: number;
-  /** O2 arriving in those capillaries, mL/min. */
+  /** O2 arriving in the organ's exchanging vessels (arterioles and capillaries), mL/min. */
   delivered: number;
   /** O2 taken up by the organ, mL/min. */
   used: number;
@@ -46,11 +46,14 @@ export function oxygenBudget(circ: Circulation, ss: SteadyState): OxygenBudget {
   for (const s of circ.segments) {
     if (s.exchange?.type !== 'tissue' || !s.tissue) continue;
     const o = ss.segments[s.index];
+    // O2 arrives where the bed's exchange starts: at its arterioles, if they exchange too.
+    const art = feedingArteriole(circ, s);
+    const cin = art && ss.exchange.has(art.index) ? ss.segments[art.index].contentIn : o.contentIn;
     const f = s.flow * 60;
     const a = acc.get(s.tissue) ?? { flow: 0, delivered: 0, used: 0, sat: 0 };
     a.flow += f;
-    a.delivered += f * o.contentIn;
-    a.used += f * (o.contentIn - o.contentOut);
+    a.delivered += f * cin;
+    a.used += f * (cin - o.contentOut);
     a.sat += f * o.saturationOut;
     acc.set(s.tissue, a);
   }

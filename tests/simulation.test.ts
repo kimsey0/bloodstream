@@ -10,6 +10,8 @@ const DT = 0.05;
 let sim: Simulation;
 let rec: CirculationRecorder;
 let lvEntries = 0;
+/** O2 content lost in exchanging arterioles, summed over cell passages (mL/mL). */
+let arteriolarLoss = 0;
 const aorta: number[] = [];
 const pulmonaryArtery: number[] = [];
 
@@ -17,8 +19,13 @@ beforeAll(() => {
   sim = new Simulation({ cellCount: CELLS, seed: 11 });
   rec = new CirculationRecorder(sim);
   const lv = sim.circulation.root.index;
+  // Arterioles that feed a capillary bed exchange O2 too; track what cells lose there.
+  const exchanging = (k: number) => sim.circulation.segments[k].kind === 'arteriole' && sim.steady.exchange.has(k);
+  const entered = new Float64Array(CELLS).fill(NaN);
   sim.addListener((e) => {
     if (e.to === lv) lvEntries++;
+    if (exchanging(e.from) && !Number.isNaN(entered[e.cell])) arteriolarLoss += entered[e.cell] - e.content;
+    entered[e.cell] = exchanging(e.to) ? e.content : NaN;
   });
   const asc = sim.circulation.get('aorta_asc').index;
   const pt = sim.circulation.get('pulm_trunk').index;
@@ -83,14 +90,14 @@ describe('tracer red cells', () => {
     expect(mean(pulmonaryArtery)).toBeLessThan(0.78);
   });
 
-  it('collectively consume ~250 mL O2/min and load the same amount in the lungs', () => {
+  it('collectively consume ~250 mL O2/min, in arterioles and capillaries, and load the same amount in the lungs', () => {
     // Each capillary visit represents CO / (circuit rate × cells) of blood.
     const bloodPerVisit = (REST.cardiacOutput * DURATION) / lvEntries; // mL per LV passage
     const sum = (pred: (type: string) => boolean) =>
       rec.visits
         .filter((v) => pred(sim.circulation.segments[v.segment].exchange!.type))
         .reduce((a, v) => a + CirculationRecorder.contentChange(v), 0);
-    const tissueVo2 = (-sum((t) => t === 'tissue') * bloodPerVisit * 60) / DURATION;
+    const tissueVo2 = ((arteriolarLoss - sum((t) => t === 'tissue')) * bloodPerVisit * 60) / DURATION;
     const lungUptake = (sum((t) => t === 'lung') * bloodPerVisit * 60) / DURATION;
     expect(Math.abs(tissueVo2 / REST.vo2 - 1)).toBeLessThan(0.08);
     expect(Math.abs(lungUptake / REST.vo2 - 1)).toBeLessThan(0.08);

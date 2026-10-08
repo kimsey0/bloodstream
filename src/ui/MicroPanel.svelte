@@ -54,6 +54,9 @@
     <div>
       <dt>SO₂</dt>
       <dd>
+        {#if info.saturationArterial !== null}
+          <span class="sw" style:background={saturationCss(info.saturationArterial, ui.colorScale)}></span>{pct(info.saturationArterial)} arterioles →
+        {/if}
         <span class="sw" style:background={saturationCss(info.saturationIn, ui.colorScale)}></span>{pct(info.saturationIn)} in →
         <span class="sw" style:background={saturationCss(info.saturationOut, ui.colorScale)}></span>{pct(info.saturationOut)} out
       </dd>
@@ -73,6 +76,12 @@
       </dd>
     </div>
   </dl>
+  {#if info.saturationArterial !== null && info.saturationArterial - info.saturationOut > 0.005}
+    <p class="art-note">
+      {Math.round(((info.saturationArterial - info.saturationIn) / (info.saturationArterial - info.saturationOut)) * 100)}% of the O₂ this bed
+      takes leaves through arteriole walls, before the capillaries.
+    </p>
+  {/if}
   {#if profileOpen}<ProfileChart {info} />{/if}
   <button class="toggle" aria-expanded={profileOpen} onclick={() => (profileOpen = !profileOpen)}
     >{profileOpen ? 'Hide' : 'Show'} PO₂ along the capillary</button
@@ -201,6 +210,11 @@
   button:focus-visible {
     outline: 2px solid var(--steel);
     outline-offset: 2px;
+  }
+  .art-note {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
   }
   .toggle {
     justify-self: start;

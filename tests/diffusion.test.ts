@@ -11,6 +11,7 @@ const states = [0, 0.6, 1].map((l) => {
 const [rest, jog, max] = states;
 const bed = (st: (typeof states)[number], id: string) => st.ss.exchange.get(st.circ.get(id).index)!;
 const THIGH = 'leg_L.thigh.muscle.cap';
+const THIGH_ART = 'leg_L.thigh.muscle.art';
 
 describe('tissue O2 diffusion', () => {
   it('holds every tissue at its measured resting PO2 at rest', () => {
@@ -39,12 +40,14 @@ describe('tissue O2 diffusion', () => {
   });
 
   it('raises working-muscle diffusing capacity ~30-fold, to ~13 mL/min/mmHg per kg (Richardson 1995: 14)', () => {
-    const b = bed(max, THIGH);
-    expect(b.diffusingCapacity / b.restDiffusingCapacity).toBeGreaterThan(15);
-    expect(b.diffusingCapacity / b.restDiffusingCapacity).toBeLessThan(40);
+    // The whole bed, arterioles and capillaries, as Bohr integration over a muscle measures it.
+    const total = (st: (typeof states)[number]) => bed(st, THIGH).diffusingCapacity + bed(st, THIGH_ART).diffusingCapacity;
+    const ratio = total(max) / total(rest);
+    expect(ratio).toBeGreaterThan(15);
+    expect(ratio).toBeLessThan(40);
     const kg = DIFFUSION.muscleMass * (max.circ.get(THIGH).share ?? 0);
-    expect(b.diffusingCapacity / kg).toBeGreaterThan(8);
-    expect(b.diffusingCapacity / kg).toBeLessThan(16);
+    expect(total(max) / kg).toBeGreaterThan(8);
+    expect(total(max) / kg).toBeLessThan(16);
   });
 
   it('keeps mean capillary PO2 in working muscle near 30–40 mmHg (Richardson 1995: 37.5; Calbet 2005: 34)', () => {

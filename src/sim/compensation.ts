@@ -28,7 +28,7 @@ import { activityState, arterialChemistry, type ActivityState } from '../physiol
 import { conditionsFromChemistry, currentHaemoglobin, NORMAL_HAEMOGLOBIN, setHaemoglobin } from '../physiology/dissociation';
 import { isNormalScenario, scenarioActivity, type Scenario } from '../physiology/scenario';
 import { Circulation } from './circulation';
-import { addChemistry, diffusionScale, exchangeModel, expectedOutletContent, restingBeds, solveSteadyState, transitQuadrature, type SteadyState } from './oxygen';
+import { addChemistry, bedModels, diffusionScale, exchangeModel, expectedOutletContent, feedingArteriole, restingBeds, solveSteadyState, transitQuadrature, type SteadyState } from './oxygen';
 
 /** Maximal cardiac output, mL/s (the maximal-exercise anchor, 22 L/min). */
 const MAX_CARDIAC_OUTPUT = 22000 / 60;
@@ -123,10 +123,16 @@ function flowsFor(a: ActivityState, guess: ActivityState): Compensation {
       const condOut = conditionsFromChemistry(
         addChemistry(chem, { co2: a.rq * (ca - cout), acid: ex.acid ?? 0, heat: ex.heat ?? 0 }),
       );
-      const model = exchangeModel(dm / 60 / s.volume, MIN_TISSUE_PO2, condIn, condOut, ca, cout);
       // With the cells at MIN_TISSUE_PO2, does diffusion take out at least what the tissue uses?
       // Red cells cross in the bed's red-cell transit time, which scales inversely with flow.
-      return expectedOutletContent(ca, transitQuadrature(s.transit / k, s.transitCv ?? 0), model) <= cout;
+      const capNodes = transitQuadrature(s.transit / k, s.transitCv ?? 0);
+      const art = feedingArteriole(circ, s);
+      if (art) {
+        const bed = { cin: ca, cout, condIn, condOut, artNodes: transitQuadrature(art.transit / k, art.transitCv ?? 0), capNodes };
+        return bedModels(bed, rest.capacity[art.index] / 60 / art.volume, dm / 60 / s.volume, MIN_TISSUE_PO2).cout <= cout;
+      }
+      const model = exchangeModel(dm / 60 / s.volume, MIN_TISSUE_PO2, condIn, condOut, ca, cout);
+      return expectedOutletContent(ca, capNodes, model) <= cout;
     };
     const maxFactor = MAX_FACTOR[s.tissue!] ?? OTHER_MAX_FACTOR;
     const minFactor = Math.min(maxFactor, Math.max(heart ? MIN_FACTOR : 1, byDelivery));

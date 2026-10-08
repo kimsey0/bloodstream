@@ -323,7 +323,8 @@
     </p>
     <p>
       The magnifier opens a capillary bed at true scale: real cell sizes, capillary widths and speeds, with each white dot standing
-      for a billion O₂ molecules crossing the capillary wall. Its panel plots a cell's PO₂ along the capillary: in the lungs, whether
+      for a billion O₂ molecules crossing the capillary wall. Blood has already lost some O₂ on the way, through the walls of the
+      arterioles that feed the bed: in resting muscle about two-thirds of what it gives up, as measured in animals. The microscope panel plots a cell's PO₂ along the capillary: in the lungs, whether
       blood matches the air before it leaves.
     </p>
     <p>
