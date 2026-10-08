@@ -9,9 +9,12 @@
  * capacitance, and a is a conductance per unit blood volume:
  *
  * - Lungs: a = DLO2 / Vc (diffusing capacity over capillary blood volume),
- *   P_target = alveolar PO2. Loading is limited by diffusion through the
- *   alveolar membrane and plasma, so the ~0.25 s equilibration time emerges
- *   from DLO2, Vc and the curve's shape.
+ *   P_target = alveolar PO2 of the cell's gas-exchange unit. The lung is
+ *   split into units of different ventilation–perfusion ratio, each with its
+ *   own alveolar PO2 (`solveLungUnits`); low-V/Q units lower arterial PO2.
+ *   O2 crosses by diffusion, but at rest blood matches its unit's gas within
+ *   ~0.25 s of a 0.75 s transit; the equilibration time emerges from DLO2,
+ *   Vc and the curve's shape.
  * - Tissues: a = DmO2 / capillary blood volume, P_target = tissue PO2. Each
  *   bed's O2 diffusing capacity DmO2 is set at rest from its measured
  *   tissue PO2, and in muscle and heart it rises with blood flow (see
@@ -33,6 +36,7 @@
 import {
   ARTERIAL_CHEMISTRY,
   BLOOD,
+  CO2_CAPACITANCE,
   conditionsFromChemistry,
   currentHaemoglobin,
   isNormalHaemoglobin,
@@ -164,6 +168,13 @@ export function exchangeSaturation(ex: ExchangeModel, content: number): number {
 
 /** O2 content of a cell at this plasma PO2 inside the bed (content rises with PO2). */
 export function exchangeContent(ex: ExchangeModel, po2: number): number {
+  // Beyond either end of the exchange the curve is that end's: try those first (the usual case
+  // for a bed's target PO2), and search only if the content falls inside the shifting stretch.
+  const span = ex.contentEnd - ex.contentStart;
+  const atOut = o2Content(po2, ex.conditionsOut);
+  if ((atOut - ex.contentStart) * Math.sign(span) >= Math.abs(span)) return atOut;
+  const atIn = o2Content(po2, ex.conditionsIn);
+  if ((atIn - ex.contentStart) * Math.sign(span) <= 0) return atIn;
   let lo = 0;
   let hi = O2_CAPACITY + BLOOD.solubility * po2 + 1e-6;
   for (let i = 0; i < 50; i++) {
@@ -177,6 +188,8 @@ export function exchangeContent(ex: ExchangeModel, po2: number): number {
 /** RK4 step limits: at most 50 ms, and a tenth of the local time constant. Smaller steps change no result in the 6th digit. */
 const MAX_STEP = 0.05;
 const TAU_FRACTION = 0.1;
+/** Content this close to the target (mL/mL; 10⁻⁶ mL/dL) counts as equilibrated, which ends the integration. */
+const EQUILIBRATED = 1e-8;
 
 /** Advance a cell's O2 content by `duration` seconds inside an exchanging capillary (RK4). `po2Guess`: its PO2 now, if known. */
 export function integrateContent(content: number, duration: number, ex: ExchangeModel, po2Guess = -1): number {
@@ -186,7 +199,7 @@ export function integrateContent(content: number, duration: number, ex: Exchange
   const sign = Math.sign(ex.targetContent - content);
   let t = 0;
   let c = content;
-  while (t < duration && (ex.targetContent - c) * sign > 0) {
+  while (t < duration && (ex.targetContent - c) * sign > EQUILIBRATED) {
     // Step limited by the local time constant β/a (β = dC/dPO2) for stability near the flat top of the curve.
     const fac = factorAt(ex, c);
     p = po2OnCurve(c, fac, p);
@@ -320,7 +333,10 @@ export interface SegmentO2 {
 }
 
 export interface OxygenParams {
+  /** Ideal alveolar PO2 (a lung without V/Q mismatch), mmHg. */
   alveolarPo2: number;
+  /** Standard deviation of the perfusion distribution over ln(V/Q) (logSD_Q; 0 = uniform lung). */
+  vqSpread: number;
   /** Pulmonary diffusing capacity, mL O2/min/mmHg. */
   dlo2: number;
   /** Respiratory quotient: CO2 produced per O2 consumed. */
@@ -331,9 +347,27 @@ export interface OxygenParams {
   bodyHeat: number;
 }
 
+/**
+ * A lung capillary bed split into gas-exchange units of different ventilation–perfusion ratio.
+ * Each unit has its own alveolar PO2 and PCO2; blood leaving them mixes by flow.
+ */
+export interface LungUnits {
+  /** Share of the bed's blood flow through each unit (equal shares). */
+  weights: number[];
+  /** Ventilation–perfusion ratio of each unit. */
+  vq: number[];
+  /** Exchange model of each unit: its own alveolar PO2 and end-capillary chemistry. */
+  models: ExchangeModel[];
+  /** Mean O2 content of blood leaving each unit, mL/mL. */
+  contentOut: number[];
+}
+
 export interface SteadyState {
   segments: SegmentO2[];
+  /** One model per exchanging capillary bed; for lungs, the single model with the same mean outlet as its units. */
   exchange: Map<number, ExchangeModel>;
+  /** The V/Q units of each lung capillary bed. */
+  lungUnits: Map<number, LungUnits>;
   arterial: SegmentO2;
   mixedVenous: SegmentO2;
 }
@@ -343,6 +377,117 @@ export const addChemistry = (a: Chemistry, b: Chemistry, w = 1): Chemistry => ({
   acid: a.acid + w * b.acid,
   heat: a.heat + w * b.heat,
 });
+
+/** The last solve's lung units per segment: a warm start for the next solve, which is usually close. */
+const lastLungUnits = new Map<number, LungUnits>();
+
+/** Number of V/Q units per lung (equal-probability nodes of the log-normal perfusion distribution). */
+export const VQ_UNITS = 10;
+
+/**
+ * Converts gas volumes to blood contents: V̇CO2 (mL/min, STPD) = V̇A (L/min, BTPS) × PACO2 / 0.863
+ * (the alveolar ventilation equation; West, Respiratory Physiology, ch. 2).
+ */
+const K_GAS = 0.863;
+
+/** Root of a decreasing function on [lo, hi] (g(lo) ≥ 0 ≥ g(hi)) by the Illinois method. */
+function decreasingRoot(g: (x: number) => number, lo: number, hi: number, tol: number): number {
+  let glo = g(lo);
+  let ghi = g(hi);
+  if (glo <= 0) return lo;
+  if (ghi >= 0) return hi;
+  let side = 0;
+  for (let i = 0; i < 60 && hi - lo > tol; i++) {
+    const x = (lo * ghi - hi * glo) / (ghi - glo);
+    const gx = g(x);
+    if (gx > 0) {
+      lo = x;
+      glo = gx;
+      if (side === 1) ghi /= 2;
+      side = 1;
+    } else {
+      hi = x;
+      ghi = gx;
+      if (side === -1) glo /= 2;
+      side = -1;
+    }
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * Gas exchange in a lung with V/Q mismatch. Perfusion is spread log-normally over V/Q ratios
+ * (SD `vqSpread` of ln V/Q, as the multiple inert gas technique measures it), split into VQ_UNITS
+ * units with equal blood flow. Diffusing capacity is shared in proportion to blood flow.
+ *
+ * - Total ventilation is whatever keeps the mixed end-capillary PCO2 at the arterial PCO2 of
+ *   the activity level. CO2 content is linear in PCO2, so each unit's PACO2 follows directly:
+ *   blood gives up cap·(PvCO2 − PACO2) and the gas carries V/Q · PACO2 / 0.863.
+ * - Inspired PO2 is set so a uniform lung would have exactly the ideal alveolar PO2:
+ *   PIO2 = PAO2 + PaCO2 / R.
+ * - Each unit's PAO2 balances O2 taken from its gas, V/Q · (PIO2 − PAO2) / 0.863, against O2
+ *   taken up by its blood, found by diffusion over the transit-time distribution. Low-V/Q units
+ *   have low PAO2: their blood leaves less saturated and lowers arterial PO2.
+ */
+export function solveLungUnits(
+  cin: number,
+  chemIn: Chemistry,
+  params: OxygenParams,
+  conductance: number,
+  nodes: number[],
+  guess?: LungUnits,
+): LungUnits {
+  const n = params.vqSpread > 0 ? VQ_UNITS : 1;
+  const z = n === 1 ? [0] : Array.from({ length: n }, (_, j) => probit((j + 0.5) / n));
+  const spread = z.map((zj) => Math.exp(params.vqSpread * zj));
+  const condIn = conditionsFromChemistry(chemIn);
+  const kc = K_GAS * CO2_CAPACITANCE * 1000;
+  const pvco2 = condIn.pco2;
+  const paco2 = Math.min(params.arterialPco2, pvco2 - 1e-3);
+  const mixedPco2 = (scale: number) => spread.reduce((a, f) => a + pvco2 / (1 + (scale * f) / kc), 0) / n;
+  const logScale = decreasingRoot((ls) => mixedPco2(Math.exp(ls)) - paco2, Math.log(1e-4), Math.log(1e4), 1e-9);
+  const vq = spread.map((f) => Math.exp(logScale) * f);
+  const pio2 = params.alveolarPo2 + params.arterialPco2 / params.rq;
+  const arterial = arterialChemistry(params);
+  const models: ExchangeModel[] = [];
+  const contentOut: number[] = [];
+  vq.forEach((r, j) => {
+    const paco2j = pvco2 / (1 + r / kc);
+    const condOut = conditionsFromChemistry({ ...arterial, co2: (paco2j - 40) * CO2_CAPACITANCE });
+    const model = (pao2: number) => exchangeModel(conductance, pao2, condIn, condOut, cin, o2Content(pao2, condOut));
+    // Outlet content of each PAO2 tried, so the root's own evaluations give the unit's outlet.
+    const tried = new Map<number, number>();
+    const outlet = (pao2: number) => {
+      let c = tried.get(pao2);
+      if (c === undefined) tried.set(pao2, (c = expectedOutletContent(cin, nodes, model(pao2))));
+      return c;
+    };
+    const balance = (pao2: number) => (r * (pio2 - pao2)) / K_GAS - 1000 * (outlet(pao2) - cin);
+    // Warm start: a bracket around the previous solution, widened until it holds the root.
+    let lo = 0;
+    let hi = pio2;
+    const prev = guess?.models.length === n ? guess.models[j].targetPo2 : undefined;
+    if (prev !== undefined) {
+      for (const w of [0.3, 3]) {
+        const a = Math.max(0, prev - w);
+        const b = Math.min(pio2, prev + w);
+        if (balance(a) > 0 && balance(b) < 0) {
+          [lo, hi] = [a, b];
+          break;
+        }
+      }
+    }
+    const pao2 = decreasingRoot(balance, lo, hi, 1e-3);
+    // The outlet at the root, interpolated between the closest PAO2s tried (≤ 0.001 mmHg apart).
+    const near = [...tried.keys()].sort((x, y) => Math.abs(x - pao2) - Math.abs(y - pao2)).slice(0, 2);
+    const [x0, x1] = near;
+    const c =
+      near.length < 2 || x0 === x1 ? outlet(x0 ?? pao2) : outlet(x0) + ((outlet(x1) - outlet(x0)) * (pao2 - x0)) / (x1 - x0);
+    models.push(model(pao2));
+    contentOut.push(c);
+  });
+  return { weights: vq.map(() => 1 / n), vq, models, contentOut };
+}
 
 /**
  * Solve the deterministic steady state: flow-weighted mean O2 content and
@@ -380,14 +525,20 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
   const chemIn: Chemistry[] = new Array(n);
   const chemOut: Chemistry[] = new Array(n);
   const lungModels = new Map<number, ExchangeModel>();
+  const lungUnits = new Map<number, LungUnits>();
   let arterialContent = O2_CAPACITY * 0.97;
   let arterialChem = arterialChem0;
 
-  const equilibrated = o2Content(params.alveolarPo2, arterialConditions);
-  const lungModel = (cin: number, chem: Chemistry): ExchangeModel =>
-    exchangeModel(lungConductance, params.alveolarPo2, conditionsFromChemistry(chem), arterialConditions, cin, equilibrated);
+  /** One model with the units' mean outlet content: an effective alveolar PO2 for the whole bed. */
+  const lungModel = (cin: number, chem: Chemistry, cout: number, nodes: number[]): ExchangeModel => {
+    const at = (pao2: number) => exchangeModel(lungConductance, pao2, conditionsFromChemistry(chem), arterialConditions, cin, o2Content(pao2, arterialConditions));
+    const pio2 = params.alveolarPo2 + params.arterialPco2 / params.rq;
+    return at(decreasingRoot((p) => cout - expectedOutletContent(cin, nodes, at(p)), 0, pio2, 1e-4));
+  };
 
-  const sweep = () => {
+  const sweep = (final = false) => {
+    // Both lungs receive the same mixed venous blood: solve their units once if their transits match.
+    let shared: { key: string; units: LungUnits } | null = null;
     const sumContent = new Float64Array(n);
     const inflow = new Float64Array(n);
     const sumChem: Chemistry[] = Array.from({ length: n }, () => ({ co2: 0, acid: 0, heat: 0 }));
@@ -401,9 +552,14 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
       let cout = cin;
       let chemExit = chem;
       if (s.exchange?.type === 'lung') {
-        const model = lungModel(cin, chem);
-        lungModels.set(i, model);
-        cout = expectedOutletContent(cin, transitQuadrature(s.transit, s.transitCv ?? 0), model);
+        const nodes = transitQuadrature(s.transit, s.transitCv ?? 0);
+        // Rounded: the two lungs' transit times differ only in the last bits.
+        const key = [cin, chem.co2, chem.acid, chem.heat, s.transit, s.transitCv ?? 0].map((v) => v.toPrecision(12)).join('|');
+        const units: LungUnits = shared?.key === key ? shared.units : solveLungUnits(cin, chem, params, lungConductance, nodes, lungUnits.get(i) ?? lastLungUnits.get(i));
+        shared = { key, units };
+        lungUnits.set(i, units);
+        cout = units.contentOut.reduce((a, c, j) => a + c * units.weights[j], 0);
+        if (final) lungModels.set(i, lungModel(cin, chem, cout, nodes));
         chemExit = arterialChem0;
       } else if (s.exchange?.type === 'tissue') {
         cout = cin - s.exchange.vo2 / 60 / s.flow;
@@ -426,14 +582,29 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
     return { content: contentOut[la], chem: chemOut[la] };
   };
 
+  // Fixed-point iteration round the loop. It converges linearly (error × ~0.2 per sweep), so every
+  // third sweep is extrapolated with Aitken's Δ² to its limit.
+  const history: { content: number; co2: number }[] = [];
+  const aitken = (x0: number, x1: number, x2: number) => {
+    const d = x2 - 2 * x1 + x0;
+    return Math.abs(d) > 1e-15 ? x2 - ((x2 - x1) * (x2 - x1)) / d : x2;
+  };
   for (let iter = 0; iter < 50; iter++) {
     const next = sweep();
-    const done = Math.abs(next.content - arterialContent) < 1e-9 && Math.abs(next.chem.co2 - arterialChem.co2) < 1e-9;
+    const done = Math.abs(next.content - arterialContent) < 1e-8 && Math.abs(next.chem.co2 - arterialChem.co2) < 1e-8;
     arterialContent = next.content;
     arterialChem = next.chem;
     if (done) break;
+    history.push({ content: next.content, co2: next.chem.co2 });
+    if (history.length === 3) {
+      const [a, b, c] = history;
+      arterialContent = aitken(a.content, b.content, c.content);
+      arterialChem = { ...arterialChem, co2: aitken(a.co2, b.co2, c.co2) };
+      history.length = 0;
+    }
   }
-  sweep();
+  sweep(true);
+  for (const [i, u] of lungUnits) lastLungUnits.set(i, u);
 
   // Diffusing capacities: calibrated from tissue PO2 for normal blood at rest at sea level, and
   // scaled from those resting values otherwise.
@@ -489,6 +660,7 @@ export function solveSteadyState(circ: Circulation, params: OxygenParams = circ.
   return {
     segments,
     exchange,
+    lungUnits,
     arterial: segments[circ.root.index],
     mixedVenous: segments[circ.get('pulm_trunk').index],
   };

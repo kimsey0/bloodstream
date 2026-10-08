@@ -149,13 +149,33 @@ diffusion gradient, higher for the same extraction. In the lungs the shift
 reverses as CO2 leaves, which raises haemoglobin's affinity while it
 loads. A cell's PO2 is therefore continuous where it enters a capillary.
 
-- **Lungs:** a = DLO2 / capillary blood volume, target = alveolar PO2.
-  Blood loads by diffusion, but at rest it reaches equilibrium about
+- **Lungs:** a = DLO2 / capillary blood volume, target = the alveolar PO2
+  of the cell's gas-exchange unit (below). Blood loads by diffusion, but at rest it reaches equilibrium about
   0.25 s into a 0.75 s transit, so uptake is limited by blood flow
   (perfusion-limited). Only when transit shortens below the equilibration
   time, in hard exercise or at altitude, does it become diffusion-limited.
   DLO2 lumps both resistances that Roughton and Forster separated: the
   alveolar membrane, and uptake by the red cells themselves.
+- **Ventilation–perfusion mismatch** (`solveLungUnits`): each lung's blood
+  is split into 10 units with equal flow, at the equal-probability nodes of
+  a log-normal distribution of perfusion over V/Q ratios. Its spread is
+  the multiple inert gas technique's logSD_Q (SD of ln V/Q): 0.35 at rest,
+  rising 0.05 per L/min of O2 uptake at sea level, faster at altitude
+  (0.09 at PB 523, 0.13 at PB 429; Wagner et al. 1986). DLO2 is shared in
+  proportion to flow, and there is no intrapulmonary shunt (Wagner et al.
+  1974). Total ventilation is whatever keeps the mixed end-capillary PCO2
+  at the activity level's arterial PCO2; CO2 content is linear in PCO2, so
+  each unit's PACO2 follows from its V/Q directly. Each unit's PAO2 then
+  balances the O2 its gas gives up, V/Q × (PIO2 − PAO2) / 0.863, against
+  the O2 its blood takes up by diffusion, with PIO2 set so a uniform lung
+  would have the ideal alveolar PO2. At rest unit PAO2 runs from ~72 to
+  ~119 mmHg. Mismatch plus the bronchial shunt give a 10 mmHg
+  alveolar–arterial difference at rest (measured ~8–10); diffusion
+  limitation adds to it in exercise, most at altitude. Tracer cells
+  passing a lung pick one unit at random, and the follow panel shows that
+  unit's PAO2 and V/Q; the lung microscope shares the units out between
+  its capillaries. For display, each lung also has one effective model
+  with the units' mean outlet content.
 - **Tissues:** a = DmO2 / capillary blood volume, target = tissue PO2.
   DmO2 is the bed's O2 diffusing capacity (mL O2/min/mmHg).
   - At rest, each tissue has a measured PO2: muscle 34 mmHg inside the
@@ -163,17 +183,17 @@ loads. A cell's PO2 is therefore continuous where it enters a capillary.
     liver 25. DmO2 is calibrated so the average cell, over the bed's
     log-normal transit distribution, gives up exactly VO2 / flow (Fick).
   - At other activity levels DmO2 is fixed, except in muscle and heart,
-    where it rises with flow as DmO2 ∝ flow^0.9: dilated vessels carry more
+    where it rises with flow as DmO2 ∝ flow^0.875: dilated vessels carry more
     red cells through more capillary surface. Tissue PO2 is then solved for:
     the value at which diffusion delivers exactly the tissue's VO2. A tissue
     that works harder, or gets less blood, draws its PO2 down until
     diffusion keeps up.
   - The single exponent is set so thigh muscle reaches the ~3 mmHg
     intracellular PO2 measured at maximal exercise (Richardson 1995).
-    Everything else follows: intracellular PO2 of 5–7 mmHg already at
-    walking and jogging, myoglobin 91 % saturated at rest and 44 % at max
-    (measured: 91 % and 49 %), DmO2 ~30× resting and 13 mL/min/mmHg per kg
-    at max (measured: 14 per kg in quadriceps), mean capillary PO2 ~30
+    Everything else follows: intracellular PO2 of 5–8 mmHg already at
+    walking and jogging, myoglobin 91 % saturated at rest and 50 % at max
+    (measured: 91 % and 49 %), DmO2 ~28× resting and 14 mL/min/mmHg per kg
+    at max (measured: 14 per kg in quadriceps), mean capillary PO2 ~29
     mmHg (measured: 34–38), and kidney and liver PO2 falling as exercise
     cuts their flow.
   - Cells that linger longer extract more.
@@ -182,8 +202,10 @@ loads. A cell's PO2 is therefore continuous where it enters a capillary.
 ### Steady state
 
 `solveSteadyState` iterates flow-weighted mean O2 content and blood
-chemistry around the loop: lung outlet (integrated over the transit
-distribution), each tissue bed by Fick, mixing at confluences. Once
+chemistry around the loop: lung outlet (each V/Q unit integrated over the
+transit distribution, warm-started from the previous sweep), each tissue
+bed by Fick, mixing at confluences. The iteration converges linearly, so
+every third sweep is extrapolated with Aitken's Δ²; 5–7 sweeps suffice. Once
 arterial content converges, it sets up every tissue bed: at rest it
 calibrates the diffusing capacities (cached for other levels), otherwise it
 solves each tissue's PO2. The result gives the vessel colours, the initial cell
@@ -262,12 +284,13 @@ level:
 | Cardiac output (L/min) | 5 | 9 | 16 | 22 |
 | VO2 (L/min) | 0.25 | 0.875 | 2.0 | 3.25 |
 | Muscle capillary recruitment | 1× | 2.2× | 3.2× | 4× |
-| Lung capillary recruitment / DLO2 | 1× / 25 | 1.3× / 35 | 1.8× / 62 | 2.2× / 85 |
+| Lung capillary recruitment / DLO2 | 1× / 25 | 1.3× / 60 | 1.8× / 91 | 2.2× / 103 |
+| V/Q spread (logSD_Q) / alveolar–arterial PO2 difference (emergent) | 0.35 / 10 mmHg | 0.38 / 11 | 0.43 / 15 | 0.50 / 21 |
 | Alveolar PO2 (mmHg) | 100 | 103 | 107 | 115 |
 | CO2 output / O2 use (RQ) | 0.8 | 0.85 | 0.95 | 1.1 |
 | Arterial PCO2 / pH / temperature | 40 / 7.40 / 37 | 40 / 7.40 / 37.2 | 38 / 7.39 / 37.8 | 34 / 7.33 / 38.5 |
 | Working-muscle venous temperature rise | 0 | 0.1 °C | 0.15 °C | 0.2 °C |
-| Thigh muscle DmO2 (× rest) / intracellular PO2 (emergent) | 1× / 34 mmHg | 8× / 6.8 | 20× / 4.7 | 30× / 2.6 |
+| Thigh muscle DmO2 (× rest) / intracellular PO2 (emergent) | 1× / 34 mmHg | 8× / 7.6 | 18× / 5.4 | 28× / 3.1 |
 
 Flow and VO2 are set per tissue. Muscle takes what the other tissues
 don't, and its extra flow and VO2 go mostly to the legs (thighs 25 % each,
@@ -275,10 +298,11 @@ calves 15 % each). Kidney and splanchnic flow fall to about a quarter of
 resting, coronary flow rises ~4×, and skin rises at moderate work and falls
 again at maximal. Sources: Åstrand &
 Rodahl; Rowell; Hsia (pulmonary recruitment); Dempsey & Wagner 1999
-(arterial blood gases at maximal exercise).
+(arterial blood gases at maximal exercise); Wagner et al. 1986 (DLO2 and
+V/Q spread in exercise).
 
 `Circulation` takes an activity state. The worker solves each level once
-(~1.5–2 s; ~3–4 s in a "what if" scenario) and caches it.
+(~2 s; ~4–7 s in a "what if" scenario) and caches it.
 
 ## "What if" scenarios
 
@@ -330,16 +354,16 @@ Results:
 
 | Scenario | Rest | Highest sustained level |
 |---|---|---|
-| Anaemia, Hb 8 | SaO2 97 %, CaO2 10.7 mL/dL, cardiac output +4 % | walking |
-| Anaemia, Hb 7 / 6 / 5 / 4 | cardiac output +10 / +27 / +50 / +84 % | |
-| 30 % COHb | PaO2 93 mmHg but SaO2 69 % | jogging |
-| 3,700 m, Hb 17.6 | SaO2 92 % (measured 92.0 %) | jogging (SaO2 70 %; measured 87 %) |
-| 4,500 m | PaO2 50 mmHg, SaO2 88 % | walking |
-| Everest summit, Hb 18.5 | PaO2 25 mmHg, SaO2 59 %, cardiac output 6.8 L/min | rest |
+| Anaemia, Hb 8 | SaO2 97 %, CaO2 10.6 mL/dL, cardiac output +4 % | walking |
+| Anaemia, Hb 7 / 6 / 5 / 4 | cardiac output +10 / +27 / +50 / +85 % | |
+| 30 % COHb | PaO2 86 mmHg but SaO2 69 % | jogging |
+| 3,700 m, Hb 17.6 | SaO2 91 % (measured 92.0 %) | jogging (SaO2 84 %; measured 87 %); walking 90 % (measured 89 %) |
+| 4,500 m | PaO2 49 mmHg, SaO2 87 % | jogging |
+| Everest summit, Hb 18.5 | PaO2 25 mmHg, SaO2 59 %, cardiac output 6.5 L/min | rest |
 | Polycythaemia; low-affinity Hb | normal | maximal |
 
-Exercise at altitude desaturates too much (see docs/SOURCES.md, Known
-disagreements).
+Hard exercise at altitude still desaturates a little more than measured
+(see docs/SOURCES.md, Known disagreements).
 
 ## Geometry
 
@@ -524,7 +548,7 @@ HUD passes the scale explicitly, so Svelte re-renders its swatches.
 
 ## Validation
 
-`npm test` runs 103 headless tests. The main emergent results are below;
+`npm test` runs 109 headless tests. The main emergent results are below;
 [SOURCES.md](SOURCES.md) lists every parameter's source and status, and
 where the model and measurements still disagree.
 
@@ -533,21 +557,23 @@ where the model and measurements still disagree.
 | Blood volume; share in systemic veins / pulmonary / heart | 4.84 L; 64 / 10 / 7 % | ~5 L; 64 / 9 / 7 % |
 | Splanchnic share of blood volume | 35 % | ~⅓ |
 | Mean circulation time, red cells / plasma | 54 s / 58 s | ~60 s; F-cell ratio ~0.9 |
-| Arterial SO2 / PO2 | 97.5 % / 96 mmHg | 97–98 % / 95–100 |
-| Mixed venous SO2 / PO2 | 73 % / 41 mmHg | ~75 % / ~40 |
+| Arterial SO2 / PO2 / alveolar–arterial difference | 96.9 % / 90 mmHg / 10 mmHg | 97–98 % / 90–100 / ~8–10 (Wagner et al. 1986; Torre-Bueno et al. 1985) |
+| Mixed venous SO2 / PO2 | 73 % / 40 mmHg | ~75 % / ~40 |
 | Mixed venous PCO2 / pH | 47 mmHg / 7.37 | 45–46 / ~7.37 |
 | Lung capillary: time to 95 % PO2 equilibrium | ≈ 0.25 s of 0.75 s | ~0.25 s of 0.75 s |
 | Coronary sinus / jugular / renal vein SO2 | 32 / 66 / 89 % | 25–40 / 55–75 / ~90 % |
 | Median circuit via heart wall / brain / kidney / thigh muscle / foot / gut → liver | ~17 / 21 / 23 / 62 / 94 / 98 s | |
 | Peak / mean aortic flow at rest | ~4.5× | ~4–6× |
-| Maximal exercise: arterial PO2 / alveolar–arterial difference | 95 / 20 mmHg | 15–25 mmHg difference at VO2max 35–55 mL/kg/min |
-| Maximal exercise: arterial / mixed venous / femoral venous SO2 | 96 / 24 / 18 % | ≥ 95 / 20–30 / ~15 % (average subjects) |
-| Maximal exercise: femoral venous PO2 / pH / PCO2 | 20 mmHg / 7.21 / 66 | ~20 (average) / 7.19–7.21 / 72 (elite) |
+| Alveolar–arterial difference walking / jogging / max | 11 / 15 / 21 mmHg | ~8 / ~12 / ~22 (Wagner et al. 1986, Table 2); 15–25 at VO2max 35–55 mL/kg/min |
+| Alveolar–arterial difference at 3,050 m, walking / jogging | 10 / 19 mmHg | ~8 / ~18 (Wagner et al. 1986, Table 2) |
+| Maximal exercise: arterial PO2 | 94 mmHg | |
+| Maximal exercise: arterial / mixed venous / femoral venous SO2 | 96 / 23 / 17 % | ≥ 95 / 20–30 / ~15 % (average subjects) |
+| Maximal exercise: femoral venous PO2 / pH / PCO2 | 19 mmHg / 7.20 / 66 | ~20 (average) / 7.19–7.21 / 72 (elite) |
 | Maximal exercise: femoral venous P50 | 36 mmHg | 37.5 ± 3.1 |
-| Thigh muscle intracellular PO2 at rest / jogging / max | 34 (set) / 4.7 / 2.6 mmHg | 34 ± 6 / ~3 from 50 % of max / 3.1 ± 0.3 |
-| Thigh myoglobin saturation at rest / max | 91 / 44 % | 91 ± 1 / 49 ± 3 % |
-| Thigh DmO2 at max | 30× rest, 13 mL/min/mmHg per kg | ~14× (Richardson 2006); 14 per kg in quadriceps |
-| Thigh mean capillary PO2 at max | 30 mmHg | 37.5 (knee extensors); 34 (legs, elite skiers) |
+| Thigh muscle intracellular PO2 at rest / jogging / max | 34 (set) / 5.4 / 3.1 mmHg | 34 ± 6 / ~3 from 50 % of max / 3.1 ± 0.3 |
+| Thigh myoglobin saturation at rest / max | 91 / 50 % | 91 ± 1 / 49 ± 3 % |
+| Thigh DmO2 at max | 28× rest, 14 mL/min/mmHg per kg | ~14× (Richardson 2006); 14 per kg in quadriceps |
+| Thigh mean capillary PO2 at max | 29 mmHg | 37.5 (knee extensors); 34 (legs, elite skiers) |
 | Maximal exercise: lung transit / mean circulation | 0.37 s / 13 s | 0.3–0.45 s / ~13 s |
 
 Other checks:
@@ -582,12 +608,10 @@ Other checks:
 - The lungs return blood to arterial chemistry. That is mostly unloading
   CO2, but they also stand in for losing the little heat that working
   muscle adds (in reality the skin does that).
-- There is no ventilation–perfusion mismatch. In real lungs it causes the
-  whole 5–10 mmHg alveolar–arterial PO2 difference at rest and about half
-  of it at maximal exercise. Here the gap at rest is only 3.5 mmHg (the
-  bronchial shunt). During exercise the diffusing capacity is set so the
-  total gap matches measurements, which makes diffusion carry the part
-  mismatch should.
+- V/Q mismatch is a smooth log-normal spread in 10 units, with no
+  intrapulmonary shunt. The lung's diffusing capacity during exercise
+  comes from measurements at altitude in unacclimatized subjects (Wagner et
+  al. 1986) and is assumed to hold at sea level and after acclimatization.
 - "What if" compensation is by blood flow only, with partly assumed
   limits (above). Hb, 2,3-DPG and ventilation changes from acclimatization
   are not automatic; Hb and P50 can be set by hand.

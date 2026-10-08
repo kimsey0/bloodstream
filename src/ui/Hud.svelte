@@ -334,6 +334,8 @@
     <p>
       The running figure sets the activity level, from rest to maximal exercise. Heart rate, cardiac output, O₂ use and where
       the blood goes all change; working leg muscle can take over 80 % of the flow and pull venous blood below 20 % saturation.
+      In the lungs each cell passes one group of air sacs; some get less fresh air for their blood flow than others (V/Q
+      mismatch), and the blood leaving them lowers arterial PO₂ a little below that of the air.
       Blood picks up CO₂ as it gives up O₂, which makes it more acidic. That shifts the O₂ curve right (the Bohr
       effect) and helps unloading; the followed cell's panel shows pH, PCO₂, temperature and P50 change along each capillary.
       Each heartbeat ejects blood only for about a third of the beat, so cells in the aorta surge and pause, while flow in

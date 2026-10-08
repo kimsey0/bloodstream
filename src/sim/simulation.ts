@@ -81,6 +81,10 @@ export class Simulation {
 
   private readonly rng: Rng;
   private exchange: (ExchangeModel | undefined)[];
+  /** Per segment, the exchange models of its V/Q units (lungs only). */
+  private units: (ExchangeModel[] | undefined)[];
+  /** Which V/Q unit each cell passes through while in a lung capillary bed. */
+  readonly unit: Uint8Array;
   /** Per-segment pulsatility (see heartbeat.ts). */
   private alpha: Float64Array;
   /** Per-segment pulse channel: aortic, or left or right coronary (see heartbeat.ts). */
@@ -103,6 +107,7 @@ export class Simulation {
     this.count = opts.cellCount;
     this.rng = new Rng(opts.seed ?? 1);
     this.exchange = this.circulation.segments.map((s) => this.steady.exchange.get(s.index));
+    this.units = this.circulation.segments.map((s) => this.steady.lungUnits.get(s.index)?.models);
     this.alpha = new Float64Array(this.circulation.segments.map(pulsatility));
     this.channel = new Uint8Array(this.circulation.segments.map(pulseChannel));
     this.conditions = this.steady.segments.map((o) => o.conditionsIn);
@@ -116,6 +121,7 @@ export class Simulation {
     this.po2Now = new Float64Array(this.count).fill(-1);
     this.satNow = new Float64Array(this.count);
     this.next = new Int32Array(this.count);
+    this.unit = new Uint8Array(this.count);
     this.seed();
   }
 
@@ -137,7 +143,8 @@ export class Simulation {
       this.next[i] = this.chooseNext(k);
       this.duration[i] = this.drawTransit(s);
       this.elapsed[i] = this.rng.next() * this.duration[i];
-      const ex = this.exchange[k];
+      this.chooseUnit(i, k);
+      const ex = this.exchangeOf(i);
       const c0 = this.steady.segments[k].contentIn;
       this.content[i] = ex ? integrateContent(c0, this.elapsed[i], ex) : c0;
       this.refresh(i);
@@ -154,6 +161,19 @@ export class Simulation {
       const g = 1 - Math.pow(x, PROFILE_K);
       if (this.rng.next() < g) return (s.transit * PROFILE_MEAN) / g;
     }
+  }
+
+  /** In a lung capillary bed, send the cell through one of its V/Q units (equal blood flow each). */
+  private chooseUnit(cell: number, k: number): void {
+    const u = this.units[k];
+    if (u) this.unit[cell] = Math.floor(this.rng.next() * u.length);
+  }
+
+  /** The exchange model a cell follows where it is: its V/Q unit's in the lungs. */
+  exchangeOf(cell: number): ExchangeModel | undefined {
+    const k = this.segment[cell];
+    const u = this.units[k];
+    return u ? u[this.unit[cell] % u.length] : this.exchange[k];
   }
 
   /** Downstream segment for a cell leaving segment `k`, with probability proportional to flow. */
@@ -188,7 +208,7 @@ export class Simulation {
         const left = this.duration[i] - this.elapsed[i];
         const needed = rate > 1e-9 ? left / rate : Infinity;
         const h = Math.min(remaining, needed);
-        const ex = this.exchange[k];
+        const ex = this.exchangeOf(i);
         if (ex && h > 0) {
           this.content[i] = integrateContent(this.content[i], h, ex, this.po2Now[i]);
           this.refresh(i);
@@ -200,6 +220,7 @@ export class Simulation {
         }
         const next = this.next[i];
         this.segment[i] = next;
+        this.chooseUnit(i, next);
         // Same content, but the curve around the cell may differ: it shifts inside capillaries, and mixing changes it in veins.
         if (ex || this.exchange[next] || this.factors[next] !== this.factors[k]) this.refresh(i);
         this.next[i] = this.chooseNext(next);
@@ -233,6 +254,7 @@ export class Simulation {
     this.circulation = circulation;
     this.steady = steady;
     this.exchange = circulation.segments.map((s) => steady.exchange.get(s.index));
+    this.units = circulation.segments.map((s) => steady.lungUnits.get(s.index)?.models);
     this.conditions = steady.segments.map((o) => o.conditionsIn);
     this.factors = new Float64Array(this.conditions.map(virtualPo2Factor));
     for (let i = 0; i < this.count; i++) {
@@ -241,7 +263,7 @@ export class Simulation {
       this.elapsed[i] *= ratio;
       this.duration[i] *= ratio;
       if (reseedO2) {
-        const ex = this.exchange[k];
+        const ex = this.exchangeOf(i);
         const c0 = steady.segments[k].contentIn;
         this.content[i] = ex ? integrateContent(c0, this.elapsed[i], ex) : c0;
         this.po2Now[i] = -1;
@@ -254,7 +276,7 @@ export class Simulation {
   /** Recompute a cell's PO2 and saturation after its content, segment or the state changed. */
   refresh(cell: number): void {
     const k = this.segment[cell];
-    const ex = this.exchange[k];
+    const ex = this.exchangeOf(cell);
     const c = this.content[cell];
     const guess = this.po2Now[cell];
     const p = ex ? exchangePo2(ex, c, guess) : po2OnCurve(c, this.factors[k], guess);
@@ -270,7 +292,7 @@ export class Simulation {
   /** Blood conditions (PCO2, pH, temperature) around a cell. */
   conditionsOf(cell: number): BloodConditions {
     const k = this.segment[cell];
-    const ex = this.exchange[k];
+    const ex = this.exchangeOf(cell);
     return ex ? conditionsAt(ex, this.content[cell]) : this.conditions[k];
   }
 

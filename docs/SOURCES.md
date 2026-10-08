@@ -27,7 +27,7 @@ the same commit.
 | Unzai 1998 | Unzai S et al. *J Biol Chem*, 1998; and Gibson QH, earlier kinetic work (volume and pages not recorded). | O2 on- and off-rate ranges |
 | Guyton & Hall | Hall JE. *Guyton and Hall Textbook of Medical Physiology*, 14th ed. | Cardiac output, VO2, blood volume distribution (ch. 14), exercise (ch. 85) |
 | Ganong | Barrett KE et al. *Ganong's Review of Medical Physiology*, 26th ed., Table 32-1. | Resting organ flows and VO2 |
-| West RP | West JB. *Respiratory Physiology: The Essentials*, 10th ed., ch. 3. | Pulmonary transit 0.75 s, equilibrium at ~0.25 s, DLO2 range |
+| West RP | West JB. *Respiratory Physiology: The Essentials*, 10th ed., ch. 2, 3 and 5. | Pulmonary transit 0.75 s, equilibrium at ~0.25 s, DLO2 range (ch. 3); alveolar ventilation equation (ch. 2); A–a difference (ch. 5) |
 | Pries 1990 | Pries AR et al. *Circ Res* 67:826, 1990; Desjardins C, Duling BR, 1990. | Tube/discharge haematocrit (Fåhraeus effect) |
 | Evans & Fung 1972 | Evans E, Fung YC. *Microvasc Res* 4:335, 1972. | Red-cell shape |
 | Weissler | Weissler AM et al., systolic time intervals. | Ejection duration vs heart rate |
@@ -36,6 +36,10 @@ the same commit.
 | Saltin & Gollnick | Saltin B, Gollnick PD. *Handbook of Physiology*, Skeletal Muscle, 1983. | Muscle capillary recruitment |
 | Hsia 1999 | Hsia CCW. *Respir Physiol*, 1999 (volume and pages not recorded). | Pulmonary capillary recruitment in exercise |
 | Dempsey & Wagner 1999 | Dempsey JA, Wagner PD. Exercise-induced arterial hypoxemia. *J Appl Physiol* 87:1997–2006, 1999. | Arterial blood gases at VO2max |
+| Wagner 1974 | Wagner PD, Laravuso RB, Uhl RR, West JB. Continuous distributions of ventilation-perfusion ratios in normal subjects breathing air and 100% O2. *J Clin Invest* 54:54–68, 1974. | No intrapulmonary shunt in young subjects breathing air; A–a difference from mismatch alone vs logSD |
+| Gale 1985 | Gale GE, Torre-Bueno JR, Moon RE, Saltzman HA, Wagner PD. Ventilation-perfusion inequality in normal humans during exercise at sea level and simulated altitude. *J Appl Physiol* 58:978–988, 1985. | logSD is SD of ln V/Q; no change with altitude at rest |
+| Torre-Bueno 1985 | Torre-Bueno JR, Wagner PD, Saltzman HA, Gale GE, Moon RE. Diffusion limitation in normal humans during exercise at sea level and simulated altitude. *J Appl Physiol* 58:989–995, 1985. | Sea-level A–a ~10 mmHg at rest, ~20 at VO2 3 L/min, without diffusion limitation |
+| Wagner 1986 | Wagner PD, Gale GE, Moon RE, Torre-Bueno JR, Stolp BW, Saltzman HA. Pulmonary gas exchange in humans exercising at sea level and simulated altitude. *J Appl Physiol* 61:260–270, 1986. | logSD vs O2 uptake and altitude; DLO2 in exercise; A–a differences (Table 2) |
 | Hopkins 1996 | Hopkins SR et al. Pulmonary transit time and diffusion limitation during heavy exercise in athletes. *Respir Physiol* 103:67–73, 1996. | DLO2, transit times at VO2max |
 | Hopkins 2024 | Hopkins SR, Dempsey JA, Stickland MK. *Med Sci Sports Exerc* 56:1538–1541, 2024. | Transit-time distribution at VO2max |
 | Calbet 2005 | Calbet JAL et al. Why do arms extract less oxygen than legs during exercise? *Am J Physiol Regul Integr Comp Physiol* 289:R1448–R1458, 2005. | Arterial, femoral venous and right atrial blood gases; in vivo P50 |
@@ -113,7 +117,7 @@ acclimatized altitude).
 | Resting muscle intracellular PO2 | 34 mmHg | M | Richardson 2006 Table 1 (34 ± 6) |
 | Resting brain tissue PO2 | 25 mmHg | M | Pennings 2008 abstract and Results: frontal white matter of 22 awake patients 22.6 ± 7.2 mmHg (range 11–37); 23.1 ± 6.6 over the next 24 h (n = 11). Grey matter runs higher than white (Erecińska & Silver 2001 Table 1: rat cortex grey 19–40 vs white 6–16 mmHg), so the lumped brain bed sits slightly above the white-matter mean, within its SD |
 | Resting heart, kidney, gut, liver, skin, bronchial, other tissue PO2 | 10, 30, 30, 25, 30, 25, 20 mmHg | A | "Typical interstitial", no specific source |
-| Diffusing capacity rise with flow (muscle, heart) | DmO2 ∝ flow^0.9 | F | Thigh intracellular PO2 at max = 3.1 ± 0.3 mmHg (Richardson 1995 Table I) |
+| Diffusing capacity rise with flow (muscle, heart) | DmO2 ∝ flow^0.875 | F | Thigh intracellular PO2 at max = 3.1 ± 0.3 mmHg (Richardson 1995 Table I) |
 | Myoglobin P50 | 3.2 mmHg | M | Richardson 1995 (value used for ~39 °C) |
 
 ### Lungs and exercise (`activity.ts`)
@@ -127,8 +131,14 @@ acclimatized altitude).
 | Muscle arteriole dilation | up to 2× | A | |
 | Pulmonary capillary recruitment | up to 2.2× | T | Hsia 1999; keeps transit near 0.4 s (Hopkins 1996 p.71: 0.39–0.41 s) |
 | DLO2 at rest | 25 mL/min/mmHg | T | West RP (20–30) |
-| DLO2 walking / jogging / max | 35 / 62 / 85 | F | Alveolar–arterial difference rising to 15–25 mmHg at max for VO2max 35–55 (Dempsey & Wagner 1999 p.1998–1999). Compare Hopkins 1996 Table 1: 108 at a cardiac output of 33 L/min |
-| Alveolar PO2 at max | 115 mmHg | M | Richardson 1995 Fig. 9 shows ~120 mmHg in knee-extensor exercise; a search summary of the exercise literature gave ~115. Not checked against whole-body data |
+| DLO2 walking / jogging / max | 60 / 91 / 103 | D | Wagner 1986 p.267: DLO2 estimated during exercise at 10,000 ft (79.7, 78.6, 99.4, 102.2 at VO2 1.16, 1.80, 2.53, 3.15 L/min) and 15,000 ft (72.9, 88.8, 110.0 at 1.13, 1.75, 2.27 L/min; VO2 from Table 2), interpolated by VO2 from the resting 25. Taken to hold at sea level, where diffusion limitation is too small to estimate it (A). Compare Hopkins 1996 Table 1: 108 at a cardiac output of 33 L/min |
+| V/Q spread at rest | logSD_Q 0.35 (SD of ln V/Q) | M | Wagner 1986 Table 3 and p.264 (0.35, 0.32, 0.33 at sea level, 10,000 and 15,000 ft); Wagner 1974 Table II (0.28–0.39 in young subjects) |
+| V/Q spread rise with O2 uptake | +0.05 per L/min at sea level, +0.09 at PB 523, +0.13 at PB 429 | M, A | Wagner 1986 p.264 (1981 and 1986 data combined). Interpolated between these pressures and held at 0.13 below PB 429 (A) |
+| V/Q units | 10 equal-flow units of a log-normal distribution; DLO2 shared in proportion to flow; no intrapulmonary shunt | A, M | Log-normal shape and no shunt in young subjects breathing air: Wagner 1974 p.54 and p.59. Equal DL/Q is the usual assumption of the inert gas analyses (Wagner 1986 p.266) |
+| Gas-to-blood conversion | V̇CO2 = V̇A × PACO2 / 0.863 | T | West, *Respiratory Physiology*, ch. 2 (alveolar ventilation equation) |
+| Inspired PO2 for the V/Q units | PAO2 (ideal) + PaCO2 / R | D | Chosen so a uniform lung has exactly the ideal alveolar PO2 |
+| Total ventilation | whatever keeps mixed end-capillary PCO2 at the arterial PCO2 | D | Arterial PCO2 is set per activity level (above) |
+| Alveolar PO2 (ideal) at max | 115 mmHg | M | Richardson 1995 Fig. 9 shows ~120 mmHg in knee-extensor exercise; a search summary of the exercise literature gave ~115. Not checked against whole-body data |
 | Ejection duration | 0.30 s at 70 bpm → 0.20 s at 180 | T | Weissler |
 | Diastolic aortic flow, pulsatility per vessel class | 0.03; α 0.08–0.9 | A | |
 | Coronary diastolic-to-systolic flow ratio | left 1.85, right 1.53 | M | Seligman 2022 Table 2 (resting velocity ratio, 482 arteries; velocity taken as proportional to flow). Gives ~78 % / ~74 % of coronary flow in diastole at 70 bpm |
@@ -176,6 +186,10 @@ parameters.
 | Femoral venous P50 at max, 37.5 ± 3.1 | `bohr.test.ts` | Calbet 2005 Table 3 |
 | Femoral venous pH, PCO2; arterial pH, PCO2 at max | `activity.test.ts` | Calbet 2005 Table 2; Richardson 1995 Table I |
 | A–a difference 15–25 mmHg at max, rising with work | `activity.test.ts` | Dempsey & Wagner 1999 p.1998–1999 |
+| A–a difference 5–12 mmHg at rest | `oxygen.test.ts` | Torre-Bueno 1985 abstract (~10); Wagner 1986 Table 2 (8.3 ± 4.5); West RP |
+| A–a difference from V/Q mismatch alone: ~5, 9, 14 mmHg at logSD 0.3, 0.4, 0.5 | `vq.test.ts` | Wagner 1974 p.59 |
+| A–a difference in exercise at sea level and at 10,000 ft (PB 523) | `vq.test.ts` | Wagner 1986 Table 2 |
+| SaO2 walking at 3,700 m, Hb 17.6 (88.9 %) | `vq.test.ts` | Brutsaert 2000 Table 4 |
 | Thigh intracellular PO2 2–4 mmHg at max, < 6 at jogging | `diffusion.test.ts` | Richardson 1995 Table I |
 | Myoglobin saturation at rest and max | `diffusion.test.ts` | Richardson 2006 Table 1; Richardson 1995 Table I |
 | Thigh DmO2 per kg at max | `diffusion.test.ts` | Richardson 1995 Table I (35.3 for ~2.5 kg) |
@@ -188,9 +202,8 @@ parameters.
 
 | Output | Model | Measured | Likely cause |
 |---|---|---|---|
-| SaO2 walking at 3,700 m, Hb 17.6 (VO2 ~0.9–1.1 L/min) | 81 % | 88.9 % (Brutsaert 2000 Table 4) | No ventilation–perfusion mismatch, so the lungs' sea-level diffusing capacity was fitted to carry the whole A–a difference. That makes diffusion limitation too strong at altitude. |
-| SaO2 at ~2 L/min VO2 at 3,700 m | 70 % | 86.6 % | Same |
-| Thigh mean capillary PO2 at max | 30 mmHg | 33.8–37.5 | |
+| SaO2 at ~2 L/min VO2 at 3,700 m | 84 % | 86.6 % (Brutsaert 2000 Table 4) | Diffusing capacity at altitude taken from unacclimatized subjects (Wagner 1986); acclimatization may raise it |
+| Thigh mean capillary PO2 at max | 29 mmHg | 33.8–37.5 | |
 | Mixed venous PCO2 at rest | 47 mmHg | 45–46 (textbook) | Straight-line CO2 slopes fitted to Calbet 2005 |
 | Cerebral flow in anaemia | unchanged until brain extraction doubles (Hb ~8) | rises; delivery only slightly reduced (Varat 1972 p.417) | One extraction reserve for all tissues except the heart |
 | Heart rate in anaemia | rises with cardiac output | stroke volume rises, tachycardia "frequently absent" (Varat 1972 p.415, p.418) | Heart rate scales with cardiac output |

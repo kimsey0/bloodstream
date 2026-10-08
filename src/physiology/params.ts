@@ -107,7 +107,7 @@ export const TISSUES: Record<Tissue, TissueParams> = {
  */
 export const DIFFUSION = {
   /** DmO2 ∝ flow^recruitmentExponent in muscle and heart. */
-  recruitmentExponent: 0.9,
+  recruitmentExponent: 0.875,
   /** Resting muscle mass, kg (~40 % of a 70 kg body), for per-kg values. */
   muscleMass: 28,
 } as const;

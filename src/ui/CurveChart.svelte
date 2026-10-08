@@ -185,7 +185,9 @@
       {@const tx = x(info.exchangeTarget.po2)}
       <line class="target" x1={tx} x2={tx} y1={M.t} y2={M.t + PH} />
       <text class="target" x={info.exchangeTarget.po2 > 80 ? tx - 4 : tx + 4} y={M.t + PH - 6} text-anchor={info.exchangeTarget.po2 > 80 ? 'end' : 'start'}
-        >{info.exchangeTarget.kind === 'alveolar' ? 'alveolar gas' : 'tissue'} {info.exchangeTarget.po2.toFixed(0)}</text
+        >{info.exchangeTarget.kind === 'alveolar' ? 'alveolar gas' : 'tissue'} {info.exchangeTarget.po2.toFixed(0)}{info.exchangeTarget.vq !== undefined
+          ? ` · V/Q ${info.exchangeTarget.vq.toFixed(1)}`
+          : ''}</text
       >
     {/if}
     {#if curveChanged}<path class="normal" d={normalPath} />{/if}

@@ -31,6 +31,8 @@ export interface MicroParams {
   /** Tube/discharge haematocrit ratio in the capillaries. */
   hctRatio: number;
   exchange: ExchangeModel;
+  /** Lungs: the exchange models of the bed's V/Q units, shared out between the capillaries. */
+  units?: ExchangeModel[];
   /** Mean O2 content entering the capillaries, mL O2 per mL blood. */
   contentIn: number;
 }
@@ -60,6 +62,8 @@ export class MicroSim {
   readonly capTransit: number[];
   readonly capSpeed: number[];
   readonly spacing: number;
+  /** The exchange model of each route's capillary: in the lungs, one of the bed's V/Q units. */
+  readonly capExchange: ExchangeModel[];
   private readonly nextSpawn: number[];
   private readonly rng = new Rng(17);
   time = 0;
@@ -73,6 +77,12 @@ export class MicroSim {
     const order = net.routes.map((_, i) => i).sort((a, b) => Math.sin(a * 12.9898) - Math.sin(b * 12.9898));
     this.capTransit = net.routes.map((_, i) => nodes[order[i]]);
     this.capSpeed = net.routes.map((r, i) => (r.capEnd - r.capStart) / this.capTransit[i]);
+    // V/Q units spread evenly over the capillaries, in an order unrelated to their transit times.
+    const units = params.units;
+    const unitOrder = net.routes.map((_, i) => i).sort((a, b) => Math.sin(a * 78.233) - Math.sin(b * 78.233));
+    this.capExchange = net.routes.map((_, i) =>
+      units?.length ? units[Math.floor((unitOrder.indexOf(i) * units.length) / net.routes.length)] : params.exchange,
+    );
     // Mean spacing between successive cells from tube haematocrit: one cell volume per HCT·area of lumen.
     const area = Math.PI * net.capRadius * net.capRadius;
     this.spacing = RBC_VOLUME / (HCT * params.hctRatio * area);
@@ -131,9 +141,10 @@ export class MicroSim {
         } else if (cell.s < r.capEnd) {
           const v = this.capSpeed[cell.route];
           const h = Math.min(remaining, (r.capEnd - cell.s) / v);
-          const before = exchangeSaturation(this.params.exchange, cell.content);
-          cell.content = integrateContent(cell.content, h, this.params.exchange);
-          const delta = (before - exchangeSaturation(this.params.exchange, cell.content)) * 4 * HB_PER_RBC;
+          const ex = this.capExchange[cell.route];
+          const before = exchangeSaturation(ex, cell.content);
+          cell.content = integrateContent(cell.content, h, ex);
+          const delta = (before - exchangeSaturation(ex, cell.content)) * 4 * HB_PER_RBC;
           cell.s = Math.min(r.capEnd, cell.s + h * v);
           remaining -= h;
           cell.carry += Math.abs(delta) / MOLECULES_PER_DOT;
@@ -158,7 +169,7 @@ export class MicroSim {
     let n = 0;
     for (const c of this.cells) {
       if (c.s >= this.net.routes[c.route].capEnd) {
-        sum += exchangeSaturation(this.params.exchange, c.content);
+        sum += exchangeSaturation(this.capExchange[c.route], c.content);
         n++;
       }
     }

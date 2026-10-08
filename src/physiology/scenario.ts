@@ -8,7 +8,7 @@
  * activity level, so the scenario shows what the change itself does.
  * Raising Hb at altitude is the slower compensation, set by hand.
  */
-import type { ActivityState } from './activity';
+import { vqSpread, type ActivityState } from './activity';
 import { NORMAL_HAEMOGLOBIN, STANDARD_P50, type Haemoglobin } from './dissociation';
 
 export interface Scenario extends Haemoglobin {
@@ -148,6 +148,7 @@ export function scenarioActivity(a: ActivityState, s: Scenario): ActivityState {
     ...a,
     arterialPco2,
     alveolarPo2,
+    vqSpread: vqSpread(a.vo2, barometricPressure(s.altitude)),
     dlo2: a.dlo2 * (cotes(s.hb) / cotes(NORMAL_SCENARIO.hb)),
   };
 }

@@ -84,6 +84,8 @@ export interface MicroInfo {
   lung: boolean;
   /** PO2 the capillaries exchange with: alveolar gas, or the tissue's cells (mmHg). */
   targetPo2: number;
+  /** Lungs: alveolar PO2 of the lowest and highest V/Q units, mmHg, else null. */
+  unitPo2: [number, number] | null;
   /** Time-averaged PO2 of blood in the capillaries, mmHg. */
   meanCapillaryPo2: number;
   /** O2 diffusing capacity of this bed now and at rest, mL O2/min/mmHg. */

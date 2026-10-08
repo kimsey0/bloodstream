@@ -9,11 +9,14 @@ const ss = solveSteadyState(circ);
 const at = (id: string) => ss.segments[circ.get(id).index];
 
 describe('whole-body O2 steady state at rest', () => {
-  it('has arterial SO2 ≈ 97 % and PO2 ≈ 95 mmHg (bronchial shunt included)', () => {
+  it('has arterial SO2 ≈ 97 % and an alveolar–arterial PO2 difference of 5–12 mmHg', () => {
     expect(ss.arterial.saturationIn).toBeGreaterThan(0.965);
     expect(ss.arterial.saturationIn).toBeLessThan(0.98);
-    expect(ss.arterial.po2In).toBeGreaterThan(90);
-    expect(ss.arterial.po2In).toBeLessThan(100);
+    // V/Q mismatch plus the bronchial shunt: ~10 mmHg at rest (Torre-Bueno et al. 1985 abstract;
+    // Wagner et al. 1986 Table 2: 8.3 ± 4.5), 5–10 in West's textbook.
+    const gap = REST.alveolarPo2 - ss.arterial.po2In;
+    expect(gap).toBeGreaterThan(5);
+    expect(gap).toBeLessThan(12);
   });
 
   it('has mixed venous SO2 ≈ 75 % and PO2 ≈ 40 mmHg', () => {
@@ -55,17 +58,20 @@ describe('pulmonary O2 loading', () => {
   const lung = ss.exchange.get(circ.get('lung_L.cap').index)!;
 
   it('reaches equilibrium with alveolar gas after ~0.25 s, a third of the 0.75 s transit', () => {
+    // A gas-exchange unit near the middle of the V/Q distribution, as in West's figure.
+    const units = ss.lungUnits.get(circ.get('lung_L.cap').index)!;
+    const unit = units.models[Math.floor(units.models.length / 2)];
     const pv = ss.mixedVenous.po2In;
-    const gap = REST.alveolarPo2 - pv;
+    const gap = unit.targetPo2 - pv;
     let t = 0;
     let p = pv;
-    while (p < REST.alveolarPo2 - 0.05 * gap) {
-      p = integratePo2(p, 0.001, lung);
+    while (p < unit.targetPo2 - 0.05 * gap && t < 2) {
+      p = integratePo2(p, 0.001, unit);
       t += 0.001;
     }
     expect(t).toBeGreaterThan(0.18);
     expect(t).toBeLessThan(0.35);
-    expect(saturation(integratePo2(pv, 0.75, lung))).toBeGreaterThan(0.975);
+    expect(saturation(integratePo2(pv, 0.75, unit))).toBeGreaterThan(0.97);
   });
 
   it('becomes diffusion-limited when transit shortens to ~0.25 s (hard exercise)', () => {

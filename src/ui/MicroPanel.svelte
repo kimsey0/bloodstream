@@ -61,7 +61,9 @@
     <div>
       <dt>{info.lung ? 'Air sacs' : 'Tissue'}</dt>
       <dd>
-        PO₂ {info.targetPo2.toFixed(0)} mmHg{info.lung ? '' : info.myoglobin !== null ? ' in the cells' : ''}{#if info.myoglobin !== null}{' '}· myoglobin {pct(info.myoglobin)} saturated{/if}
+        PO₂ {info.unitPo2
+          ? `${info.unitPo2[0].toFixed(0)}–${info.unitPo2[1].toFixed(0)} mmHg (V/Q mismatch; effective ${info.targetPo2.toFixed(0)})`
+          : `${info.targetPo2.toFixed(0)} mmHg`}{info.lung ? '' : info.myoglobin !== null ? ' in the cells' : ''}{#if info.myoglobin !== null}{' '}· myoglobin {pct(info.myoglobin)} saturated{/if}
       </dd>
     </div>
     <div title="O₂ crosses by diffusion, driven by the PO₂ difference between blood and {info.lung ? 'air' : 'cells'}. The diffusing capacity is how much crosses per mmHg of difference.">

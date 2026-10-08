@@ -228,6 +228,7 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     transitCv: seg.transitCv ?? 0,
     hctRatio: seg.hct,
     exchange: ex.model,
+    units: ex.units,
     contentIn: ex.contentIn,
   });
   micro = new MicroScene(canvas, bed, net, sim, ex.saturationIn, ex.saturationOut);
@@ -255,6 +256,7 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     fiberLabel: bed.fiberLabel,
     lung: seg.exchange?.type === 'lung',
     targetPo2: ex.model.targetPo2,
+    unitPo2: ex.units?.length ? [ex.units[0].targetPo2, ex.units[ex.units.length - 1].targetPo2] : null,
     meanCapillaryPo2: meanCapillaryPo2(ex.model, ex.contentIn, transitQuadrature(transit, seg.transitCv ?? 0)),
     diffusingCapacity: ex.model.diffusingCapacity,
     restDiffusingCapacity: ex.model.restDiffusingCapacity,

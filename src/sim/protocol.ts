@@ -117,6 +117,9 @@ export interface RejectedMessage {
 export interface ExchangeInfo {
   segment: number;
   model: ExchangeModel;
+  /** Lungs: the exchange models and V/Q ratios of the bed's gas-exchange units. */
+  units?: ExchangeModel[];
+  vq?: number[];
   /** Mean inlet O2 content, mL O2 per mL blood. */
   contentIn: number;
   saturationIn: number;
@@ -144,7 +147,8 @@ export interface FollowInfo {
   /** O2 content, mL O2 per mL blood. */
   content: number;
   /** In an exchanging capillary: the PO2 it exchanges with (alveolar gas or the tissue's cells). */
-  exchangeTarget: { po2: number; kind: 'alveolar' | 'tissue' } | null;
+  /** In a capillary: the PO2 it exchanges with, and in the lungs its gas-exchange unit's V/Q ratio. */
+  exchangeTarget: { po2: number; kind: 'alveolar' | 'tissue'; vq?: number } | null;
   /** Blood conditions around the cell: PCO2, pH and temperature shift the O2 curve. */
   conditions: BloodConditions;
   /** Current speed, mm/s. */

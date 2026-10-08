@@ -123,6 +123,8 @@ function postState(type: 'ready' | 'state'): void {
     exchange: [...sim.steady.exchange].map(([segment, ex]) => ({
       segment,
       model: ex,
+      units: sim!.steady.lungUnits.get(segment)?.models,
+      vq: sim!.steady.lungUnits.get(segment)?.vq,
       contentIn: sim!.steady.segments[segment].contentIn,
       saturationIn: sim!.steady.segments[segment].saturationIn,
       saturationOut: sim!.steady.segments[segment].saturationOut,
@@ -232,10 +234,14 @@ function adopt(msg: AdoptMessage): void {
   follow(cell);
 }
 
-function exchangeTarget(segment: number): FollowInfo['exchangeTarget'] {
-  const ex = sim?.steady.exchange.get(segment);
+/** What the followed cell exchanges O2 with: its V/Q unit's alveolar gas, or the tissue. */
+function exchangeTarget(cell: number): FollowInfo['exchangeTarget'] {
+  const ex = sim?.exchangeOf(cell);
   if (!ex) return null;
-  return { po2: ex.targetPo2, kind: sim!.circulation.segments[segment].exchange?.type === 'lung' ? 'alveolar' : 'tissue' };
+  const segment = sim!.segment[cell];
+  const units = sim!.steady.lungUnits.get(segment);
+  if (units) return { po2: ex.targetPo2, kind: 'alveolar', vq: units.vq[sim!.unit[cell] % units.vq.length] };
+  return { po2: ex.targetPo2, kind: 'tissue' };
 }
 
 function followInfo() {
@@ -250,7 +256,7 @@ function followInfo() {
     po2: sim.po2(c),
     saturation: sim.saturation(c),
     content: sim.content[c],
-    exchangeTarget: exchangeTarget(sim.segment[c]),
+    exchangeTarget: exchangeTarget(c),
     conditions: sim.conditionsOf(c),
     speed: sim.speed(c),
     circuitElapsed: tracker.timeSinceLapStart,

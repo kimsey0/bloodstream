@@ -73,26 +73,29 @@ the test suite checks them against published values.
 | Quantity | Model | Reference |
 |---|---|---|
 | Blood volume / share in systemic veins | 4.8 L / 64 % | ~5 L / ~64 % |
-| Arterial / mixed venous O₂ saturation at rest | 97.5 % / 73 % | 97–98 % / ~75 % |
+| Arterial / mixed venous O₂ saturation at rest | 97 % / 73 % | 97–98 % / ~75 % |
+| Alveolar–arterial PO₂ difference at rest, from V/Q mismatch | 10 mmHg | ~8–10 mmHg (Wagner et al. 1986; Torre-Bueno et al. 1985) |
 | Mixed venous PCO₂ / pH at rest | 47 mmHg / 7.37 | 45–46 / ~7.37 |
 | Time for blood to load O₂ in a lung capillary | ≈ 0.25 s of a 0.75 s transit | ~0.25 s of ~0.75 s |
 | Coronary sinus / jugular / renal vein saturation | 32 / 66 / 89 % | 25–40 / 55–75 / ~90 % |
 | Mean red-cell circulation time at rest / max exercise | 54 s / 13 s | ~60 s (blood) / ~13 s |
 | Cardiac output and O₂ use at maximal exercise | 22 L/min, 3.25 L/min | 20–25, ~3.2 L/min |
-| Alveolar–arterial PO₂ difference at max | 20 mmHg | 15–25 mmHg |
-| Arterial / mixed venous / femoral venous saturation at max | 96 % / 24 % / 18 % | ≥ 95 / 20–30 / ~15 % |
-| Femoral venous pH / P50 at max | 7.21 / 36 mmHg | 7.19–7.21 / 37.5 ± 3.1 mmHg |
-| Working-muscle cell PO₂ / myoglobin saturation at max | 2.6 mmHg / 44 % | 3.1 mmHg / 49 % |
+| Alveolar–arterial PO₂ difference at max | 21 mmHg | 15–25 mmHg; ~22 (Wagner et al. 1986) |
+| Arterial / mixed venous / femoral venous saturation at max | 96 % / 23 % / 17 % | ≥ 95 / 20–30 / ~15 % |
+| Femoral venous pH / P50 at max | 7.20 / 36 mmHg | 7.19–7.21 / 37.5 ± 3.1 mmHg |
+| Working-muscle cell PO₂ / myoglobin saturation at max | 3.1 mmHg / 50 % | 3.1 mmHg / 49 % |
 | Capillary RBC speed / venule speed | 0.25–0.8 mm/s / ~2 mm/s | 0.2–1.5 / 0.2–4 mm/s |
 | Barometric / alveolar PO₂ on the Everest summit at rest | 253 / 35 mmHg | 253 / 35 mmHg (West et al. 1983) |
 | P50 of the remaining Hb at 30 % / 50 % COHb | 18 / 13 mmHg | falls with COHb (Roughton & Darling 1944) |
-| Resting SaO₂ at 3,700 m, acclimatized (Hb 17.6) | 92 % | 92.0 % (Brutsaert et al. 2000) |
+| SaO₂ at 3,700 m, acclimatized (Hb 17.6), resting / walking | 91 % / 90 % | 92.0 % / 88.9 % (Brutsaert et al. 2000) |
 | Resting cardiac output in anaemia, Hb 8 / 6 / 4 | +4 / +27 / +84 % | rises below Hb ~7 (Varat et al. 1972) |
 
 The dissociation curve is Severinghaus's (P50 26.8 mmHg). The single
 haemoglobin molecule uses Imai's Adair constants with binding rates in
 Gibson's measured ranges. Lungs load O₂ by diffusion, from DLO₂ and
-capillary blood volume. At rest blood matches the air a third of the way
+capillary blood volume, in ten gas-exchange units per lung whose
+ventilation–perfusion ratios spread as measured with inert gases (Wagner
+et al. 1974, 1986). At rest blood matches the air a third of the way
 along the capillary, so uptake is limited by blood flow (perfusion-limited);
 short transits in hard exercise, or thin air, can make it diffusion-limited.
 The microscope plots a cell's PO₂ along the capillary to show which. Each organ unloads O₂ by diffusion towards its
@@ -164,7 +167,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (103 tests)
+npm test            # physiology validation suite (109 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```
@@ -194,13 +197,14 @@ emergent numbers still match the references.
 - "What if" compensation is by blood flow only, partly assumed: how far
   each organ dilates, and one extraction reserve for all organs but the
   heart (fitted to cardiac output in anaemia, Varat et al. 1972).
-  Exercise at altitude desaturates more than measured (Brutsaert et al.
-  2000), because the lungs have no ventilation–perfusion mismatch. Arterial PCO₂ at altitude is interpolated
+  Hard exercise at altitude desaturates a little more than measured
+  (Brutsaert et al. 2000). Arterial PCO₂ at altitude is interpolated
   between sea level and West's measurements above 7,800 m. Acclimatization
   beyond breathing (more Hb, more 2,3-DPG) is left to the sliders.
-- The lungs have no ventilation–perfusion mismatch. Their diffusing
-  capacity during exercise is set so the alveolar–arterial PO₂ difference
-  matches measurements.
+- Ventilation–perfusion mismatch is a smooth spread over ten units with no
+  intrapulmonary shunt. The lungs' diffusing capacity in exercise comes
+  from measurements at altitude (Wagner et al. 1986) and is assumed to hold
+  at sea level.
 
 ## Sources
 
@@ -219,7 +223,9 @@ at maximal exercise); Calbet et al., Am J Physiol 2005 and González-Alonso &
 Calbet, Circulation 2003 (limb venous blood at maximal exercise); Hopkins
 et al., Respir Physiol 1996 (pulmonary transit); Richardson et al., J Clin
 Invest 1995 (muscle intracellular PO₂); Seligman et al., EuroIntervention 2022 and
-Davies et al., Circulation 2006 (phasic coronary flow); Machado et al. 2009 (colour-vision simulation).
+Davies et al., Circulation 2006 (phasic coronary flow); Wagner et al., J Clin
+Invest 1974 and J Appl Physiol 1986, Gale et al. and Torre-Bueno et al., J Appl
+Physiol 1985 (ventilation–perfusion mismatch and diffusion limitation); Machado et al. 2009 (colour-vision simulation).
 Details and specific values are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 and in the doc comments of `src/physiology/`.
 
