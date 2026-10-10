@@ -491,13 +491,23 @@ Hard exercise at altitude still desaturates a little more than measured
 `src/app/main.ts` connects the worker, both scenes and the Svelte HUD
 (`src/ui/`):
 
-- **Dock:** speed, pause, follow, activity, "what if", magnifier, O2 budget, reset view and info.
-- **Follow panel:** collapsible to a pill. It shows saturation and PO2,
-  location and speed, the blood's pH, PCO2, temperature and P50, a circuit
-  timer and previous circuits, an SO2/speed sparkline, the haemoglobin
-  molecule and the Hb distribution, and a journey log.
-- **Dissociation curve** (`CurveChart.svelte`, in the follow panel's
-  details):
+- **Dock:** pause and speed in one control, then follow, activity, "what
+  if", magnifier, display, O2 budget, reset view and info, and the
+  saturation colour bar.
+- **Follow panel:** collapsible to a pill. Compact, it shows saturation and
+  PO2, location and speed, and the circuit timer; wide screens add the
+  dissociation curve. Under "More details": the blood's pH, PCO2,
+  temperature and P50, the curve, the haemoglobin molecule and the Hb
+  distribution, an SO2/speed sparkline, previous circuits and a journey
+  log.
+- **Organ close-ups** (`BedInset.svelte`): while a cell is followed at up
+  to 1×, entering a bed's arterioles opens a live microscope patch of that
+  bed in a corner of the body view, drawn by the same renderer into a
+  scissored viewport. The followed cell is ringed as it crosses; the
+  close-up closes 2 s after it leaves the first venules. Tapping it opens
+  the full microscope on the same route. On phones the follow panel folds
+  into its pill while a close-up shows.
+- **Dissociation curve** (`CurveChart.svelte`, in the follow panel):
   - Two curves: one for arterial blood at the current activity level, and
     one for the blood around the cell, which separates from it as CO2, acid
     and heat shift it right.
@@ -526,7 +536,8 @@ Hard exercise at altitude still desaturates a little more than measured
   fastest 10 % leave. In the lungs it marks where blood comes within 5 %
   of alveolar PO2 and says whether uptake is perfusion- or
   diffusion-limited, after West's figure.
-- **Sheets:** bed picker (all beds, grouped by region), activity slider,
+- **Sheets:** display (colour scale and organ close-ups), bed picker (all
+  beds, grouped by region), activity slider,
   and "What if?" (presets, sliders for Hb, altitude, CO and P50, and the
   compensation switch). Sheets sit above the dock at its measured height
   (`--dock-space`). A rejected activity or scenario is explained in the
@@ -536,7 +547,7 @@ Hard exercise at altitude still desaturates a little more than measured
 ## Colour scale
 
 `src/color/saturation.ts` has two scales, both interpolated in OKLab. The
-viewer switches between them under the colour bar, and the choice is saved
+viewer switches between them in the display menu, and the choice is saved
 in `localStorage`.
 
 - **Code** (default): deep navy at 0 % through blue at 50 % and violet at

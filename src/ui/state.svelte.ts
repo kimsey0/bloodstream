@@ -36,6 +36,12 @@ export const ui = $state({
   pickerOpen: false,
   /** Capillary segment index of the bed the followed cell is in (or about to enter), else -1. */
   followBed: -1,
+  /** Close-up of the bed the followed cell is passing through, shown over the body view. */
+  inset: null as { capillary: number; label: string; status: 'here' | 'approaching' | 'elsewhere'; speedUm: number; transit: number } | null,
+  insetScalePx: 100,
+  /** Whether close-ups open by themselves while following a cell. */
+  insetsOn: true,
+  displayOpen: false,
   /** Steady-state inlet/outlet saturation per capillary segment index. */
   bedSaturation: {} as Record<number, [number, number]>,
   micro: null as MicroInfo | null,

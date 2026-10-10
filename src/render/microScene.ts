@@ -380,18 +380,35 @@ export class MicroScene {
     return (r.line.length - r.capEnd) / VENULE_SPEED;
   }
 
-  render(renderer: WebGLRenderer): void {
+  /** Draw full screen, or into a CSS-pixel rectangle of the canvas (measured from its top left) over whatever is there. */
+  render(renderer: WebGLRenderer, view?: { x: number; y: number; width: number; height: number }): void {
     const el = renderer.domElement;
-    const aspect = el.clientWidth / Math.max(1, el.clientHeight);
+    const width = view?.width ?? el.clientWidth;
+    const height = view?.height ?? el.clientHeight;
+    const aspect = width / Math.max(1, height);
     if (Math.abs(this.camera.aspect - aspect) > 1e-3) {
       this.camera.aspect = aspect;
       this.camera.updateProjectionMatrix();
     }
     const ratio = renderer.getPixelRatio();
-    (this.dots.material as ShaderMaterial).uniforms.scale.value = el.height / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    (this.dots.material as ShaderMaterial).uniforms.scale.value = (height * ratio) / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
     this.marker.setPixelRatio(ratio);
     this.controls.update();
+    if (!view) {
+      renderer.render(this.scene, this.camera);
+      return;
+    }
+    const bottom = el.clientHeight - view.y - height;
+    const clear = renderer.getClearColor(new Color());
+    const alpha = renderer.getClearAlpha();
+    renderer.setViewport(view.x, bottom, width, height);
+    renderer.setScissor(view.x, bottom, width, height);
+    renderer.setScissorTest(true);
+    renderer.setClearColor(0x070a0f, 1);
     renderer.render(this.scene, this.camera);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, el.clientWidth, el.clientHeight);
+    renderer.setClearColor(clear, alpha);
   }
 
   /** Screen pixels per 100 µm at the orbit target. */

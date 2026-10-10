@@ -18,13 +18,13 @@
 </script>
 
 <div class="menu" role="menu" style:left={`${left}px`} style:top={`${top}px`}>
+  {#if menu.cell !== null}
+    <button role="menuitem" onclick={() => onFollow(menu.cell!)}>Follow this red cell</button>
+  {/if}
   <button role="menuitem" class="primary" onclick={() => onOpenBed(menu.bed)}>
     Zoom into capillaries
     <span>{label}</span>
   </button>
-  {#if menu.cell !== null}
-    <button role="menuitem" onclick={() => onFollow(menu.cell!)}>Follow this red cell</button>
-  {/if}
   <button role="menuitem" class="cancel" onclick={() => (ui.tapMenu = null)}>Cancel</button>
 </div>
 

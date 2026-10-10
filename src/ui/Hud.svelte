@@ -2,7 +2,9 @@
   import { saturationCss, type ColorScale } from '../color/saturation';
   import ActivityPanel from './ActivityPanel.svelte';
   import BudgetPanel from './BudgetPanel.svelte';
+  import BedInset from './BedInset.svelte';
   import BedPicker from './BedPicker.svelte';
+  import DisplayPanel from './DisplayPanel.svelte';
   import FollowPanel from './FollowPanel.svelte';
   import MicroPanel from './MicroPanel.svelte';
   import TapMenu from './TapMenu.svelte';
@@ -17,6 +19,8 @@
     onFollowRandom: () => void;
     onStopFollow: () => void;
     onOpenBed: (capillary: number) => void;
+    onExpandInset: () => void;
+    onDismissInset: () => void;
     onBackToBody: () => void;
     onMicroReset: () => void;
     onFollowCell: (cell: number) => void;
@@ -34,6 +38,8 @@
     onFollowRandom,
     onStopFollow,
     onOpenBed,
+    onExpandInset,
+    onDismissInset,
     onBackToBody,
     onMicroReset,
     onFollowCell,
@@ -66,6 +72,13 @@
     if (!s.compensate) parts.push('no compensation');
     return parts.join(' · ');
   });
+  type Sheet = 'activityOpen' | 'whatIfOpen' | 'pickerOpen' | 'budgetOpen' | 'displayOpen';
+  /** Open one dock sheet (or close it if open), closing the others. */
+  function toggleSheet(sheet: Sheet): void {
+    const open = !ui[sheet];
+    ui.activityOpen = ui.whatIfOpen = ui.pickerOpen = ui.budgetOpen = ui.displayOpen = false;
+    ui[sheet] = open;
+  }
   // The heart icon swells with each ejection.
   let heartScale = $derived(ui.beatPhase < ui.systole ? 1 + 0.25 * Math.sin((Math.PI * ui.beatPhase) / ui.systole) : 1);
 </script>
@@ -74,6 +87,10 @@
   <div class="follow-wrap" class:micro={ui.view === 'micro'}>
     <FollowPanel info={ui.follow} onStop={onStopFollow} onZoom={ui.view === 'body' && ui.followBed >= 0 ? () => onOpenBed(ui.followBed) : undefined} />
   </div>
+{/if}
+
+{#if ui.view === 'body'}
+  <BedInset onExpand={onExpandInset} onDismiss={onDismissInset} />
 {/if}
 
 {#if ui.view === 'micro' && ui.micro}
@@ -86,6 +103,10 @@
 
 {#if ui.whatIfOpen}
   <WhatIfPanel onApply={onScenario} />
+{/if}
+
+{#if ui.displayOpen}
+  <DisplayPanel {onColorScale} />
 {/if}
 
 {#if ui.budgetOpen && ui.budget}
@@ -107,6 +128,7 @@
       <li>Tap a cell to follow it round the body, or tap near an organ to zoom into its capillaries.</li>
       <li>Drag to rotate, pinch to zoom, two fingers to pan.</li>
       <li>Slow time down to 0.01× to watch oxygen load in the lungs.</li>
+      <li>Blue is only a code: real blood is never blue. The eye button switches to true colours.</li>
     </ul>
     <button onclick={onDismissHint}>Got it</button>
   </aside>
@@ -139,23 +161,18 @@
 
 <div class="dock" id="dock">
   <div class="row">
-    <button
-      id="pause"
-      class="icon"
-      aria-label={ui.paused ? 'Play' : 'Pause'}
-      onclick={() => onPause(!ui.paused)}
-    >
-      {#if ui.paused}
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor" /></svg>
-      {:else}
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor" /></svg>
-      {/if}
-    </button>
-    <div class="speeds" role="radiogroup" aria-label="Playback speed">
+    <div class="speeds" role="group" aria-label="Playback">
+      <button class="pause" class:active={ui.paused} aria-label={ui.paused ? 'Play' : 'Pause'} aria-pressed={ui.paused} onclick={() => onPause(!ui.paused)}>
+        {#if ui.paused}
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor" /></svg>
+        {:else}
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor" /></svg>
+        {/if}
+      </button>
       {#each SPEEDS as s (s)}
         <button
-          role="radio"
-          aria-checked={ui.speed === s}
+          aria-pressed={ui.speed === s}
+          aria-label={`${speedLabel(s)} speed`}
           class:active={ui.speed === s}
           onclick={() => onSpeed(s)}>{speedLabel(s)}</button
         >
@@ -183,7 +200,7 @@
       aria-label="Activity level"
       title="Activity level"
       aria-expanded={ui.activityOpen}
-      onclick={() => ((ui.activityOpen = !ui.activityOpen), (ui.pickerOpen = false), (ui.whatIfOpen = false), (ui.budgetOpen = false))}
+      onclick={() => toggleSheet('activityOpen')}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><circle cx="10" cy="2.6" r="1.6" fill="currentColor" /><path
@@ -202,7 +219,7 @@
       aria-label="What if: change the blood or the altitude"
       title="What if: change the blood or the altitude"
       aria-expanded={ui.whatIfOpen}
-      onclick={() => ((ui.whatIfOpen = !ui.whatIfOpen), (ui.activityOpen = false), (ui.pickerOpen = false), (ui.budgetOpen = false))}
+      onclick={() => toggleSheet('whatIfOpen')}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><path
@@ -220,7 +237,7 @@
       aria-label="Zoom into a capillary bed"
       title="Zoom into a capillary bed"
       aria-expanded={ui.pickerOpen}
-      onclick={() => ((ui.pickerOpen = !ui.pickerOpen), (ui.activityOpen = false), (ui.whatIfOpen = false), (ui.budgetOpen = false))}
+      onclick={() => toggleSheet('pickerOpen')}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.6" fill="none" /><path
@@ -233,11 +250,28 @@
     </button>
     <button
       class="icon"
+      class:on={ui.displayOpen}
+      aria-label="Display: colours and organ close-ups"
+      title={ui.colorScale === 'natural' ? 'Display · true colours' : 'Display · blue is only a code: real blood is never blue'}
+      aria-expanded={ui.displayOpen}
+      onclick={() => toggleSheet('displayOpen')}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true"
+        ><path d="M1.2 8s2.5-4.6 6.8-4.6S14.8 8 14.8 8 12.3 12.6 8 12.6 1.2 8 1.2 8z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round" /><circle
+          cx="8"
+          cy="8"
+          r="2.3"
+          fill="currentColor"
+        /></svg
+      >
+    </button>
+    <button
+      class="icon"
       class:on={ui.budgetOpen}
       aria-label="Oxygen budget: delivery, use and extraction"
       title="Oxygen budget: delivery, use and extraction"
       aria-expanded={ui.budgetOpen}
-      onclick={() => ((ui.budgetOpen = !ui.budgetOpen), (ui.activityOpen = false), (ui.whatIfOpen = false), (ui.pickerOpen = false))}
+      onclick={() => toggleSheet('budgetOpen')}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><path d="M2 14.2h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><path
@@ -276,7 +310,6 @@
     </div>
     <div class="ticks">
       {#if !ui.ready || ui.mixedVenousSaturation > 0.45}
-        <span>0%</span>
         <span class="mid">O₂ saturation</span>
       {/if}
       {#if ui.ready}
@@ -286,23 +319,6 @@
         >
         <span class="mark art" style:left={pct(ui.arterialSaturation)}>arterial {pct(ui.arterialSaturation)}</span>
       {/if}
-    </div>
-    <div class="scale">
-      <p>
-        {#if ui.colorScale === 'natural'}
-          True colours: blood is bright red with O₂ and dark red without.
-        {:else}
-          Blue is only a code: real blood is never blue. Blood low in O₂ is dark red.
-        {/if}
-      </p>
-      <div class="scales" role="radiogroup" aria-label="Colour scale">
-        <button role="radio" aria-checked={ui.colorScale === 'blue-red'} class:active={ui.colorScale === 'blue-red'} onclick={() => onColorScale('blue-red')}
-          >Code</button
-        >
-        <button role="radio" aria-checked={ui.colorScale === 'natural'} class:active={ui.colorScale === 'natural'} onclick={() => onColorScale('natural')}
-          >True colour</button
-        >
-      </div>
     </div>
   </div>
 </div>
@@ -318,7 +334,7 @@
     <p>
       Vessels are coloured by the average saturation of the blood inside. The default colours are a code, as in textbook
       diagrams: real blood is never blue. Oxygen-rich blood is bright scarlet and oxygen-poor blood dark red (veins only
-      look blue through skin). Switch to <i>True colour</i> under the colour bar to see it that way. Capillary beds (the short, thin loops in each organ)
+      look blue through skin). Switch to <i>True colour</i> under the eye button to see it that way. Capillary beds (the short, thin loops in each organ)
       are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long. Cells are drawn about 600× too big.
     </p>
     <p>
@@ -338,7 +354,7 @@
       In the lungs each cell passes one group of air sacs; some get less fresh air for their blood flow than others (V/Q
       mismatch), and the blood leaving them lowers arterial PO₂ a little below that of the air.
       Blood picks up CO₂ as it gives up O₂, which makes it more acidic. That shifts the O₂ curve right (the Bohr
-      effect) and helps unloading; the followed cell's panel shows pH, PCO₂, temperature and P50 change along each capillary.
+      effect) and helps unloading; the followed cell's panel (under More details) shows pH, PCO₂, temperature and P50 change along each capillary.
       Each heartbeat ejects blood only for about a third of the beat, so cells in the aorta surge and pause, while flow in
       capillaries and veins stays almost steady. The heart wall is the exception: contracting muscle squeezes its own vessels, so
       about three-quarters of its blood arrives in diastole, between beats. A fast heart rate shortens diastole and with it this
@@ -400,8 +416,8 @@
     justify-items: end;
     pointer-events: none;
   }
-  @media (max-width: 480px) {
-    /* Speeds get their own full-width row on phones. */
+  @media (max-width: 680px) {
+    /* Speeds get their own full-width row on narrow screens: one row would squeeze them. */
     .row {
       flex-wrap: wrap;
       justify-content: space-between;
@@ -524,7 +540,7 @@
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
     transform: translateX(-50%);
-    width: min(560px, calc(100% - 32px));
+    width: min(640px, calc(100% - 32px));
     display: grid;
     gap: 10px;
     padding: 10px 12px 8px;
@@ -583,14 +599,24 @@
   .speeds button + button {
     border-left: 1px solid var(--line);
   }
+  .speeds .pause {
+    flex: 0.7;
+    display: grid;
+    place-items: center;
+    color: var(--text);
+  }
+  .speeds .pause svg {
+    width: 13px;
+    height: 13px;
+  }
   .speeds button.active {
     background: var(--steel);
     color: #0b1220;
   }
   .legend .bar {
     position: relative;
-    height: 8px;
-    border-radius: 4px;
+    height: 6px;
+    border-radius: 3px;
   }
   .legend .bar i {
     position: absolute;
@@ -601,46 +627,10 @@
     background: var(--text);
     border-radius: 1px;
   }
-  .scale {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-top: 6px;
-  }
-  .scale p {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    font-size: 11px;
-    line-height: 1.3;
-    color: var(--muted);
-  }
-  .scales {
-    flex: none;
-    display: flex;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .scales button {
-    border: 0;
-    border-radius: 0;
-    height: 26px;
-    padding: 0 9px;
-    font: 500 11px var(--font-ui);
-    color: var(--muted);
-  }
-  .scales button + button {
-    border-left: 1px solid var(--line);
-  }
-  .scales button.active {
-    background: var(--steel);
-    color: #0b1220;
-  }
   .ticks {
     position: relative;
-    height: 16px;
-    margin-top: 3px;
+    height: 14px;
+    margin-top: 2px;
     font: 11px var(--font-data);
     color: var(--muted);
   }
@@ -650,8 +640,7 @@
     white-space: nowrap;
   }
   .ticks .mid {
-    left: 26%;
-    transform: translateX(-50%);
+    left: 0;
     font-family: var(--font-ui);
     letter-spacing: 0.06em;
     text-transform: uppercase;

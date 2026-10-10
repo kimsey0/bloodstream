@@ -21,6 +21,9 @@ on desktop and on phones.
   its current trip round the body has taken. Previous trips are listed with
   the organs they went through, and you can open one of its haemoglobin
   molecules with the four O₂ binding sites.
+- **Watch it cross each organ.** While you follow a cell, a live close-up
+  of each organ's capillaries pops up as the cell passes through, at the
+  same speed as everything else. Tap it to open the full microscope.
 - **See the cell on the dissociation curve.** The follow panel plots the
   cell on the O₂ dissociation curve, with its recent path: up the curve in
   the lungs, down it in tissues. A second curve shows how the blood around
@@ -138,7 +141,7 @@ render/ + ui/     three.js body, vessels and cells; Svelte HUD;
   organ's hilum, over the brain and heart surfaces, or through intestinal
   arcades.
 - **Colour.** By default saturation runs from deep blue to violet to red,
-  the textbook code. A switch under the colour bar shows true colours
+  the textbook code. A switch in the display menu (eye button) shows true colours
   instead: dark red to bright scarlet, because real blood is never blue.
   In both scales lightness rises steadily, and both are tested to stay
   readable with deuteranopia, protanopia and tritanopia.

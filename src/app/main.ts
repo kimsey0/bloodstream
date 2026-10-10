@@ -81,6 +81,7 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
       ui.activityPending = null;
       // Rebuild an open microscope view with the new flows and O2 use.
       if (ui.micro) openBed(ui.micro.capillary, { keepFollow: true });
+      closeInset();
       return;
     }
     ui.ready = true;
@@ -212,15 +213,12 @@ function chooseColorScale(scale: ColorScale): void {
   if (ui.micro) openBed(ui.micro.capillary, { keepFollow: true });
 }
 
-function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
+/** Build a bed's network, local cells and scene from the current flows. */
+function buildMicro(capillary: number) {
   const seg = circ.segments[capillary];
   const transit = transitNow[capillary];
-  const keepRoute = opts.keepFollow ? microRoute : -1;
-  // Keep the camera when rebuilding the same bed.
-  const view = micro && ui.micro?.capillary === capillary ? { pos: micro.camera.position.clone(), target: micro.controls.target.clone() } : null;
   const ex = exchange.get(capillary);
-  if (!ex) return;
-  closeBed();
+  if (!ex) return null;
   const bed = microBedFor(seg);
   const net = buildNetwork(bed, seg.length * 1000, seg.diameter * 1000);
   const sim = new MicroSim(net, {
@@ -231,7 +229,22 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     units: ex.units,
     contentIn: ex.contentIn,
   });
-  micro = new MicroScene(canvas, bed, net, sim, ex.saturationIn, ex.saturationOut);
+  return { scene: new MicroScene(canvas, bed, net, sim, ex.saturationIn, ex.saturationOut), bed, transit, speedUm: (seg.length * 1000) / transit };
+}
+
+function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
+  const seg = circ.segments[capillary];
+  const transit = transitNow[capillary];
+  const keepRoute = opts.keepFollow ? microRoute : -1;
+  // Keep the camera when rebuilding the same bed.
+  const view = micro && ui.micro?.capillary === capillary ? { pos: micro.camera.position.clone(), target: micro.controls.target.clone() } : null;
+  const ex = exchange.get(capillary);
+  if (!ex) return;
+  closeBed();
+  closeInset();
+  const built = buildMicro(capillary)!;
+  const bed = built.bed;
+  micro = built.scene;
   scene.controls.enabled = false;
   microRoute = keepRoute;
   if (view) {
@@ -302,21 +315,41 @@ function closeBed(): void {
   ui.micro = null;
 }
 
-/** Place the followed cell in the open patch while it is in the bed's arterioles, capillaries or venules. */
-function mapFollowToMicro(m: MicroScene, f: FollowInfo | null): void {
-  const cap = ui.micro!.capillary;
-  if (!f) {
-    ui.microFollow = 'none';
-    m.setFollow(null);
-    return;
-  }
+/** Where the followed cell is relative to a bed's patch, and the route it takes there on this visit. */
+interface Placement {
+  status: 'here' | 'approaching' | 'elsewhere';
+  route: number;
+  /** Position along the route, or null when the cell is not in view. */
+  s: number | null;
+}
+
+function placeInBed(m: MicroScene, cap: number, f: FollowInfo, route: number): Placement {
   const capSeg = circ.segments[cap];
   const inPred = capSeg.prevIndex.includes(f.segment);
   const inSucc = capSeg.nextIndex.includes(f.segment);
   const inCap = f.segment === cap;
-  if (!inPred && !inCap && !inSucc) {
-    microRoute = -1;
-    ui.microFollow = bedOf(f.segment) === cap ? 'approaching' : 'elsewhere';
+  if (!inPred && !inCap && !inSucc) return { status: bedOf(f.segment) === cap ? 'approaching' : 'elsewhere', route: -1, s: null };
+  if (route < 0) route = MicroScene.routeFor(m.sim, inCap ? f.segmentDuration : m.sim.params.transit);
+  const r = m.net.routes[route];
+  let s: number | null = null;
+  if (inPred) {
+    const remaining = f.segmentDuration - f.segmentElapsed;
+    const part = MicroScene.arteriolePart(m.sim, route);
+    if (remaining < part) s = r.capStart * (1 - remaining / part);
+  } else if (inCap) {
+    s = r.capStart + f.progress * (r.capEnd - r.capStart);
+  } else {
+    const part = MicroScene.venulePart(m.sim, route);
+    if (f.segmentElapsed < part) s = r.capEnd + (r.line.length - r.capEnd) * (f.segmentElapsed / part);
+  }
+  if (s === null) return inSucc ? { status: 'elsewhere', route: -1, s } : { status: 'approaching', route, s };
+  return { status: 'here', route, s };
+}
+
+/** Place the followed cell in the open patch while it is in the bed's arterioles, capillaries or venules. */
+function mapFollowToMicro(m: MicroScene, f: FollowInfo | null): void {
+  if (!f) {
+    ui.microFollow = 'none';
     m.setFollow(null);
     return;
   }
@@ -325,27 +358,122 @@ function mapFollowToMicro(m: MicroScene, f: FollowInfo | null): void {
     microRoute = adoptedRoute.route;
     adoptedRoute = null;
   }
-  if (microRoute < 0) microRoute = MicroScene.routeFor(m.sim, inCap ? f.segmentDuration : m.sim.params.transit);
-  const r = m.net.routes[microRoute];
-  let s: number | null = null;
-  if (inPred) {
-    const remaining = f.segmentDuration - f.segmentElapsed;
-    const part = MicroScene.arteriolePart(m.sim, microRoute);
-    if (remaining < part) s = r.capStart * (1 - remaining / part);
-  } else if (inCap) {
-    s = r.capStart + f.progress * (r.capEnd - r.capStart);
-  } else {
-    const part = MicroScene.venulePart(m.sim, microRoute);
-    if (f.segmentElapsed < part) s = r.capEnd + (r.line.length - r.capEnd) * (f.segmentElapsed / part);
+  const p = placeInBed(m, ui.micro!.capillary, f, microRoute);
+  microRoute = p.route;
+  ui.microFollow = p.status;
+  m.setFollow(p.s === null ? null : { route: p.route, s: p.s, saturation: f.saturation });
+}
+
+// ---- Close-up inset -------------------------------------------------------
+
+let inset: MicroScene | null = null;
+let insetRoute = -1;
+/** Wall-clock time the followed cell left the inset's patch, ms; null while it is still there or on its way. */
+let insetLeftAt: number | null = null;
+/** Bed whose close-up the user closed; it stays closed until the cell leaves that bed. */
+let dismissedBed = -1;
+/** How long the close-up stays after the cell has left the patch, ms. */
+const INSET_LINGER = 2000;
+const insetBox = { x: 0, y: 0, width: 1, height: 1 };
+/** Phones fold the follow panel into its pill while a close-up shows, so the two fit; true if this did so. */
+let insetFoldedPanel = false;
+const phoneLayout = window.matchMedia('(max-width: 820px)');
+
+/** True while the followed cell is in a bed's arterioles or capillaries, so a patch can still show it arrive or pass. */
+function enteringBed(f: FollowInfo): boolean {
+  const kind = circ.segments[f.segment].kind;
+  return bedOf(f.segment) >= 0 && (kind === 'arteriole' || kind === 'capillary');
+}
+
+function openInset(capillary: number): void {
+  closeInset();
+  const built = buildMicro(capillary);
+  if (!built) return;
+  inset = built.scene;
+  inset.setActive(false);
+  insetRoute = -1;
+  insetLeftAt = null;
+  measureInset();
+  inset.camera.aspect = insetBox.width / Math.max(1, insetBox.height);
+  inset.camera.updateProjectionMatrix();
+  inset.resetView();
+  ui.inset = { capillary, label: built.bed.label, status: 'approaching', speedUm: built.speedUm, transit: built.transit };
+  if (phoneLayout.matches && !ui.followCollapsed) {
+    ui.followCollapsed = true;
+    insetFoldedPanel = true;
   }
-  if (s === null) {
-    ui.microFollow = inSucc ? 'elsewhere' : 'approaching';
-    m.setFollow(null);
-    if (inSucc) microRoute = -1;
+}
+
+function closeInset(): void {
+  inset?.dispose();
+  inset = null;
+  insetRoute = -1;
+  ui.inset = null;
+  setInsetSpace(0);
+  if (insetFoldedPanel) ui.followCollapsed = false;
+  insetFoldedPanel = false;
+}
+
+function dismissInset(): void {
+  if (ui.inset) dismissedBed = ui.inset.capillary;
+  closeInset();
+}
+
+/** Open the close-up full screen, keeping the followed cell on its route. */
+function expandInset(): void {
+  if (!ui.inset) return;
+  const cap = ui.inset.capillary;
+  const route = insetRoute;
+  closeInset();
+  openBed(cap);
+  microRoute = route;
+}
+
+function measureInset(): void {
+  const el = document.getElementById('bed-inset-view');
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const c = canvas.getBoundingClientRect();
+  insetBox.x = r.left - c.left;
+  insetBox.y = r.top - c.top;
+  insetBox.width = Math.max(1, r.width);
+  insetBox.height = Math.max(1, r.height);
+  setInsetSpace(phoneLayout.matches ? el.parentElement!.getBoundingClientRect().height + 10 : 0);
+}
+
+let insetSpace = 0;
+/** Room the follow panel leaves for the close-up below it. */
+function setInsetSpace(px: number): void {
+  px = Math.round(px);
+  if (px === insetSpace) return;
+  insetSpace = px;
+  document.documentElement.style.setProperty('--inset-space', `${px}px`);
+}
+
+/** Open, update and close the close-up as the followed cell passes through organ beds. */
+function updateInset(now: number): void {
+  const f = ui.follow;
+  if (dismissedBed >= 0 && (!f || bedOf(f.segment) !== dismissedBed)) dismissedBed = -1;
+  // Above real time a circuit takes seconds, and close-ups would flash past one after another.
+  const allowed = !!f && ui.view === 'body' && ui.insetsOn && ui.speed <= 1;
+  if (!allowed) {
+    if (inset) closeInset();
     return;
   }
-  ui.microFollow = 'here';
-  m.setFollow({ route: microRoute, s, saturation: f.saturation });
+  if (enteringBed(f)) {
+    const bed = bedOf(f.segment);
+    if (bed !== dismissedBed && ui.inset?.capillary !== bed) openInset(bed);
+  }
+  if (!inset || !ui.inset) return;
+  // Opened again by hand: leave it open when the close-up goes.
+  if (insetFoldedPanel && !ui.followCollapsed) insetFoldedPanel = false;
+  const p = placeInBed(inset, ui.inset.capillary, f, insetRoute);
+  insetRoute = p.route;
+  inset.setFollow(p.s === null ? null : { route: p.route, s: p.s, saturation: f.saturation });
+  if (ui.inset.status !== p.status) ui.inset.status = p.status;
+  if (p.status !== 'elsewhere') insetLeftAt = null;
+  else if (insetLeftAt === null) insetLeftAt = now;
+  else if (now - insetLeftAt > INSET_LINGER) closeInset();
 }
 
 /** False between "stop" and the worker acknowledging it, so stale frames don't restart following. */
@@ -361,6 +489,7 @@ function stopFollowing(): void {
   send({ type: 'follow', cell: null });
   ui.follow = null;
   ui.followBed = -1;
+  closeInset();
   scene.setFollow(null);
   clearHistory();
 }
@@ -474,6 +603,15 @@ function loop(): void {
     if (Math.abs(px / ui.microScalePx - 1) > 0.01) ui.microScalePx = px;
   } else {
     scene.render();
+    updateInset(now);
+    if (inset && ui.inset) {
+      const dt = ui.paused || !ui.ready ? 0 : Math.min(0.1, wallDt * ui.speed);
+      measureInset();
+      inset.update(dt, wallDt, ui.speed);
+      inset.render(scene.renderer, insetBox);
+      const px = inset.pixelsPer100um(insetBox.height);
+      if (Math.abs(px / ui.insetScalePx - 1) > 0.01) ui.insetScalePx = px;
+    }
   }
   requestAnimationFrame(loop);
 }
@@ -499,6 +637,8 @@ const hud = mount(Hud, {
     onScenario: setScenario,
     onStopFollow: stopFollowing,
     onOpenBed: openBed,
+    onExpandInset: expandInset,
+    onDismissInset: dismissInset,
     onFollowCell: (cell: number) => {
       ui.tapMenu = null;
       followCell(cell);
