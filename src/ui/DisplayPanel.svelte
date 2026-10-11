@@ -37,7 +37,7 @@
       <button role="radio" aria-checked={ui.insetsOn} class:active={ui.insetsOn} onclick={() => (ui.insetsOn = true)}>On</button>
       <button role="radio" aria-checked={!ui.insetsOn} class:active={!ui.insetsOn} onclick={() => (ui.insetsOn = false)}>Off</button>
     </div>
-    <p>While you follow a cell, a live close-up opens as it passes through each organ's capillaries.</p>
+    <p>While you follow a cell at 1× or slower, a live close-up opens as it passes through each organ's capillaries.</p>
   </div>
 </section>
 
@@ -49,6 +49,8 @@
     transform: translateX(-50%);
     bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(420px, calc(100% - 32px));
+    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
     padding: 12px 14px;
     background: var(--panel);
     border: 1px solid var(--line);

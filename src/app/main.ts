@@ -131,10 +131,10 @@ function setActivity(level: number): void {
   send({ type: 'activity', level, scenario: { ...ui.scenario } });
 }
 
-function setScenario(scenario: Scenario): void {
+function setScenario(scenario: Scenario, level = ui.activity.level): void {
   ui.scenarioPending = scenario;
   ui.limit = null;
-  send({ type: 'activity', level: ui.activity.level, scenario });
+  send({ type: 'activity', level, scenario });
 }
 
 /** Organ bed centres for tap-to-zoom, with the capillary segment each one opens. */
@@ -635,7 +635,11 @@ const hud = mount(Hud, {
     onFollowRandom: () => followCell(-1),
     onActivity: setActivity,
     onScenario: setScenario,
-    onStopFollow: stopFollowing,
+    onStopFollow: () => {
+      stopFollowing();
+      // The camera was riding with the cell; show the whole body again.
+      if (ui.view === 'body') fitBodyView();
+    },
     onOpenBed: openBed,
     onExpandInset: expandInset,
     onDismissInset: dismissInset,

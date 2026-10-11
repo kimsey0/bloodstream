@@ -29,7 +29,7 @@ on desktop and on phones.
   the lungs, down it in tissues. A second curve shows how the blood around
   it is shifted, and a readout gives its O₂ content in mL per dL, split
   into haemoglobin-bound and dissolved.
-- **Zoom into capillary beds.** Tap near an organ, or use the magnifier, to
+- **Zoom into capillary beds.** Tap near an organ, or press Zoom in, to
   open its capillaries at true micrometre scale. You see biconcave red
   cells in single file, and white dots for O₂ crossing the capillary wall
   (one dot per 10⁹ molecules). Blood has already given up some O₂ in the
@@ -141,7 +141,7 @@ render/ + ui/     three.js body, vessels and cells; Svelte HUD;
   organ's hilum, over the brain and heart surfaces, or through intestinal
   arcades.
 - **Colour.** By default saturation runs from deep blue to violet to red,
-  the textbook code. A switch in the display menu (eye button) shows true colours
+  the textbook code. A switch under Display shows true colours
   instead: dark red to bright scarlet, because real blood is never blue.
   In both scales lightness rises steadily, and both are tested to stay
   readable with deuteranopia, protanopia and tritanopia.

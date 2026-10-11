@@ -155,7 +155,7 @@
   }
   @media (min-width: 821px) {
     .pill-row {
-      top: calc(env(safe-area-inset-top, 0px) + 84px);
+      top: calc(env(safe-area-inset-top, 0px) + 104px);
     }
   }
   @media (max-width: 520px) {
@@ -171,7 +171,7 @@
     top: calc(env(safe-area-inset-top, 0px) + 12px);
     right: 16px;
     width: min(380px, calc(100% - 32px));
-    max-height: calc(100% - env(safe-area-inset-top, 0px) - 24px);
+    max-height: calc(100% - env(safe-area-inset-top, 0px) - 22px - var(--dock-space, 150px));
     overflow-y: auto;
     display: grid;
     gap: 8px;
@@ -301,7 +301,8 @@
   }
   @media (min-width: 821px) {
     .panel {
-      top: calc(env(safe-area-inset-top, 0px) + 84px);
+      top: calc(env(safe-area-inset-top, 0px) + 104px);
+      max-height: calc(100% - env(safe-area-inset-top, 0px) - 114px - var(--dock-space, 150px));
     }
   }
   @media (max-width: 520px) {

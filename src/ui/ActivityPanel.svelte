@@ -12,6 +12,10 @@
   let draft = $state(ui.activity.level);
   let preview = $derived(activityState(draft));
   let busy = $derived(ui.activityPending !== null);
+  // A rejected level leaves the body where it was: put the slider back there too.
+  $effect(() => {
+    if (ui.limit) draft = ui.activity.level;
+  });
 
   const apply = () => {
     if (Math.abs(draft - ui.activity.level) > 0.004) onApply(Math.round(draft * 100) / 100);
@@ -68,6 +72,8 @@
     transform: translateX(-50%);
     bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(420px, calc(100% - 32px));
+    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
     padding: 12px 14px;
     background: var(--panel);
     border: 1px solid var(--line);

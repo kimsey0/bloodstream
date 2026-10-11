@@ -82,7 +82,7 @@
     transform: translateX(-50%);
     bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(440px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 30px);
+    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
     overflow-y: auto;
     padding: 12px 14px;
     background: var(--panel);

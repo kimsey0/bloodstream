@@ -13,7 +13,8 @@
   import { ui } from './state.svelte';
 
   interface Props {
-    onApply: (scenario: Scenario) => void;
+    /** Apply a scenario, at the current activity level unless one is given. */
+    onApply: (scenario: Scenario, level?: number) => void;
   }
   let { onApply }: Props = $props();
 
@@ -76,7 +77,7 @@
       Recalculating: the body adjusts its flows organ by organ…
     {:else if ui.limit}
       <b>Beyond this body's limits at {ui.limit.label.toLowerCase()}.</b> The {ui.limit.organ.toLowerCase()} could not get the O₂ it uses,
-      so the previous state stays. Try a lower activity level{draft.compensate ? '' : ', or let the body compensate'}.
+      so the previous state stays. Try it at a lower activity level{draft.compensate ? '' : ', or let the body compensate'}.
     {:else if preset}
       {preset.note}
     {:else}
@@ -84,6 +85,9 @@
     {/if}
   </p>
   <div class="actions">
+    {#if ui.limit && ui.limit.level > 0 && !busy}
+      <button class="ghost" onclick={() => onApply({ ...draft }, 0)}>Apply at rest instead</button>
+    {/if}
     <button class="ghost" disabled={isNormalScenario(draft) && draft.compensate} onclick={() => pick(NORMAL_SCENARIO)}>Reset</button>
     <button class="apply" disabled={!changed || busy} onclick={() => onApply({ ...draft })}>{busy ? 'Applying…' : changed ? 'Apply' : 'Applied'}</button>
   </div>
@@ -97,7 +101,7 @@
     transform: translateX(-50%);
     bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(440px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 104px);
+    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
     overflow-y: auto;
     padding: 12px 14px;
     background: var(--panel);
@@ -205,8 +209,15 @@
     color: var(--text);
   }
   .actions {
+    /* Stay in reach when the sheet scrolls on short screens. */
+    position: sticky;
+    bottom: -12px;
+    margin: 0 -14px -12px;
+    padding: 8px 14px 12px;
+    background: rgb(14 19 28 / 0.97);
     display: flex;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 8px;
   }
 </style>

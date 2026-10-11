@@ -148,7 +148,7 @@
   </div>
 
   {#if !Number.isNaN(info.circuitElapsed)}
-    <p class="circuit"><span class="label">This circuit</span> <b>{fmtTime(info.circuitElapsed)}</b> <span class="via">via {shortVia(info.circuitVia)}</span></p>
+    <p class="circuit"><span class="label">This circuit</span> <b>{fmtTime(info.circuitElapsed)}</b>{#if info.circuitVia.length}{' '}<span class="via">via {shortVia(info.circuitVia)}</span>{/if}</p>
   {/if}
 
   {#if details}

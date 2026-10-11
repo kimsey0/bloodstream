@@ -97,7 +97,7 @@
     transform: translateX(-50%);
     bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(420px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 90px);
+    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
     overflow-y: auto;
     padding: 12px 14px;
     background: var(--panel);
@@ -148,12 +148,6 @@
     gap: 10px;
     padding: 9px 12px;
     text-align: left;
-  }
-  @media (max-width: 480px) {
-    .sheet {
-      bottom: calc(var(--dock-space, 150px) + 10px);
-      max-height: calc(100% - var(--dock-space, 150px) - 90px);
-    }
   }
   .item.small {
     padding: 6px 10px;

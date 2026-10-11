@@ -25,7 +25,7 @@
     onMicroReset: () => void;
     onFollowCell: (cell: number) => void;
     onActivity: (level: number) => void;
-    onScenario: (scenario: Scenario) => void;
+    onScenario: (scenario: Scenario, level?: number) => void;
     onDismissHint: () => void;
     onColorScale: (scale: ColorScale) => void;
     capillaryIndex: (id: string) => number;
@@ -72,16 +72,38 @@
     if (!s.compensate) parts.push('no compensation');
     return parts.join(' · ');
   });
-  type Sheet = 'activityOpen' | 'whatIfOpen' | 'pickerOpen' | 'budgetOpen' | 'displayOpen';
+  type Sheet = 'activityOpen' | 'whatIfOpen' | 'pickerOpen' | 'budgetOpen' | 'displayOpen' | 'infoOpen';
   /** Open one dock sheet (or close it if open), closing the others. */
   function toggleSheet(sheet: Sheet): void {
     const open = !ui[sheet];
-    ui.activityOpen = ui.whatIfOpen = ui.pickerOpen = ui.budgetOpen = ui.displayOpen = false;
+    ui.activityOpen = ui.whatIfOpen = ui.pickerOpen = ui.budgetOpen = ui.displayOpen = ui.infoOpen = false;
     ui[sheet] = open;
   }
+  /** Escape closes the topmost thing; Space pauses unless a control has focus. */
+  function onKey(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement | null;
+    const inControl = !!target?.closest('input, button, select, textarea, [role="menu"]');
+    if (e.key === 'Escape') {
+      if (ui.tapMenu) ui.tapMenu = null;
+      else if (ui.activityOpen || ui.whatIfOpen || ui.pickerOpen || ui.budgetOpen || ui.displayOpen || ui.infoOpen)
+        ui.activityOpen = ui.whatIfOpen = ui.pickerOpen = ui.budgetOpen = ui.displayOpen = ui.infoOpen = false;
+      else if (ui.hintOpen) onDismissHint();
+      else if (ui.view === 'micro') onBackToBody();
+      else return;
+      e.preventDefault();
+    } else if (e.key === ' ' && !inControl && ui.ready) {
+      e.preventDefault();
+      onPause(!ui.paused);
+    }
+  }
+  /** Touch-first devices get tap and pinch wording; mice get click and scroll. */
+  const touch = globalThis.matchMedia?.('(pointer: coarse)').matches ?? false;
+  const tap = touch ? 'Tap' : 'Click';
   // The heart icon swells with each ejection.
   let heartScale = $derived(ui.beatPhase < ui.systole ? 1 + 0.25 * Math.sin((Math.PI * ui.beatPhase) / ui.systole) : 1);
 </script>
+
+<svelte:window onkeydown={onKey} />
 
 {#if ui.follow}
   <div class="follow-wrap" class:micro={ui.view === 'micro'}>
@@ -123,20 +145,25 @@
 
 {#if ui.hintOpen && ui.ready && ui.view === 'body' && !ui.follow && !ui.pickerOpen}
   <aside class="hint" aria-label="How to use">
-    <p><b>Each dot is a red blood cell</b>, coloured by how much oxygen it carries, moving at real speed.</p>
+    <p>
+      <b>Each dot is a red blood cell</b>, moving at real speed and coloured by how much oxygen it carries: red when full,
+      blue when it has given some up. (Blue is only a code: real blood is never blue.)
+    </p>
     <ul>
-      <li>Tap a cell to follow it round the body, or tap near an organ to zoom into its capillaries.</li>
-      <li>Drag to rotate, pinch to zoom, two fingers to pan.</li>
-      <li>Slow time down to 0.01× to watch oxygen load in the lungs.</li>
-      <li>Blue is only a code: real blood is never blue. The eye button switches to true colours.</li>
+      <li>{tap} a cell to ride along with it round the body, or {tap.toLowerCase()} near an organ to look inside its capillaries.</li>
+      <li>{touch ? 'Drag to rotate, pinch to zoom, two fingers to pan.' : 'Drag to rotate, scroll to zoom, right-drag to pan.'}</li>
+      <li>The buttons below change the speed, exercise level and conditions such as altitude.</li>
     </ul>
-    <button onclick={onDismissHint}>Got it</button>
+    <div class="hint-actions">
+      <button class="primary" onclick={() => (onDismissHint(), onFollowRandom())}>Follow a red cell</button>
+      <button onclick={onDismissHint}>Explore on my own</button>
+    </div>
   </aside>
 {/if}
 
 <header class="brand" class:following={!!ui.follow || ui.view === 'micro'}>
   <h1>Bloodstream</h1>
-  <p>{ui.activity.label} · {(ui.cardiacOutput * 0.06).toFixed(1)} L/min · {(ui.bloodVolume / 1000).toFixed(1)} L blood</p>
+  <p>{ui.activity.label} · heart pumps {(ui.cardiacOutput * 0.06).toFixed(1)} L/min · {(ui.bloodVolume / 1000).toFixed(1)} L of blood</p>
   {#if scenarioText}<p class="whatif">What if: {scenarioText}</p>{/if}
 </header>
 
@@ -193,6 +220,7 @@
           fill="currentColor"
         /><path d="M8 0.5v2.4M8 13.1v2.4M0.5 8h2.4M13.1 8h2.4" stroke="currentColor" stroke-width="1.5" /></svg
       >
+    <span class="lbl" aria-hidden="true">{ui.follow ? 'Stop' : 'Follow'}</span>
     </button>
     <button
       class="icon"
@@ -212,6 +240,7 @@
           stroke-linejoin="round"
         /></svg
       >
+    <span class="lbl" aria-hidden="true">Activity</span>
     </button>
     <button
       class="icon"
@@ -230,6 +259,7 @@
           stroke-linejoin="round"
         /><path d="M4.3 10.4h7.4" stroke="currentColor" stroke-width="1.3" /></svg
       >
+    <span class="lbl" aria-hidden="true">What if</span>
     </button>
     <button
       class="icon"
@@ -247,12 +277,13 @@
           stroke-linecap="round"
         /><path d="M4.5 6.5h4M6.5 4.5v4" stroke="currentColor" stroke-width="1.3" /></svg
       >
+    <span class="lbl" aria-hidden="true">Zoom in</span>
     </button>
     <button
       class="icon"
       class:on={ui.displayOpen}
       aria-label="Display: colours and organ close-ups"
-      title={ui.colorScale === 'natural' ? 'Display · true colours' : 'Display · blue is only a code: real blood is never blue'}
+      title={ui.colorScale === 'natural' ? 'Display: true colours, organ close-ups' : 'Display: colours (blue is only a code), organ close-ups'}
       aria-expanded={ui.displayOpen}
       onclick={() => toggleSheet('displayOpen')}
     >
@@ -264,6 +295,7 @@
           fill="currentColor"
         /></svg
       >
+    <span class="lbl" aria-hidden="true">Display</span>
     </button>
     <button
       class="icon"
@@ -279,8 +311,9 @@
           fill="currentColor"
         /></svg
       >
+    <span class="lbl" aria-hidden="true"><span class="long">O₂ budget</span><span class="short">Budget</span></span>
     </button>
-    <button class="icon" aria-label="Reset view" title="Reset view" onclick={() => (ui.view === 'micro' ? onMicroReset() : onResetView())}>
+    <button class="icon" aria-label="Reset view" title={ui.follow ? 'Stop following and show the whole body' : 'Show the whole body'} onclick={() => (ui.view === 'micro' ? onMicroReset() : onResetView())}>
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><path d="M8 2.5a5.5 5.5 0 1 1-5.2 3.7" stroke="currentColor" stroke-width="1.6" fill="none" /><path
           d="M1.8 2.8l1.1 3.7 3.6-1.2"
@@ -289,8 +322,9 @@
           fill="none"
         /></svg
       >
+    <span class="lbl" aria-hidden="true">Reset</span>
     </button>
-    <button class="icon" aria-label="About this view" aria-expanded={ui.infoOpen} onclick={() => (ui.infoOpen = !ui.infoOpen)}>
+    <button class="icon" class:on={ui.infoOpen} aria-label="About this view" title="What you are seeing, and where the numbers come from" aria-expanded={ui.infoOpen} onclick={() => toggleSheet('infoOpen')}>
       <svg viewBox="0 0 16 16" aria-hidden="true"
         ><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.5" fill="none" /><path
           d="M8 7v4.5M8 4.6v.1"
@@ -299,6 +333,7 @@
           stroke-linecap="round"
         /></svg
       >
+    <span class="lbl" aria-hidden="true">About</span>
     </button>
   </div>
   <div class="legend">
@@ -309,15 +344,16 @@
       {/if}
     </div>
     <div class="ticks">
-      {#if !ui.ready || ui.mixedVenousSaturation > 0.45}
-        <span class="mid">O₂ saturation</span>
-      {/if}
+      <span class="mid" class:crowded={ui.ready && ui.mixedVenousSaturation <= 0.45}>O₂ saturation</span>
       {#if ui.ready}
         <!-- Low venous saturation (exercise): put the label to the right of its mark. -->
         <span class="mark" class:right={ui.mixedVenousSaturation < 0.45} style:left={pct(ui.mixedVenousSaturation)}
           >venous {pct(ui.mixedVenousSaturation)}</span
         >
-        <span class="mark art" style:left={pct(ui.arterialSaturation)}>arterial {pct(ui.arterialSaturation)}</span>
+        <!-- Near 100 % the label is pinned to the right edge; lower (altitude, CO) it sits right of its mark. -->
+        <span class="mark art" class:pinned={ui.arterialSaturation > 0.8} style:left={pct(ui.arterialSaturation)}>arterial {pct(ui.arterialSaturation)}</span>
+        <!-- Narrow screens: no room to label each mark, so one line on the right. -->
+        <span class="summary">venous {pct(ui.mixedVenousSaturation)} · arterial {pct(ui.arterialSaturation)}</span>
       {/if}
     </div>
   </div>
@@ -334,22 +370,22 @@
     <p>
       Vessels are coloured by the average saturation of the blood inside. The default colours are a code, as in textbook
       diagrams: real blood is never blue. Oxygen-rich blood is bright scarlet and oxygen-poor blood dark red (veins only
-      look blue through skin). Switch to <i>True colour</i> under the eye button to see it that way. Capillary beds (the short, thin loops in each organ)
+      look blue through skin). Switch to <i>True colour</i> under Display to see it that way. Capillary beds (the short, thin loops in each organ)
       are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long. Cells are drawn about 600× too big.
     </p>
     <p>
-      The magnifier opens a capillary bed at true scale: real cell sizes, capillary widths and speeds, with each white dot standing
+      <i>Zoom in</i> opens a capillary bed at true scale: real cell sizes, capillary widths and speeds, with each white dot standing
       for a billion O₂ molecules crossing the capillary wall. Blood has already lost some O₂ on the way, through the walls of the
       arterioles that feed the bed: in resting muscle about two-thirds of what it gives up, as measured in animals. The microscope panel plots a cell's PO₂ along the capillary: in the lungs, whether
       blood matches the air before it leaves.
     </p>
     <p>
-      Tap near an organ to zoom into its capillaries, or tap any cell (or the target button) to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,
+      {tap} near an organ to zoom into its capillaries, or {tap.toLowerCase()} any cell (or press <i>Follow</i>) to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,
       how long its current trip round the body has taken, and one of its haemoglobin molecules. At 1× the four binding sites flip
       faster than the eye can follow (the last O₂ stays bound for ~7 ms on average); slow down to 0.01× to watch them.
     </p>
     <p>
-      The running figure sets the activity level, from rest to maximal exercise. Heart rate, cardiac output, O₂ use and where
+      <i>Activity</i> sets the exercise level, from rest to maximal exercise. Heart rate, cardiac output, O₂ use and where
       the blood goes all change; working leg muscle can take over 80 % of the flow and pull venous blood below 20 % saturation.
       In the lungs each cell passes one group of air sacs; some get less fresh air for their blood flow than others (V/Q
       mismatch), and the blood leaving them lowers arterial PO₂ a little below that of the air.
@@ -361,11 +397,11 @@
       supply time.
     </p>
     <p>
-      The bar-chart button shows the O₂ budget: the heart sends out about 1 L of O₂ a minute at rest and the body uses a quarter
+      <i>O₂ budget</i> shows where the oxygen goes: the heart sends out about 1 L of O₂ a minute at rest and the body uses a quarter
       of it. Each organ takes a different share of what reaches it, from about a tenth in the kidneys to two-thirds in the heart
       wall.
     </p>
-    <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan.</p>
+    <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan. <i>What if</i> changes the blood or the air: anaemia, altitude, carbon monoxide.</p>
     <h2>Where the numbers come from</h2>
     <p class="sources">
       Blood volume, flows and organ O₂ use: Guyton &amp; Hall; Ganong. Lung diffusion and transit: West, Respiratory Physiology.
@@ -390,6 +426,8 @@
     position: absolute;
     top: calc(env(safe-area-inset-top, 0px) + 14px);
     left: 16px;
+    /* Wrap before the clock on the right. */
+    right: 130px;
     pointer-events: none;
   }
   h1 {
@@ -425,11 +463,16 @@
       column-gap: 4px;
     }
     .row .icon {
-      width: 34px;
+      flex: 1 1 0;
+      width: auto;
+      min-width: 0;
     }
     .row .speeds {
       order: -1;
       flex: 1 0 100%;
+    }
+    .row .speeds button {
+      height: 34px;
     }
   }
   .follow-wrap {
@@ -440,8 +483,10 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 150px);
+    bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(420px, calc(100% - 32px));
+    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
     padding: 12px 14px;
     background: var(--panel);
     border: 1px solid var(--line);
@@ -454,19 +499,31 @@
     margin: 0 0 6px;
   }
   .hint ul {
-    margin: 0 0 10px;
+    margin: 0 0 4px;
     padding-left: 18px;
     color: #c4ccd8;
     display: grid;
     gap: 3px;
   }
-  .hint button {
-    padding: 5px 14px;
+  .hint-actions {
+    /* Keep the buttons in view when the card scrolls on short screens. */
+    position: sticky;
+    bottom: -12px;
+    margin: 0 -14px -12px;
+    padding: 6px 14px 12px;
+    background: rgb(14 19 28 / 0.97);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
-  @media (max-width: 480px) {
-    .hint {
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 190px);
-    }
+  .hint button {
+    padding: 6px 14px;
+  }
+  .hint button.primary {
+    background: var(--steel);
+    border-color: var(--steel);
+    color: #0b1220;
+    font-weight: 600;
   }
   @media (max-width: 820px) {
     .follow-wrap.micro {
@@ -540,7 +597,7 @@
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
     transform: translateX(-50%);
-    width: min(640px, calc(100% - 32px));
+    width: min(760px, calc(100% - 32px));
     display: grid;
     gap: 10px;
     padding: 10px 12px 8px;
@@ -568,11 +625,35 @@
     outline-offset: 2px;
   }
   .icon {
-    width: 36px;
-    height: 34px;
+    width: 50px;
+    height: 42px;
     flex: none;
     display: grid;
     place-items: center;
+    align-content: center;
+    gap: 2px;
+    padding: 0;
+  }
+  .icon .lbl {
+    font-size: 10px;
+    font-stretch: 75%;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--muted);
+  }
+  .icon.on .lbl {
+    color: inherit;
+  }
+  .lbl .short {
+    display: none;
+  }
+  @media (max-width: 400px) {
+    .lbl .long {
+      display: none;
+    }
+    .lbl .short {
+      display: inline;
+    }
   }
   .icon svg {
     width: 16px;
@@ -591,7 +672,7 @@
     min-width: 0;
     border: 0;
     border-radius: 0;
-    height: 32px;
+    height: 40px;
     padding: 0;
     font: 500 11px var(--font-data);
     color: var(--muted);
@@ -656,17 +737,38 @@
     padding: 0 0 0 4px;
   }
   .ticks .mark.art {
+    transform: none;
+    padding: 0 0 0 4px;
+  }
+  .ticks .mark.art.pinned {
     left: auto !important;
     right: 0;
     transform: none;
     padding: 0;
   }
+  .ticks .mid.crowded {
+    display: none;
+  }
+  .ticks .summary {
+    display: none;
+    right: 0;
+    color: var(--text);
+  }
+  @media (max-width: 480px) {
+    .ticks .mark {
+      display: none;
+    }
+    .ticks .mid.crowded,
+    .ticks .summary {
+      display: inline;
+    }
+  }
   .info {
     position: absolute;
     right: 16px;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 130px);
+    bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(360px, calc(100% - 32px));
-    max-height: calc(100% - 220px);
+    max-height: calc(100% - var(--dock-space, 150px) - 120px - env(safe-area-inset-top, 0px));
     overflow-y: auto;
     padding: 14px 16px;
     background: var(--panel);
