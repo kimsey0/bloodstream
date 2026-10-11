@@ -24,7 +24,7 @@ on desktop and on phones.
 - **Watch it cross each organ.** While you follow a cell, a live close-up
   of each organ's capillaries pops up as the cell passes through, at the
   same speed as everything else. Tap it to open the full microscope.
-- **See the cell on the dissociation curve.** The follow panel plots the
+- **See the cell on the dissociation curve.** Under Details, the follow panel plots the
   cell on the O₂ dissociation curve, with its recent path: up the curve in
   the lungs, down it in tissues. A second curve shows how the blood around
   it is shifted, and a readout gives its O₂ content in mL per dL, split

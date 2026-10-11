@@ -160,6 +160,15 @@
     outline: 2px solid var(--steel);
     outline-offset: 2px;
   }
+  @media (max-width: 820px) {
+    /* Under the follow panel (main.ts sets --inset-top), leaving the followed cell mid-screen clear. */
+    .inset {
+      top: var(--inset-top, 60px);
+      bottom: auto;
+      left: 16px;
+      right: auto;
+    }
+  }
   @media (max-width: 480px) {
     .inset {
       height: min(220px, 27vh);

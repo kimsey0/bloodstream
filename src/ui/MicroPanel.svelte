@@ -50,7 +50,7 @@
   <p class="blurb">{info.blurb}</p>
   <dl>
     <div><dt>Capillary</dt><dd>{Math.round(info.lengthUm)} µm long · {info.diameterUm.toFixed(0)} µm wide</dd></div>
-    <div><dt>Red cell</dt><dd>{fmtSpeed(info.speedUm)} · {info.transit.toFixed(2)} s to cross</dd></div>
+    <div><dt>Red cell</dt><dd>{fmtSpeed(info.speedUm)} · {info.transit.toFixed(2)} s to cross on average</dd></div>
     <div>
       <dt>SO₂</dt>
       <dd>

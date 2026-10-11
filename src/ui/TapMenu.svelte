@@ -21,7 +21,7 @@
   {#if menu.cell !== null}
     <button role="menuitem" onclick={() => onFollow(menu.cell!)}>Follow this red cell</button>
   {/if}
-  <button role="menuitem" class="primary" onclick={() => onOpenBed(menu.bed)}>
+  <button role="menuitem" class="bed" onclick={() => onOpenBed(menu.bed)}>
     Zoom into capillaries
     <span>{label}</span>
   </button>
@@ -57,11 +57,13 @@
     outline: 2px solid var(--steel);
     outline-offset: 2px;
   }
-  .primary {
+  button:hover {
     border-color: var(--steel);
+  }
+  .bed {
     display: grid;
   }
-  .primary span {
+  .bed span {
     color: var(--muted);
     font-size: 12px;
   }

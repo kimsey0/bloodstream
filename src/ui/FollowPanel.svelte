@@ -14,10 +14,8 @@
   let { info, onStop, onZoom }: Props = $props();
 
   let journeyOpen = $state(false);
-  /** Start compact: saturation, location and circuit time; the rest is under More details. */
+  /** Start compact: saturation, location and circuit time; the rest is under Details. */
   let details = $state(false);
-  /** Wide screens have room for the O₂ curve outside More details. */
-  const wide = globalThis.innerWidth > 820;
   let canvas: HTMLCanvasElement | undefined = $state();
 
   const KIND_LABEL: Record<string, string> = {
@@ -64,18 +62,29 @@
     ctx.clearRect(0, 0, w, h);
     const t1 = ui.time;
     const t0 = t1 - span;
-    const x = (t: number) => ((t - t0) / span) * w;
-    const yS = (s: number) => 3 + (1 - s) * (h - 6);
+    // Gutters for the SO₂ axis (left) and the speed axis (right).
+    const left = 30;
+    const right = 50;
+    const x = (t: number) => left + ((t - t0) / span) * (w - left - right);
+    const yS = (s: number) => 5 + (1 - s) * (h - 10);
     // Speed: log scale from 0.1 mm/s to 1000 mm/s.
-    const yV = (v: number) => 3 + (1 - (Math.log10(Math.max(0.1, v)) + 1) / 4) * (h - 6);
+    const yV = (v: number) => 5 + (1 - (Math.log10(Math.max(0.1, v)) + 1) / 4) * (h - 10);
     ctx.strokeStyle = 'rgba(141, 153, 171, 0.25)';
     ctx.lineWidth = 1;
-    for (const s of [0.25, 0.5, 0.75]) {
+    for (const s of [0, 0.5, 1]) {
       ctx.beginPath();
-      ctx.moveTo(0, yS(s));
-      ctx.lineTo(w, yS(s));
+      ctx.moveTo(left, yS(s));
+      ctx.lineTo(w - right, yS(s));
       ctx.stroke();
     }
+    ctx.font = '9px "IBM Plex Mono", monospace';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(141, 153, 171, 0.9)';
+    for (const s of [0, 0.5, 1]) ctx.fillText(`${s * 100}%`, left - 4, yS(s));
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(169, 191, 220, 0.8)';
+    for (const [v, label] of [[1000, '1 m/s'], [10, '1 cm/s'], [0.1, '0.1 mm/s']] as const) ctx.fillText(label, w - right + 4, yV(v));
     const { t, s, v } = history;
     let i0 = 0;
     while (i0 < t.length && t[i0] < t0) i0++;
@@ -104,14 +113,14 @@
 </script>
 
 {#if ui.followCollapsed}
-  <button class="pill left" aria-label="Show the followed cell's panel" onclick={() => (ui.followCollapsed = false)}>
+  <button class="pill left" data-follow aria-label="Show the followed cell's panel" onclick={() => (ui.followCollapsed = false)}>
     <span class="dot small" style:background={saturationCss(info.saturation, ui.colorScale)}></span>
     <b class="num">{pct(info.saturation)}</b>
     <span class="pill-name">{name}</span>
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
   </button>
 {:else}
-<section class="panel" aria-label="Followed red blood cell">
+<section class="panel" data-follow aria-label="Followed red blood cell">
   <div class="top">
     <span class="dot" style:background={saturationCss(info.saturation, ui.colorScale)}></span>
     <div class="sat">
@@ -130,9 +139,7 @@
         ></button
       >
     {/if}
-    <button class="icon" class:on={details} aria-expanded={details} onclick={() => (details = !details)} aria-label={details ? 'Fewer details' : 'More details'} title={details ? 'Fewer details' : 'More details'}
-      ><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="8" r="1.5" fill="currentColor" /><circle cx="8" cy="8" r="1.5" fill="currentColor" /><circle cx="13" cy="8" r="1.5" fill="currentColor" /></svg></button
-    >
+    <button class="details" class:on={details} aria-expanded={details} onclick={() => (details = !details)} title="O₂ curve, blood chemistry, one haemoglobin molecule and the journey log">Details</button>
     <button class="stop" onclick={onStop} aria-label="Stop following">Stop</button>
     <button class="collapse" onclick={() => (ui.followCollapsed = true)} aria-label="Collapse panel" title="Collapse"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg></button>
   </div>
@@ -142,7 +149,7 @@
     <div class="meta">
       <span class="kind">{kind}</span>
       <span>{fmtSpeed(info.speed)}</span>
-      <span>{fmtTime(info.segmentElapsed)} of {fmtTime(info.segmentDuration)}</span>
+      <span title="Time this cell has spent in this vessel, of the time it will take to pass through. Cells vary: some cross much faster or slower than the average.">{fmtTime(info.segmentElapsed)} of {fmtTime(info.segmentDuration)} here</span>
     </div>
     <div class="progress"><i style:width={pct(info.progress, 0)}></i></div>
   </div>
@@ -163,7 +170,7 @@
     </div>
   {/if}
 
-  {#if wide || details}
+  {#if details}
     <CurveChart {info} />
   {/if}
 
@@ -456,8 +463,12 @@
     display: block;
   }
   .hb text {
-    font: 8px var(--font-data);
-    fill: var(--muted);
+    font: 500 9px var(--font-data);
+    fill: #f4f7fb;
+    /* A dark outline keeps the labels readable on red and blue sites alike. */
+    stroke: #0b1018;
+    stroke-width: 2.5px;
+    paint-order: stroke;
   }
   figcaption {
     font-size: 11px;
@@ -513,9 +524,13 @@
     width: 14px;
     height: 14px;
   }
-  .icon.on {
+  .details.on {
     background: var(--steel);
     color: #0b1220;
+  }
+  .details {
+    font-size: 12px;
+    padding: 4px 8px;
   }
   .icon.zoom {
     border-color: var(--steel);

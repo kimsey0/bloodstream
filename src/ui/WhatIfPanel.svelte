@@ -58,8 +58,9 @@
     <input type="range" min="0" max="0.6" step="0.01" bind:value={draft.coFraction} />
   </label>
   <label>
-    <span>Standard P50 <b>{draft.p50.toFixed(1)} mmHg</b></span>
+    <span>O₂ affinity: P50 <b>{draft.p50.toFixed(1)} mmHg</b></span>
     <input type="range" min="15" max="40" step="0.1" bind:value={draft.p50} />
+    <small>P50 is the O₂ pressure at which haemoglobin is half full, at standard pH and temperature. Lower means it grips O₂ more tightly.</small>
   </label>
   <label class="check">
     <input type="checkbox" bind:checked={draft.compensate} />
@@ -158,6 +159,10 @@
     gap: 2px;
     font-size: 12px;
     color: var(--muted);
+  }
+  label small {
+    font-size: 11px;
+    line-height: 1.3;
   }
   label b {
     color: var(--text);

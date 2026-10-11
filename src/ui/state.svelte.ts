@@ -72,6 +72,8 @@ export const ui = $state({
   colorScale: 'blue-red' as ColorScale,
   /** First-visit hint card. */
   hintOpen: false,
+  /** What a click would do at the mouse pointer (mouse only), shown next to it. */
+  hover: null as { x: number; y: number; text: string } | null,
 });
 
 export interface MicroInfo {

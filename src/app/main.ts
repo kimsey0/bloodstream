@@ -439,6 +439,17 @@ function measureInset(): void {
   insetBox.width = Math.max(1, r.width);
   insetBox.height = Math.max(1, r.height);
   setInsetSpace(phoneLayout.matches ? el.parentElement!.getBoundingClientRect().height + 10 : 0);
+  // Phones stack the close-up right under the follow panel, clear of the followed cell mid-screen.
+  const follow = document.querySelector('[data-follow]');
+  if (phoneLayout.matches && follow) setInsetTop(follow.getBoundingClientRect().bottom - c.top + 8);
+}
+
+let insetTop = 0;
+function setInsetTop(px: number): void {
+  px = Math.round(px);
+  if (px === insetTop) return;
+  insetTop = px;
+  document.documentElement.style.setProperty('--inset-top', `${px}px`);
 }
 
 let insetSpace = 0;
@@ -548,6 +559,44 @@ canvas.addEventListener('pointerup', (e) => {
   else if (cell !== null) followCell(cell);
 });
 
+// Mouse hover: show what a click would do, so cells and organs read as clickable.
+let hoverEvent: PointerEvent | null = null;
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  // Checked every frame in the render loop, since cells move under a still pointer.
+  hoverEvent = e.buttons === 0 ? e : null;
+  if (!hoverEvent) setHover(null);
+});
+canvas.addEventListener('pointerleave', () => {
+  hoverEvent = null;
+  setHover(null);
+});
+
+function setHover(hint: { x: number; y: number; text: string } | null): void {
+  canvas.style.cursor = hint ? 'pointer' : '';
+  if (!hint && !ui.hover) return;
+  ui.hover = hint;
+}
+
+function updateHover(): void {
+  const e = hoverEvent;
+  if (!e || !ui.ready) return;
+  if (ui.tapMenu) return setHover(null);
+  const at = { x: e.clientX, y: e.clientY };
+  if (ui.view === 'micro') {
+    const c = micro?.pickCell(e.clientX, e.clientY, canvas.getBoundingClientRect());
+    setHover(c ? { ...at, text: 'Click to follow this red cell' } : null);
+    return;
+  }
+  const bed = scene.nearestOnScreen(bedPoints, e.clientX, e.clientY, 36);
+  if (bed !== null) {
+    const name = ui.segmentNames[bedCaps[bed]].replace(/: .*$/, '');
+    setHover({ ...at, text: `${name.charAt(0).toUpperCase()}${name.slice(1)}: click to follow a cell or zoom in` });
+  } else {
+    setHover(scene.pick(e.clientX, e.clientY) !== null ? { ...at, text: 'Click to follow this red cell' } : null);
+  }
+}
+
 function requestTick(): void {
   if (awaitingFrame || !ui.ready) return;
   const now = performance.now();
@@ -590,6 +639,7 @@ function adaptQuality(frameMs: number): void {
 let lastFrame = performance.now();
 function loop(): void {
   requestTick();
+  updateHover();
   const now = performance.now();
   adaptQuality(now - lastFrame);
   const wallDt = Math.min(0.1, (now - lastFrame) / 1000);

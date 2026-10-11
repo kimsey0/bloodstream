@@ -139,6 +139,10 @@
   <BedPicker {capillaryIndex} {allBeds} onPick={(c) => onOpenBed(c)} />
 {/if}
 
+{#if ui.hover && !ui.tapMenu}
+  <div class="hover" style:left={`${ui.hover.x + 14}px`} style:top={`${ui.hover.y + 16}px`} aria-hidden="true">{ui.hover.text}</div>
+{/if}
+
 {#if ui.tapMenu && ui.view === 'body'}
   <TapMenu menu={ui.tapMenu} onFollow={onFollowCell} onOpenBed={(c) => onOpenBed(c)} />
 {/if}
@@ -390,7 +394,7 @@
       In the lungs each cell passes one group of air sacs; some get less fresh air for their blood flow than others (V/Q
       mismatch), and the blood leaving them lowers arterial PO₂ a little below that of the air.
       Blood picks up CO₂ as it gives up O₂, which makes it more acidic. That shifts the O₂ curve right (the Bohr
-      effect) and helps unloading; the followed cell's panel (under More details) shows pH, PCO₂, temperature and P50 change along each capillary.
+      effect) and helps unloading; the followed cell's panel (under Details) shows pH, PCO₂, temperature and P50 change along each capillary.
       Each heartbeat ejects blood only for about a third of the beat, so cells in the aorta surge and pause, while flow in
       capillaries and veins stays almost steady. The heart wall is the exception: contracting muscle squeezes its own vessels, so
       about three-quarters of its blood arrives in diastole, between beats. A fast heart rate shortens diastole and with it this
@@ -477,6 +481,18 @@
   }
   .follow-wrap {
     display: contents;
+  }
+  .hover {
+    position: absolute;
+    max-width: 260px;
+    padding: 3px 8px;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    pointer-events: none;
+    white-space: nowrap;
   }
   .hint {
     pointer-events: auto;
