@@ -81,7 +81,9 @@ const PARTS: Record<string, string> = {
 };
 
 function place(name: string): string {
-  const side = /^(left|right) /.exec(name);
+  if (name in PLACES) return PLACES[name];
+  // Bed labels capitalise the side ("Right gluteal & pelvic muscle"); the table is keyed without it.
+  const side = /^(left|right) /i.exec(name);
   const rest = side ? name.slice(side[0].length) : name;
   const plain = PLACES[rest];
   return plain === undefined ? name : side ? side[0] + plain : plain;
@@ -136,6 +138,6 @@ export const ALREADY_PLAIN = new Set([
 
 /** True if the table has an everyday form for this place or part (or it needs none). */
 export function hasEverydayForm(placeOrPart: string): boolean {
-  const rest = placeOrPart.replace(/^(left|right) /, '');
-  return rest in PLACES || placeOrPart in PARTS || ALREADY_PLAIN.has(rest);
+  const rest = placeOrPart.replace(/^(left|right) /i, '');
+  return placeOrPart in PLACES || rest in PLACES || placeOrPart in PARTS || ALREADY_PLAIN.has(placeOrPart) || ALREADY_PLAIN.has(rest);
 }

@@ -20,6 +20,9 @@ describe('everyday names', () => {
   it('keep the side and translate place and part separately', () => {
     expect(everydayName('left kidney: glomerular capillaries')).toBe('left kidney: filtering capillaries');
     expect(everydayName('right gluteal & pelvic muscle: arterioles')).toBe('right buttock & hip muscles: arterioles');
+    // Microscope and close-up labels capitalise the side.
+    expect(everydayName('Right gluteal & pelvic muscle')).toBe('Right buttock & hip muscles');
+    expect(everydayName('Left coronary artery')).toBe('Left heart artery (coronary)');
     expect(everydayName('Coeliac trunk')).toBe('Artery to the stomach, liver & spleen');
     expect(everydayName('Left ventricle')).toBe('Left ventricle');
   });
