@@ -471,10 +471,10 @@ function measureInset(): void {
   insetBox.y = r.top - c.top;
   insetBox.width = Math.max(1, r.width);
   insetBox.height = Math.max(1, r.height);
-  setInsetSpace(phoneLayout.matches ? el.parentElement!.getBoundingClientRect().height + 10 : 0);
-  // Phones stack the close-up right under the follow panel, clear of the followed cell mid-screen.
+  setInsetSpace(el.parentElement!.getBoundingClientRect().height + 10);
+  // The close-up stacks right under the follow panel, clear of the followed cell mid-screen.
   const follow = document.querySelector('[data-follow]');
-  if (phoneLayout.matches && follow) setInsetTop(follow.getBoundingClientRect().bottom - c.top + 8);
+  if (follow) setInsetTop(follow.getBoundingClientRect().bottom - c.top + 8);
 }
 
 let insetTop = 0;

@@ -48,8 +48,9 @@
   .inset {
     pointer-events: auto;
     position: absolute;
-    right: 16px;
-    bottom: calc(var(--dock-space, 180px) + 10px);
+    /* Under the follow panel (main.ts sets --inset-top), leaving the followed cell mid-screen clear. */
+    top: var(--inset-top, 60px);
+    left: 16px;
     width: min(360px, calc(100% - 32px));
     display: grid;
     grid-template-rows: 1fr auto;
@@ -160,15 +161,6 @@
   .close:focus-visible {
     outline: 2px solid var(--steel);
     outline-offset: 2px;
-  }
-  @media (max-width: 820px) {
-    /* Under the follow panel (main.ts sets --inset-top), leaving the followed cell mid-screen clear. */
-    .inset {
-      top: var(--inset-top, 60px);
-      bottom: auto;
-      left: 16px;
-      right: auto;
-    }
   }
   @media (max-width: 480px) {
     .inset {
