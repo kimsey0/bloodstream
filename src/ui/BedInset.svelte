@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { showName } from './names';
   import { ui } from './state.svelte';
 
   interface Props {
@@ -20,14 +21,14 @@
 </script>
 
 {#if ui.inset}
-  <section class="inset" aria-label={`Close-up: ${ui.inset.label}`}>
+  <section class="inset" aria-label={`Close-up: ${showName(ui.inset.label)}`}>
     <button id="bed-inset-view" class="view" onclick={onExpand} aria-label="Open this capillary bed full screen">
       <span class="scale" style:width={`${bar.px}px`}>{bar.um} µm</span>
     </button>
     <div class="bar">
       <span class="dot" class:here={ui.inset.status === 'here'}></span>
       <span class="text">
-        <b>{ui.inset.label}</b>
+        <b>{showName(ui.inset.label)}</b>
         <span class="status" aria-live="polite"
           >{ui.inset.status === 'here'
             ? `crossing · ${fmtSpeed(ui.inset.speedUm)}`

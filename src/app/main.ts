@@ -18,6 +18,7 @@ import { MicroScene } from '../render/microScene';
 import SimWorker from '../sim/worker.ts?worker&inline';
 import { BodyScene } from '../render/scene';
 import Hud from '../ui/Hud.svelte';
+import { placeName } from '../ui/names';
 import { history, ui } from '../ui/state.svelte';
 
 // Restore the saved colour scale before anything is coloured.
@@ -29,6 +30,11 @@ try {
   }
 } catch {
   // Storage blocked: keep the default.
+}
+try {
+  if (localStorage.getItem('bloodstream.names') === 'anatomical') ui.nameStyle = 'anatomical';
+} catch {
+  // Storage blocked: keep everyday names.
 }
 
 const circ = new Circulation();
@@ -617,8 +623,7 @@ function updateHover(): void {
   }
   const bed = scene.nearestOnScreen(bedPoints, e.clientX, e.clientY, 36);
   if (bed !== null) {
-    const name = ui.segmentNames[bedCaps[bed]].replace(/: .*$/, '');
-    setHover({ ...at, text: `${name.charAt(0).toUpperCase()}${name.slice(1)}: click to follow a cell or zoom in` });
+    setHover({ ...at, text: `${placeName(ui.segmentNames[bedCaps[bed]])}: click to follow a cell or zoom in` });
   } else {
     setHover(scene.pick(e.clientX, e.clientY) !== null ? { ...at, text: 'Click to follow this red cell' } : null);
   }

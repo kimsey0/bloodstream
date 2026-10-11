@@ -52,6 +52,10 @@ on desktop and on phones.
 - **See blood's true colour.** The default blue → red code is easy to
   read, but real blood is never blue. Switch to true colour to see
   oxygen-poor blood as it is: dark red.
+- **Everyday or anatomical names.** Vessels and organs have everyday
+  names by default ("artery to the stomach, liver & spleen"), with the
+  anatomical name under it in the followed cell's panel. A switch under
+  Display uses the anatomical names ("coeliac trunk") throughout.
 - **Ask "what if?".** Change the blood or the air: anaemia, polycythaemia,
   altitude up to the Everest summit, carbon monoxide, or haemoglobin with a
   higher or lower O₂ affinity. Heart, brain and muscle raise their blood
@@ -172,7 +176,7 @@ Requires Node 22.
 ```sh
 npm install
 npm run dev         # app at http://localhost:5173, diagnostics at /diagnostics.html
-npm test            # physiology validation suite (113 tests)
+npm test            # physiology validation suite (115 tests)
 npm run typecheck   # TypeScript + svelte-check
 npm run build       # production build into dist/
 ```

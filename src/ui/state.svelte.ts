@@ -70,6 +70,8 @@ export const ui = $state({
   systole: 0.35,
   /** Saturation colour scale: blue–red code, or natural reds as real blood looks. */
   colorScale: 'blue-red' as ColorScale,
+  /** Names of vessels and organs: everyday words, or the anatomical terms. */
+  nameStyle: 'everyday' as 'everyday' | 'anatomical',
   /** First-visit hint card. */
   hintOpen: false,
   /** What a click would do at the mouse pointer (mouse only), shown next to it. */

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { saturationCss } from '../color/saturation';
   import ProfileChart from './ProfileChart.svelte';
+  import { showName } from './names';
   import { ui, type MicroInfo } from './state.svelte';
 
   interface Props {
@@ -32,7 +33,7 @@
       Body
     </button>
     <button class="pill" aria-label="Show the capillary bed panel" onclick={() => (ui.microCollapsed = false)}>
-      {info.label}
+      {showName(info.label)}
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5 4.5-4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
     </button>
   </div>
@@ -43,7 +44,7 @@
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
       Body
     </button>
-    <h2>{info.label}</h2>
+    <h2>{showName(info.label)}</h2>
     <button class="ghost" onclick={onResetView} aria-label="Reset microscope view">Recentre</button>
     <button class="collapse" onclick={() => (ui.microCollapsed = true)} aria-label="Collapse panel" title="Collapse"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg></button>
   </div>
@@ -102,7 +103,7 @@
       {:else if ui.microFollow === 'approaching'}
         Your cell is on its way here through the arterioles.
       {:else}
-        Your cell is elsewhere: {ui.segmentNames[ui.follow.segment]}.
+        Your cell is elsewhere: {showName(ui.segmentNames[ui.follow.segment])}.
       {/if}
     </p>
   {/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { saturationCss } from '../color/saturation';
   import { MICRO_BEDS } from '../micro/beds';
+  import { placeName, showName } from './names';
   import { ui } from './state.svelte';
 
   interface Props {
@@ -36,8 +37,7 @@
     }
     return [...map.entries()];
   });
-  const capitalise = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
-  const bedName = (i: number) => capitalise(ui.segmentNames[i].replace(/: .*$/, ''));
+  const bedName = (i: number) => placeName(ui.segmentNames[i]);
 </script>
 
 <div class="sheet" role="dialog" aria-label="Choose a capillary bed">
@@ -56,7 +56,7 @@
       {@const sat = ui.bedSaturation[b.index]}
       <li>
         <button class="item" onclick={() => onPick(b.index)}>
-          <span class="name">{b.label}</span>
+          <span class="name">{showName(b.label)}</span>
           {#if sat}
             <span class="sats">
               <span class="sw" style:background={saturationCss(sat[0], ui.colorScale)}></span>{pct(sat[0])}

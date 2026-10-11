@@ -3,6 +3,7 @@
   import { p50 } from '../physiology/dissociation';
   import type { FollowInfo } from '../sim/protocol';
   import CurveChart from './CurveChart.svelte';
+  import { capitalise, showName } from './names';
   import { history, ui } from './state.svelte';
 
   interface Props {
@@ -39,9 +40,10 @@
   const fmtSpeed = (mmPerS: number) =>
     mmPerS >= 10 ? `${(mmPerS / 10).toFixed(1)} cm/s` : mmPerS >= 1 ? `${mmPerS.toFixed(1)} mm/s` : `${(mmPerS * 1000).toFixed(0)} µm/s`;
   const fmtTime = (t: number) => (t < 10 ? `${t.toFixed(2)} s` : t < 60 ? `${t.toFixed(1)} s` : `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`);
-  const shortVia = (via: string[]) => (via.length ? via.join(' + ') : '—');
+  const shortVia = (via: string[]) => (via.length ? via.map(showName).join(' + ') : '—');
 
-  let name = $derived((ui.segmentNames[info.segment] ?? '').replace(/^./, (c) => c.toUpperCase()));
+  let anatomical = $derived(capitalise(ui.segmentNames[info.segment] ?? ''));
+  let name = $derived(capitalise(showName(ui.segmentNames[info.segment] ?? '')));
   let kind = $derived(KIND_LABEL[ui.segmentKinds[info.segment]] ?? '');
   let recent = $derived([...info.route].reverse().slice(0, 12));
   let span = $derived(Math.min(120, Math.max(2, 20 * ui.speed)));
@@ -146,6 +148,7 @@
 
   <div class="where">
     <div class="name">{name}</div>
+    {#if name !== anatomical}<div class="anatomical">{anatomical}</div>{/if}
     <div class="meta">
       <span class="kind">{kind}</span>
       <span>{fmtSpeed(info.speed)}</span>
@@ -231,7 +234,7 @@
       {#each recent as r (r.enter)}
         <li>
           <span class="sw" style:background={saturationCss(r.saturationOut ?? info.saturation, ui.colorScale)}></span>
-          <span class="n">{ui.segmentNames[r.segment]}</span>
+          <span class="n">{capitalise(showName(ui.segmentNames[r.segment]))}</span>
           <span class="d">{r.exit !== undefined ? fmtTime(r.exit - r.enter) : '…'}</span>
           <span class="s">{pct(r.saturationIn, 0)}{r.saturationOut !== undefined && Math.abs(r.saturationOut - r.saturationIn) > 0.005 ? ` → ${pct(r.saturationOut, 0)}` : ''}</span>
         </li>
@@ -375,6 +378,12 @@
     font-weight: 600;
     font-stretch: 90%;
     text-wrap: balance;
+  }
+  .anatomical {
+    margin-top: -2px;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-style: italic;
   }
   .meta {
     display: flex;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { placeName } from './names';
   import { ui } from './state.svelte';
 
   interface Props {
@@ -8,10 +9,7 @@
   }
   let { menu, onFollow, onOpenBed }: Props = $props();
 
-  let label = $derived.by(() => {
-    const t = ui.segmentNames[menu.bed]?.replace(/: .*$/, '') ?? '';
-    return t.charAt(0).toUpperCase() + t.slice(1);
-  });
+  let label = $derived(placeName(ui.segmentNames[menu.bed] ?? ''));
   // Keep the menu on screen.
   let left = $derived(Math.min(Math.max(16, menu.x - 110), globalThis.innerWidth - 236));
   let top = $derived(Math.min(menu.y + 14, globalThis.innerHeight - 240));

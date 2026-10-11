@@ -6,6 +6,15 @@
     onColorScale: (scale: ColorScale) => void;
   }
   let { onColorScale }: Props = $props();
+
+  function setNames(style: 'everyday' | 'anatomical'): void {
+    ui.nameStyle = style;
+    try {
+      localStorage.setItem('bloodstream.names', style);
+    } catch {
+      // Storage blocked: the choice lasts for this visit only.
+    }
+  }
 </script>
 
 <section class="sheet" aria-label="Display">
@@ -28,6 +37,24 @@
         Blood is bright red with O₂ and dark red without.
       {:else}
         Blue is only a code: real blood is never blue. Blood low in O₂ is dark red.
+      {/if}
+    </p>
+  </div>
+  <div class="setting">
+    <span class="label">Names</span>
+    <div class="choice" role="radiogroup" aria-label="Names of vessels and organs">
+      <button role="radio" aria-checked={ui.nameStyle === 'everyday'} class:active={ui.nameStyle === 'everyday'} onclick={() => setNames('everyday')}
+        >Everyday</button
+      >
+      <button role="radio" aria-checked={ui.nameStyle === 'anatomical'} class:active={ui.nameStyle === 'anatomical'} onclick={() => setNames('anatomical')}
+        >Anatomical</button
+      >
+    </div>
+    <p>
+      {#if ui.nameStyle === 'everyday'}
+        "Artery to the stomach, liver &amp; spleen". The followed cell's panel also gives the anatomical name.
+      {:else}
+        "Coeliac trunk": the names in anatomy textbooks.
       {/if}
     </p>
   </div>
