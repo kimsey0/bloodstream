@@ -99,7 +99,7 @@ export class MicroScene {
   private follow: MicroFollow | null = null;
 
   constructor(
-    canvas: HTMLCanvasElement,
+    private readonly canvas: HTMLCanvasElement,
     readonly bed: MicroBed,
     readonly net: MicroNetwork,
     readonly sim: MicroSim,
@@ -217,12 +217,30 @@ export class MicroScene {
     return g;
   }
 
+  /**
+   * Screen space covered by HUD on each side when drawn full screen, CSS px. The bed is centred and
+   * fitted in the rest.
+   */
+  private frame = { top: 0, right: 0, bottom: 0, left: 0 };
+
+  /** Relative size the bed is drawn at when fitted into a width × height area (its width:height ratio decides). */
+  fitScale(width: number, height: number): number {
+    return Math.max(0, Math.min(width / this.net.halfSize.x, height / this.net.halfSize.y));
+  }
+
+  setFrame(frame: { top: number; right: number; bottom: number; left: number }): void {
+    this.frame = frame;
+  }
+
   resetView(): void {
     const c = this.net.center;
-    // Fit the network's bounding box (seen roughly face-on) in both screen dimensions.
+    // Fit the network's bounding box (seen roughly face-on) in both dimensions of the free area.
     const t = Math.tan((this.camera.fov * Math.PI) / 360);
     const h = this.net.halfSize;
-    const d = Math.max(h.y / t, h.x / (t * this.camera.aspect)) * 1.1 + h.z;
+    const el = this.canvas;
+    const fh = Math.max(0.3, 1 - (this.frame.top + this.frame.bottom) / Math.max(1, el.clientHeight));
+    const fw = Math.max(0.3, 1 - (this.frame.left + this.frame.right) / Math.max(1, el.clientWidth));
+    const d = Math.max(h.y / (t * fh), h.x / (t * this.camera.aspect * fw)) * 1.1 + h.z;
     this.controls.target.copy(c);
     this.camera.position.copy(c).add(new Vector3(0.2, 0.3, 1).normalize().multiplyScalar(d));
     this.camera.lookAt(c);
@@ -395,6 +413,14 @@ export class MicroScene {
     this.marker.setPixelRatio(ratio);
     this.controls.update();
     if (!view) {
+      // Shift the projection centre (the orbit target) to the middle of the free area.
+      const f = this.frame;
+      const x = Math.round((f.right - f.left) / 2);
+      const y = Math.round((f.bottom - f.top) / 2);
+      const v = this.camera.view;
+      if (x || y) {
+        if (!v || v.offsetX !== x || v.offsetY !== y || v.fullWidth !== width || v.fullHeight !== height) this.camera.setViewOffset(width, height, x, y, width, height);
+      } else if (v?.enabled) this.camera.clearViewOffset();
       renderer.render(this.scene, this.camera);
       return;
     }

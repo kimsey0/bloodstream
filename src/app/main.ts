@@ -160,6 +160,28 @@ function bedOf(segment: number): number {
 // ---- Microscope view ------------------------------------------------------
 
 let micro: MicroScene | null = null;
+let microNeedsFit = false;
+const narrowLayout = window.matchMedia('(max-width: 520px)');
+
+/** Screen space the HUD covers around the microscope, so the bed is centred in what is left. */
+function measureMicroFrame(m: MicroScene): void {
+  const c = canvas.getBoundingClientRect();
+  const frame = { top: 0, right: 0, bottom: 0, left: 0 };
+  const dock = document.getElementById('dock');
+  if (dock) frame.bottom = Math.max(0, c.bottom - dock.getBoundingClientRect().top + 8);
+  for (const el of document.querySelectorAll('[data-micro], [data-follow]')) {
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) continue;
+    // Each top-anchored panel pushes the bed down or sideways, whichever lets it be drawn larger.
+    const below = m.fitScale(c.width - frame.left - frame.right, c.height - frame.bottom - (r.bottom - c.top + 8));
+    const right = r.left + r.width / 2 > c.left + c.width / 2;
+    const beside = m.fitScale(right ? r.left - c.left - frame.left - 8 : c.right - r.right - frame.right - 8, c.height - frame.bottom - frame.top);
+    if (below >= beside) frame.top = Math.max(frame.top, r.bottom - c.top + 8);
+    else if (right) frame.right = Math.max(frame.right, c.right - r.left + 8);
+    else frame.left = Math.max(frame.left, r.right - c.left + 8);
+  }
+  m.setFrame(frame);
+}
 /** Route the followed cell takes through the open patch on its current visit. */
 let microRoute = -1;
 /** Route of a microscope cell the user just tapped, applied once the worker reports the new followed cell. */
@@ -251,6 +273,11 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
     micro.camera.position.copy(view.pos);
     micro.controls.target.copy(view.target);
     micro.controls.update();
+  } else {
+    // Fit again once the panel is laid out and the free area is known.
+    microNeedsFit = true;
+    // Phones: start with the panel folded so the bed itself shows; one tap opens it.
+    if (narrowLayout.matches) ui.microCollapsed = true;
   }
   ui.pickerOpen = false;
   ui.tapMenu = null;
@@ -645,6 +672,11 @@ function loop(): void {
   const wallDt = Math.min(0.1, (now - lastFrame) / 1000);
   lastFrame = now;
   if (micro && ui.micro) {
+    measureMicroFrame(micro);
+    if (microNeedsFit) {
+      microNeedsFit = false;
+      micro.resetView();
+    }
     const dt = ui.paused || !ui.ready ? 0 : Math.min(0.1, wallDt * ui.speed);
     mapFollowToMicro(micro, ui.follow);
     micro.update(dt, wallDt, ui.speed);

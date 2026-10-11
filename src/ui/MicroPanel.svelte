@@ -26,7 +26,7 @@
 </script>
 
 {#if ui.microCollapsed}
-  <div class="pill-row">
+  <div class="pill-row" data-micro>
     <button class="pill back-pill" onclick={onBack} aria-label="Back to the body">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
       Body
@@ -37,7 +37,7 @@
     </button>
   </div>
 {:else}
-<section class="panel" aria-label="Capillary bed">
+<section class="panel" data-micro aria-label="Capillary bed">
   <div class="head">
     <button class="back" onclick={onBack}>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" fill="none" /></svg>
