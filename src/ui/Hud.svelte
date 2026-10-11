@@ -9,6 +9,7 @@
   import MicroPanel from './MicroPanel.svelte';
   import TapMenu from './TapMenu.svelte';
   import WhatIfPanel from './WhatIfPanel.svelte';
+  import Sheet from './Sheet.svelte';
   import { isNormalScenario, type Scenario } from '../physiology/scenario';
   import { SPEEDS, ui } from './state.svelte';
 
@@ -60,6 +61,8 @@
   };
   const speedLabel = (s: number) => (s < 1 ? `${s}×` : `${s}×`);
   const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const VENOUS_TIP = 'Venous: blood returning to the heart from the whole body (mixed venous), before the lungs refill it';
+  const ARTERIAL_TIP = 'Arterial: blood leaving the lungs and heart for the organs';
   /** Short description of the "what if" scenario, or '' when normal. */
   let scenarioText = $derived.by(() => {
     const s = ui.scenario;
@@ -72,9 +75,9 @@
     if (!s.compensate) parts.push('no compensation');
     return parts.join(' · ');
   });
-  type Sheet = 'activityOpen' | 'whatIfOpen' | 'pickerOpen' | 'budgetOpen' | 'displayOpen' | 'infoOpen';
+  type SheetFlag = 'activityOpen' | 'whatIfOpen' | 'pickerOpen' | 'budgetOpen' | 'displayOpen' | 'infoOpen';
   /** Open one dock sheet (or close it if open), closing the others. */
-  function toggleSheet(sheet: Sheet): void {
+  function toggleSheet(sheet: SheetFlag): void {
     const open = !ui[sheet];
     ui.activityOpen = ui.whatIfOpen = ui.pickerOpen = ui.budgetOpen = ui.displayOpen = ui.infoOpen = false;
     ui[sheet] = open;
@@ -149,6 +152,7 @@
 
 {#if ui.hintOpen && ui.ready && ui.view === 'body' && !ui.follow && !ui.pickerOpen}
   <aside class="hint" aria-label="How to use">
+    <div class="hint-body">
     <p>
       <b>Each dot is a red blood cell</b>, moving at real speed and coloured by how much oxygen it carries: red when full,
       blue when it has given some up. (Blue is only a code: real blood is never blue.)
@@ -158,6 +162,7 @@
       <li>{touch ? 'Drag to rotate, pinch to zoom, two fingers to pan.' : 'Drag to rotate, scroll to zoom, right-drag to pan.'}</li>
       <li>The buttons below change the speed, exercise level and conditions such as altitude.</li>
     </ul>
+    </div>
     <div class="hint-actions">
       <button class="primary" onclick={() => (onDismissHint(), onFollowRandom())}>Follow a red cell</button>
       <button onclick={onDismissHint}>Explore on my own</button>
@@ -343,19 +348,19 @@
   <div class="legend">
     <div class="bar" style:background={`linear-gradient(to right, ${gradient})`}>
       {#if ui.ready}
-        <i style:left={pct(ui.mixedVenousSaturation)} title="Mixed venous"></i>
-        <i style:left={pct(ui.arterialSaturation)} title="Arterial"></i>
+        <i style:left={pct(ui.mixedVenousSaturation)} title={VENOUS_TIP}></i>
+        <i style:left={pct(ui.arterialSaturation)} title={ARTERIAL_TIP}></i>
       {/if}
     </div>
     <div class="ticks">
       <span class="mid" class:crowded={ui.ready && ui.mixedVenousSaturation <= 0.45}>O₂ saturation</span>
       {#if ui.ready}
         <!-- Low venous saturation (exercise): put the label to the right of its mark. -->
-        <span class="mark" class:right={ui.mixedVenousSaturation < 0.45} style:left={pct(ui.mixedVenousSaturation)}
+        <span class="mark" class:right={ui.mixedVenousSaturation < 0.45} style:left={pct(ui.mixedVenousSaturation)} title={VENOUS_TIP}
           >venous {pct(ui.mixedVenousSaturation)}</span
         >
         <!-- Near 100 % the label is pinned to the right edge; lower (altitude, CO) it sits right of its mark. -->
-        <span class="mark art" class:pinned={ui.arterialSaturation > 0.8} style:left={pct(ui.arterialSaturation)}>arterial {pct(ui.arterialSaturation)}</span>
+        <span class="mark art" class:pinned={ui.arterialSaturation > 0.8} style:left={pct(ui.arterialSaturation)} title={ARTERIAL_TIP}>arterial {pct(ui.arterialSaturation)}</span>
         <!-- Narrow screens: no room to label each mark, so one line on the right. -->
         <span class="summary">venous {pct(ui.mixedVenousSaturation)} · arterial {pct(ui.arterialSaturation)}</span>
       {/if}
@@ -364,65 +369,78 @@
 </div>
 
 {#if ui.infoOpen}
-  <aside class="info">
-    <h2>What you are seeing</h2>
-    <p>
-      Each dot is one of {ui.cellCount.toLocaleString()} tracer red blood cells, sampled from the body's ~25 trillion and coloured by
-      how much oxygen its haemoglobin carries. They move at simulated physiological speed: at 1× a cell takes
-      {Math.round(ui.meanCirculationTime)} s on average to get round the body and back to the heart.
-    </p>
-    <p>
-      Vessels are coloured by the average saturation of the blood inside. The default colours are a code, as in textbook
-      diagrams: real blood is never blue. Oxygen-rich blood is bright scarlet and oxygen-poor blood dark red (veins only
-      look blue through skin). Switch to <i>True colour</i> under Display to see it that way. Capillary beds (the short, thin loops in each organ)
-      are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long. Cells are drawn about 600× too big.
-    </p>
-    <p>
-      <i>Zoom in</i> opens a capillary bed at true scale: real cell sizes, capillary widths and speeds, with each white dot standing
-      for a billion O₂ molecules crossing the capillary wall. Blood has already lost some O₂ on the way, through the walls of the
-      arterioles that feed the bed: in resting muscle about two-thirds of what it gives up, as measured in animals. The microscope panel plots a cell's PO₂ along the capillary: in the lungs, whether
-      blood matches the air before it leaves.
-    </p>
-    <p>
-      {tap} near an organ to zoom into its capillaries, or {tap.toLowerCase()} any cell (or press <i>Follow</i>) to follow one. The panel then shows its oxygen saturation, where it is, how fast it moves,
-      how long its current trip round the body has taken, and one of its haemoglobin molecules. At 1× the four binding sites flip
-      faster than the eye can follow (the last O₂ stays bound for ~7 ms on average); slow down to 0.01× to watch them.
-    </p>
-    <p>
-      <i>Activity</i> sets the exercise level, from rest to maximal exercise. Heart rate, cardiac output, O₂ use and where
-      the blood goes all change; working leg muscle can take over 80 % of the flow and pull venous blood below 20 % saturation.
-      In the lungs each cell passes one group of air sacs; some get less fresh air for their blood flow than others (V/Q
-      mismatch), and the blood leaving them lowers arterial PO₂ a little below that of the air.
-      Blood picks up CO₂ as it gives up O₂, which makes it more acidic. That shifts the O₂ curve right (the Bohr
-      effect) and helps unloading; the followed cell's panel (under Details) shows pH, PCO₂, temperature and P50 change along each capillary.
-      Each heartbeat ejects blood only for about a third of the beat, so cells in the aorta surge and pause, while flow in
-      capillaries and veins stays almost steady. The heart wall is the exception: contracting muscle squeezes its own vessels, so
-      about three-quarters of its blood arrives in diastole, between beats. A fast heart rate shortens diastole and with it this
-      supply time.
-    </p>
-    <p>
-      <i>O₂ budget</i> shows where the oxygen goes: the heart sends out about 1 L of O₂ a minute at rest and the body uses a quarter
-      of it. Each organ takes a different share of what reaches it, from about a tenth in the kidneys to two-thirds in the heart
-      wall.
-    </p>
-    <p>Drag to rotate, pinch or scroll to zoom, two-finger drag or right-drag to pan. <i>What if</i> changes the blood or the air: anaemia, altitude, carbon monoxide.</p>
-    <h2>Where the numbers come from</h2>
-    <p class="sources">
-      Blood volume, flows and organ O₂ use: Guyton &amp; Hall; Ganong. Lung diffusion and transit: West, Respiratory Physiology.
-      O₂ dissociation curve: Severinghaus 1979. Haemoglobin binding steps: Imai's Adair constants; on/off rates within Gibson's
-      measured T- and R-state ranges. Red cell shape: Evans &amp; Fung 1972. Capillary haematocrit: Pries et al. 1990. Arterial and
-      venous saturations, circuit times and per-organ O₂ extraction are not set by hand: they emerge from the model and are checked by
-      automated tests.
-    </p>
-    <button class="close" onclick={() => (ui.infoOpen = false)}>Close</button>
-  </aside>
+  <Sheet title="About Bloodstream" onClose={() => (ui.infoOpen = false)} width={460}>
+    <div class="info">
+      <p>
+        A model of how blood carries oxygen round the body. Each dot is one of {ui.cellCount.toLocaleString()} tracer red blood
+        cells, sampled from the body's ~25 trillion and coloured by how much oxygen its haemoglobin carries. They move at
+        simulated physiological speed: at 1× a cell takes {Math.round(ui.meanCirculationTime)} s on average to get round the
+        body and back to the heart.
+      </p>
+      <h3>Colours and scale</h3>
+      <p>
+        Vessels are coloured by the average saturation of the blood inside. The default colours are a code, as in textbook
+        diagrams: real blood is never blue. Oxygen-rich blood is bright scarlet and oxygen-poor blood dark red (veins only look
+        blue through skin); <i>Display</i> switches to true colour. Capillary beds (the short, thin loops in each organ) and
+        cells are drawn hugely enlarged: real capillaries are 5–8 µm wide and under 1 mm long, and cells are drawn about 600×
+        too big.
+      </p>
+      <h3>Things to try</h3>
+      <ul>
+        <li>
+          <b>Follow</b> a cell, or {tap.toLowerCase()} one. Its panel shows its oxygen, where it is and how long its trip round
+          the body takes; <i>Details</i> adds the O₂ curve, blood chemistry and one of its haemoglobin molecules.
+        </li>
+        <li>
+          <b>Zoom in</b>, or {tap.toLowerCase()} near an organ, to see its capillaries at true scale: real cell sizes, widths
+          and speeds, with each white dot a billion O₂ molecules crossing the wall.
+        </li>
+        <li><b>Activity</b> goes from rest to maximal exercise: working leg muscle can take over 80 % of the blood flow.</li>
+        <li><b>What if</b> changes the blood or the air: anaemia, altitude, carbon monoxide.</li>
+        <li><b>O₂ budget</b> shows where the oxygen goes: at rest the body uses about a quarter of what the heart sends out.</li>
+        <li>Slow to <b>0.01×</b> to watch blood load in the lungs, or single O₂ molecules bind to haemoglobin.</li>
+      </ul>
+      <h3>For physiology students</h3>
+      <p>
+        Blood picks up CO₂ as it gives up O₂, which makes it more acidic. That shifts the O₂ curve right (the Bohr effect) and
+        helps unloading; the followed cell's <i>Details</i> show pH, PCO₂, temperature and P50 change along each capillary.
+        Blood loses some O₂ before the capillaries, through the walls of the arterioles that feed them: in resting muscle
+        about two-thirds of what it gives up, as measured in animals. In the lungs each cell passes one group of air sacs; some
+        get less fresh air for their blood flow than others (V/Q mismatch), which lowers arterial PO₂ a little below that of
+        the air.
+      </p>
+      <p>
+        Each heartbeat ejects blood for only about a third of the beat, so cells in the aorta surge and pause while flow in
+        capillaries and veins stays almost steady. The heart wall is the exception: contracting muscle squeezes its own
+        vessels, so about three-quarters of its blood arrives in diastole, between beats. At 1× haemoglobin's four binding sites
+        flip faster than the eye can follow (the last O₂ stays bound for ~7 ms on average).
+      </p>
+      <h3>Controls</h3>
+      <p>
+        {touch
+          ? 'Drag to rotate, pinch to zoom, two-finger drag to pan.'
+          : 'Drag to rotate, scroll to zoom, right-drag to pan. Space pauses; Escape closes panels and leaves the microscope.'}
+      </p>
+      <h3>Where the numbers come from</h3>
+      <p class="sources">
+        Blood volume, flows and organ O₂ use: Guyton &amp; Hall; Ganong. Lung diffusion and transit: West, Respiratory
+        Physiology. O₂ dissociation curve: Severinghaus 1979. Haemoglobin binding steps: Imai's Adair constants; on/off rates
+        within Gibson's measured T- and R-state ranges. Red cell shape: Evans &amp; Fung 1972. Capillary haematocrit: Pries et
+        al. 1990. Arterial and venous saturations, circuit times and per-organ O₂ extraction are not set by hand: they emerge
+        from the model and are checked by automated tests.
+      </p>
+      <p class="sources">
+        <a href="https://github.com/kimsey0/bloodstream/blob/main/docs/SOURCES.md" target="_blank" rel="noopener">Every number and its source</a>
+        · <a href="https://github.com/kimsey0/bloodstream" target="_blank" rel="noopener">Source code</a>
+      </p>
+    </div>
+  </Sheet>
 {/if}
 
 <style>
   .brand,
   .clock,
   .dock,
-  .info,
   .loading {
     pointer-events: auto;
   }
@@ -502,14 +520,20 @@
     bottom: calc(var(--dock-space, 150px) + 10px);
     width: min(420px, calc(100% - 32px));
     max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 14px;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     font-size: 13px;
+  }
+  .hint-body {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 14px 4px;
   }
   .hint p {
     margin: 0 0 6px;
@@ -522,12 +546,8 @@
     gap: 3px;
   }
   .hint-actions {
-    /* Keep the buttons in view when the card scrolls on short screens. */
-    position: sticky;
-    bottom: -12px;
-    margin: 0 -14px -12px;
+    flex: none;
     padding: 6px 14px 12px;
-    background: rgb(14 19 28 / 0.97);
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -780,40 +800,37 @@
     }
   }
   .info {
-    position: absolute;
-    right: 16px;
-    bottom: calc(var(--dock-space, 150px) + 10px);
-    width: min(360px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 120px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    padding: 14px 16px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-  .info h2 {
-    margin: 0 0 8px;
+    display: grid;
+    gap: 8px;
     font-size: 13px;
-    font-stretch: 85%;
+    color: #c4ccd8;
+  }
+  .info p,
+  .info ul {
+    margin: 0;
+  }
+  .info ul {
+    padding-left: 18px;
+    display: grid;
+    gap: 4px;
+  }
+  .info b {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .info h3 {
+    margin: 6px 0 0;
+    font-size: 11px;
+    font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    color: var(--steel);
   }
-  .info p {
-    margin: 0 0 10px;
-    color: #c4ccd8;
-    font-size: 13px;
-  }
-  .close {
-    padding: 5px 12px;
-  }
-  .info h2 + .sources,
   .sources {
     font-size: 12px;
     color: var(--muted);
   }
-  .info h2:not(:first-child) {
-    margin-top: 14px;
+  .sources a {
+    color: var(--steel);
   }
 </style>

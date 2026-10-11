@@ -168,6 +168,8 @@ function bedOf(segment: number): number {
 let micro: MicroScene | null = null;
 let microNeedsFit = false;
 const narrowLayout = window.matchMedia('(max-width: 520px)');
+/** Whether a microscope bed has been opened this visit. */
+let microOpened = false;
 
 /** Screen space the HUD covers around the microscope, so the bed is centred in what is left. */
 function measureMicroFrame(m: MicroScene): void {
@@ -282,8 +284,10 @@ function openBed(capillary: number, opts: { keepFollow?: boolean } = {}): void {
   } else {
     // Fit again once the panel is laid out and the free area is known.
     microNeedsFit = true;
-    // Phones: start with the panel folded so the bed itself shows; one tap opens it.
-    if (narrowLayout.matches) ui.microCollapsed = true;
+    // Phones: the first bed opens with its panel, which says what is shown; later ones start folded
+    // so the bed itself shows, and one tap opens the panel.
+    if (narrowLayout.matches && microOpened) ui.microCollapsed = true;
+    microOpened = true;
   }
   ui.pickerOpen = false;
   ui.tapMenu = null;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Sheet from './Sheet.svelte';
   import { saturationCss } from '../color/saturation';
   import { MICRO_BEDS } from '../micro/beds';
   import { placeName, showName } from './names';
@@ -40,17 +41,14 @@
   const bedName = (i: number) => placeName(ui.segmentNames[i]);
 </script>
 
-<div class="sheet" role="dialog" aria-label="Choose a capillary bed">
-  <div class="head">
-    <h2>Zoom into a capillary bed</h2>
-    <button onclick={() => (ui.pickerOpen = false)}>Close</button>
-  </div>
+<Sheet title="Zoom into a capillary bed" onClose={() => (ui.pickerOpen = false)}>
   {#if ui.follow && ui.followBed >= 0}
     <button class="item mine" onclick={() => onPick(ui.followBed)}>
       <span class="name">Where your cell is now</span>
       <span class="sub">{bedName(ui.followBed)}</span>
     </button>
   {/if}
+  <p class="caption">See red cells and oxygen at true scale. The figures are the blood's O₂ saturation going in → coming out.</p>
   <ul>
     {#each items as b (b.capillary)}
       {@const sat = ui.bedSaturation[b.index]}
@@ -87,39 +85,9 @@
       </ul>
     {/each}
   {/if}
-</div>
+</Sheet>
 
 <style>
-  .sheet {
-    pointer-events: auto;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(var(--dock-space, 150px) + 10px);
-    width: min(420px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    padding: 12px 14px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    display: grid;
-    gap: 8px;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  h2 {
-    margin: 0;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-stretch: 85%;
-  }
   ul {
     list-style: none;
     margin: 0;
@@ -171,6 +139,11 @@
   .mine {
     border-color: var(--steel);
     flex-wrap: wrap;
+  }
+  .caption {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
   }
   .name {
     font-weight: 600;

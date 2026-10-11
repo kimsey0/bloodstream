@@ -307,9 +307,6 @@
     }
   }
   @media (max-width: 520px) {
-    .blurb {
-      display: none;
-    }
     .panel {
       left: 16px;
       right: auto;

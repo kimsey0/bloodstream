@@ -125,9 +125,9 @@
 <section class="panel" data-follow aria-label="Followed red blood cell">
   <div class="top">
     <span class="dot" style:background={saturationCss(info.saturation, ui.colorScale)}></span>
-    <div class="sat">
+    <div class="sat" title="O₂ saturation (SO₂): how full of oxygen this cell's haemoglobin is">
       <b>{pct(info.saturation)}</b>
-      <span>SO₂ · {info.po2.toFixed(0)} mmHg</span>
+      <span>O₂ saturation</span>
     </div>
     {#if onZoom}
       <button class="icon zoom" onclick={onZoom} aria-label="Zoom into this capillary bed" title="Zoom into this capillary bed"
@@ -152,6 +152,7 @@
     <div class="meta">
       <span class="kind">{kind}</span>
       <span>{fmtSpeed(info.speed)}</span>
+      <span title="Partial pressure of O₂ in the cell's blood: the pressure that drives O₂ across capillary walls">PO₂ {info.po2.toFixed(0)} mmHg</span>
       <span title="Time this cell has spent in this vessel, of the time it will take to pass through. Cells vary: some cross much faster or slower than the average.">{fmtTime(info.segmentElapsed)} of {fmtTime(info.segmentDuration)} here</span>
     </div>
     <div class="progress"><i style:width={pct(info.progress, 0)}></i></div>
@@ -337,12 +338,12 @@
   }
   .sat {
     flex: 1;
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
+    display: grid;
+    gap: 1px;
     min-width: 0;
   }
   .sat span {
+    line-height: 1.1;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;

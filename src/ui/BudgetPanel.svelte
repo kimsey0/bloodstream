@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Sheet from './Sheet.svelte';
   /**
    * The body's O2 budget: what the heart sends out (cardiac output × arterial O2 content), what
    * each organ takes, and the fraction of arriving O2 it extracts.
@@ -27,11 +28,7 @@
   const mL = (x: number) => (x >= 100 ? Math.round(x).toLocaleString() : x.toFixed(x >= 10 ? 0 : 1));
 </script>
 
-<div class="sheet" role="dialog" aria-label="Oxygen budget">
-  <div class="head">
-    <h2>O₂ budget</h2>
-    <button onclick={() => (ui.budgetOpen = false)}>Close</button>
-  </div>
+<Sheet title="O₂ budget" onClose={() => (ui.budgetOpen = false)} width={440}>
 
   <dl class="whole">
     <div><dt>Delivered</dt><dd>{mL(budget.delivered)} <small>mL/min</small></dd></div>
@@ -72,53 +69,9 @@
     leaving. The liver's blood is mostly portal blood the gut has already used, so organ deliveries add up to more than the
     total.
   </p>
-</div>
+</Sheet>
 
 <style>
-  .sheet {
-    pointer-events: auto;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(var(--dock-space, 150px) + 10px);
-    width: min(440px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    padding: 12px 14px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    display: grid;
-    gap: 10px;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  h2 {
-    margin: 0;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-stretch: 85%;
-  }
-  button {
-    font: inherit;
-    font-size: 12px;
-    color: var(--text);
-    background: transparent;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 4px 10px;
-    cursor: pointer;
-  }
-  button:focus-visible {
-    outline: 2px solid var(--steel);
-    outline-offset: 2px;
-  }
   dl {
     margin: 0;
     display: grid;
@@ -206,5 +159,17 @@
     width: 10px;
     height: 10px;
     border-radius: 3px;
+  }
+  @media (max-width: 400px) {
+    /* Small phones: the bars and one-line headers would push the table past the sheet's edge. */
+    .bar {
+      display: none;
+    }
+    thead th {
+      white-space: normal;
+    }
+    thead small {
+      display: block;
+    }
   }
 </style>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Sheet from './Sheet.svelte';
   import type { ColorScale } from '../color/saturation';
   import { ui } from './state.svelte';
 
@@ -17,11 +18,7 @@
   }
 </script>
 
-<section class="sheet" aria-label="Display">
-  <div class="head">
-    <h2>Display</h2>
-    <button onclick={() => (ui.displayOpen = false)}>Close</button>
-  </div>
+<Sheet title="Display" onClose={() => (ui.displayOpen = false)}>
   <div class="setting">
     <span class="label">Colours</span>
     <div class="choice" role="radiogroup" aria-label="Colour scale">
@@ -66,39 +63,9 @@
     </div>
     <p>While you follow a cell at 1× or slower, a live close-up opens as it passes through each organ's capillaries.</p>
   </div>
-</section>
+</Sheet>
 
 <style>
-  .sheet {
-    pointer-events: auto;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(var(--dock-space, 150px) + 10px);
-    width: min(420px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    padding: 12px 14px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    display: grid;
-    gap: 12px;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  h2 {
-    margin: 0;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-stretch: 85%;
-  }
   button {
     font: inherit;
     font-size: 12px;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Sheet from './Sheet.svelte';
   import { activityState } from '../physiology/activity';
   import { BLOOD } from '../physiology/dissociation';
   import {
@@ -34,11 +35,7 @@
   const fmt = (n: number) => n.toLocaleString('en-GB');
 </script>
 
-<div class="sheet" role="dialog" aria-label="What if">
-  <div class="head">
-    <h2>What if?</h2>
-    <button onclick={() => (ui.whatIfOpen = false)}>Close</button>
-  </div>
+<Sheet title="What if?" onClose={() => (ui.whatIfOpen = false)} width={440}>
   <div class="presets" role="group" aria-label="Scenarios">
     {#each SCENARIO_PRESETS as p (p.id)}
       <button class:active={preset?.id === p.id} onclick={() => pick(p.scenario)}>{p.label}</button>
@@ -85,45 +82,16 @@
       A custom mix. O₂ use stays that of the activity level.
     {/if}
   </p>
-  <div class="actions">
+  {#snippet footer()}
     {#if ui.limit && ui.limit.level > 0 && !busy}
       <button class="ghost" onclick={() => onApply({ ...draft }, 0)}>Apply at rest instead</button>
     {/if}
     <button class="ghost" disabled={isNormalScenario(draft) && draft.compensate} onclick={() => pick(NORMAL_SCENARIO)}>Reset</button>
     <button class="apply" disabled={!changed || busy} onclick={() => onApply({ ...draft })}>{busy ? 'Applying…' : changed ? 'Apply' : 'Applied'}</button>
-  </div>
-</div>
+  {/snippet}
+</Sheet>
 
 <style>
-  .sheet {
-    pointer-events: auto;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(var(--dock-space, 150px) + 10px);
-    width: min(440px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    padding: 12px 14px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    display: grid;
-    gap: 10px;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  h2 {
-    margin: 0;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
   button {
     font: inherit;
     font-size: 12px;
@@ -212,17 +180,5 @@
   }
   .note b {
     color: var(--text);
-  }
-  .actions {
-    /* Stay in reach when the sheet scrolls on short screens. */
-    position: sticky;
-    bottom: -12px;
-    margin: 0 -14px -12px;
-    padding: 8px 14px 12px;
-    background: rgb(14 19 28 / 0.97);
-    display: flex;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 8px;
   }
 </style>

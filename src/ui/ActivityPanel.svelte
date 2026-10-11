@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Sheet from './Sheet.svelte';
   import { ACTIVITY_LABELS, activityState } from '../physiology/activity';
   import { isNormalScenario } from '../physiology/scenario';
   import { ui } from './state.svelte';
@@ -22,11 +23,7 @@
   };
 </script>
 
-<div class="sheet" role="dialog" aria-label="Activity level">
-  <div class="head">
-    <h2>Activity</h2>
-    <button onclick={() => (ui.activityOpen = false)}>Close</button>
-  </div>
+<Sheet title="Activity" onClose={() => (ui.activityOpen = false)}>
   <div class="now">
     <b>{preview.label}</b>
     <span>{preview.met.toFixed(1)} MET</span>
@@ -62,39 +59,9 @@
       The change is instant here; in a real body heart rate and flow take a minute or two to settle.
     {/if}
   </p>
-</div>
+</Sheet>
 
 <style>
-  .sheet {
-    pointer-events: auto;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(var(--dock-space, 150px) + 10px);
-    width: min(420px, calc(100% - 32px));
-    max-height: calc(100% - var(--dock-space, 150px) - 100px - env(safe-area-inset-top, 0px));
-    overflow-y: auto;
-    padding: 12px 14px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    display: grid;
-    gap: 10px;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  h2 {
-    margin: 0;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-stretch: 85%;
-  }
   button {
     font: inherit;
     font-size: 12px;
